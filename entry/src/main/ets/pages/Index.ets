@@ -29,6 +29,20 @@ interface NavSpec {
   label: string;
 }
 
+interface SummaryChipSpec {
+  id: string;
+  label: string;
+  value: string;
+  badge: string;
+}
+
+interface SceneSpec {
+  id: string;
+  label: string;
+  detail: string;
+  badge: string;
+}
+
 const ROOM_ASPECT: number = 1402 / 1122;
 const NIGHT_START_HOUR: number = 18;
 const NIGHT_END_HOUR: number = 6;
@@ -38,6 +52,13 @@ const NAV_ITEMS: NavSpec[] = [
   { id: 'smart', label: '智能' },
   { id: 'store', label: '商场' },
   { id: 'profile', label: '我的' }
+];
+
+const SCENES: SceneSpec[] = [
+  { id: 'morning', label: '早安', detail: '开帘与日间', badge: '晨' },
+  { id: 'arrive', label: '回家', detail: '灯光与空气', badge: '家' },
+  { id: 'movie', label: '观影', detail: '客厅联动', badge: '影' },
+  { id: 'sleep', label: '睡眠', detail: '夜间静音', badge: '夜' }
 ];
 
 const ROOMS: RoomSpec[] = [
@@ -113,6 +134,7 @@ struct Index {
   @State activeTab: string = 'home';
   @State rooms: RoomSpec[] = ROOMS;
   @State activeRoomId: string = 'living';
+  @State activeSceneId: string = 'morning';
   @State selectedPointId: string = '';
   @State detailPointId: string = '';
   @State selectionVersion: number = 0;
@@ -194,13 +216,21 @@ struct Index {
   }
 
   private activeLightOn(): boolean {
-    return this.activeRoomId === 'living' ? this.livingLightOn : this.bedroomLightOn;
+    if (this.activeRoomId === 'living') {
+      return this.livingLightOn;
+    }
+    if (this.activeRoomId === 'bedroom') {
+      return this.bedroomLightOn;
+    }
+    return false;
   }
 
   private setActiveLight(value: boolean): void {
     if (this.activeRoomId === 'living') {
       this.livingLightOn = value;
-    } else {
+      return;
+    }
+    if (this.activeRoomId === 'bedroom') {
       this.bedroomLightOn = value;
     }
   }
@@ -218,43 +248,92 @@ struct Index {
   }
 
   private bgColor(): string {
-    return this.isNight ? '#000000' : '#FFFFFF';
+    return this.isNight ? '#060709' : '#F2F4F8';
   }
 
   private panelColor(): string {
-    return this.isNight ? '#101010' : '#FFFFFF';
+    return this.isNight ? '#121417' : '#FFFFFF';
   }
 
   private cardColor(): string {
-    return this.isNight ? '#171717' : '#F7F7F7';
+    return this.isNight ? '#171A1F' : '#F8F9FC';
   }
 
   private primaryText(): string {
-    return this.isNight ? '#FFFFFF' : '#000000';
+    return this.isNight ? '#F5F7FB' : '#111317';
   }
 
   private secondaryText(): string {
-    return this.isNight ? '#BDBDBD' : '#555555';
+    return this.isNight ? '#A9AFBC' : '#69707A';
   }
 
   private lineColor(): string {
-    return this.isNight ? '#2A2A2A' : '#E6E6E6';
+    return this.isNight ? '#20FFFFFF' : '#12000000';
   }
 
   private inverseBg(): string {
-    return this.isNight ? '#FFFFFF' : '#000000';
+    return this.isNight ? '#F5F7FB' : '#111317';
   }
 
   private translucentPanelColor(): string {
-    return this.isNight ? '#D9101010' : '#E6FFFFFF';
+    return this.isNight ? '#8C171A1F' : '#BFEFF2F7';
   }
 
   private translucentCardColor(): string {
-    return this.isNight ? '#B3171717' : '#CCFFFFFF';
+    return this.isNight ? '#661F232A' : '#B8FFFFFF';
   }
 
   private translucentInverseBg(): string {
-    return this.isNight ? '#D9FFFFFF' : '#D9000000';
+    return this.isNight ? '#D9F5F7FB' : '#D9111317';
+  }
+
+  private glassShellColor(): string {
+    return this.isNight ? '#73161A20' : '#A6FFFFFF';
+  }
+
+  private glassStrongColor(): string {
+    return this.isNight ? '#A61A1E25' : '#D9FFFFFF';
+  }
+
+  private glassBorderColor(): string {
+    return this.isNight ? '#20FFFFFF' : '#73FFFFFF';
+  }
+
+  private softDividerColor(): string {
+    return this.isNight ? '#14FFFFFF' : '#08000000';
+  }
+
+  private atmosphereCoolColor(): string {
+    return this.isNight ? '#224D7A' : '#D9E5F5';
+  }
+
+  private atmosphereWarmColor(): string {
+    return this.isNight ? '#4C372A' : '#F3E3D0';
+  }
+
+  private tintColor(type: string): string {
+    if (type === '温控') {
+      return '#6CAEFF';
+    }
+    if (type === '照明') {
+      return '#F4C94A';
+    }
+    if (type === '安防') {
+      return '#58D0BE';
+    }
+    if (type === '清洁') {
+      return '#7EA0FF';
+    }
+    if (type === '空气') {
+      return '#6CC8C3';
+    }
+    if (type === '影音') {
+      return '#8D93A3';
+    }
+    if (type === '遮阳') {
+      return '#A5AC8B';
+    }
+    return this.isNight ? '#D3D7DE' : '#4D5561';
   }
 
   private dotPlateColor(): string {
@@ -454,6 +533,13 @@ struct Index {
     this.isNight = !this.isNight;
   }
 
+  private openPointDetail(pointId: string): void {
+    this.selectedPointId = pointId;
+    this.detailPointId = pointId;
+    this.addRoomPanelVisible = false;
+    this.selectionVersion++;
+  }
+
   private togglePoint(pointId: string): void {
     const point = this.pointById(pointId);
     if (point.action === 'light') {
@@ -603,6 +689,195 @@ struct Index {
     return point.action === 'temperature' ? 30 : 100;
   }
 
+  private currentLightLevel(): number {
+    if (this.activeRoomId === 'living') {
+      return this.livingLightLevel;
+    }
+    if (this.activeRoomId === 'bedroom') {
+      return this.bedroomLightLevel;
+    }
+    return 0;
+  }
+
+  private hasActionInActiveRoom(action: string): boolean {
+    const points = this.pointsForActiveRoom();
+    for (let i = 0; i < points.length; i++) {
+      if (points[i].action === action) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  private temperatureSummary(): string {
+    if (this.activeRoomId === 'living') {
+      return `${this.livingTemperature}°C`;
+    }
+    if (this.activeRoomId === 'bedroom') {
+      return `${this.bedroomTemperature}°C`;
+    }
+    return '未配置';
+  }
+
+  private lightingSummary(): string {
+    if (!this.hasActionInActiveRoom('light')) {
+      return '未配置';
+    }
+    return this.activeLightOn() ? `已开 · ${this.currentLightLevel()}%` : '全部关闭';
+  }
+
+  private securitySummary(): string {
+    if (this.activeRoomId === 'bedroom') {
+      return this.bedroomDoorLocked ? '已上锁' : '未上锁';
+    }
+    return this.controllablePoints().length > 0 ? '状态正常' : '未配置';
+  }
+
+  private devicesSummary(): string {
+    const count = this.controllablePoints().length;
+    return count > 0 ? `${count} 台在线` : '可添加';
+  }
+
+  private summaryChips(): SummaryChipSpec[] {
+    return [
+      { id: 'climate', label: '温控', value: this.temperatureSummary(), badge: '温' },
+      { id: 'lights', label: '灯光', value: this.lightingSummary(), badge: '灯' },
+      { id: 'security', label: '安防', value: this.securitySummary(), badge: '安' },
+      { id: 'devices', label: '设备', value: this.devicesSummary(), badge: '设' }
+    ];
+  }
+
+  private sceneTint(sceneId: string): string {
+    if (sceneId === 'morning') {
+      return '#F4C94A';
+    }
+    if (sceneId === 'arrive') {
+      return '#D6A96D';
+    }
+    if (sceneId === 'movie') {
+      return '#7F9CFF';
+    }
+    return '#78A9FF';
+  }
+
+  private chipTint(chipId: string): string {
+    if (chipId === 'climate') {
+      return this.tintColor('温控');
+    }
+    if (chipId === 'lights') {
+      return this.tintColor('照明');
+    }
+    if (chipId === 'security') {
+      return this.tintColor('安防');
+    }
+    return this.isNight ? '#D3D7DE' : '#67707C';
+  }
+
+  private applyScene(sceneId: string): void {
+    this.activeSceneId = sceneId;
+    this.manualPeriod = true;
+    if (sceneId === 'morning') {
+      this.isNight = false;
+      this.livingCurtain = 82;
+      this.bedroomCurtain = 68;
+      this.livingLightOn = false;
+      this.bedroomLightOn = false;
+      this.livingTvOn = false;
+      this.bedroomDoorLocked = true;
+      return;
+    }
+    if (sceneId === 'arrive') {
+      this.isNight = false;
+      this.livingLightOn = true;
+      this.livingLightLevel = 76;
+      this.livingPurifierOn = true;
+      this.bedroomDoorLocked = false;
+      return;
+    }
+    if (sceneId === 'movie') {
+      this.isNight = true;
+      this.livingTvOn = true;
+      this.livingLightOn = true;
+      this.livingLightLevel = 22;
+      this.livingCurtain = 16;
+      return;
+    }
+    this.isNight = true;
+    this.livingLightOn = false;
+    this.livingTvOn = false;
+    this.bedroomLightOn = true;
+    this.bedroomLightLevel = 12;
+    this.bedroomCurtain = 100;
+    this.bedroomDoorLocked = true;
+  }
+
+  private pointBadge(point: PointSpec): string {
+    if (point.action === 'temperature') {
+      return '温';
+    }
+    if (point.action === 'curtain') {
+      return '帘';
+    }
+    if (point.action === 'light') {
+      return '灯';
+    }
+    if (point.id.indexOf('door') >= 0) {
+      return '门';
+    }
+    if (point.id.indexOf('robot') >= 0) {
+      return '扫';
+    }
+    if (point.id.indexOf('purifier') >= 0) {
+      return '净';
+    }
+    if (point.id.indexOf('tv') >= 0) {
+      return '影';
+    }
+    return point.name.substring(0, 1);
+  }
+
+  private deviceActionLabel(point: PointSpec): string {
+    if (point.action === 'temperature') {
+      return '升温';
+    }
+    if (point.action === 'curtain') {
+      return '打开';
+    }
+    if (point.action === 'light') {
+      return this.activeLightOn() ? '关灯' : '开灯';
+    }
+    if (point.action === 'toggle') {
+      return '切换';
+    }
+    return '查看';
+  }
+
+  private runDeviceAction(pointId: string): void {
+    const point = this.pointById(pointId);
+    if (point.action === 'temperature' || point.action === 'curtain') {
+      this.adjustPoint(point.id, 1);
+      return;
+    }
+    if (point.action === 'light' || point.action === 'toggle') {
+      this.togglePoint(point.id);
+      return;
+    }
+    this.openPointDetail(point.id);
+  }
+
+  private mapSummary(): string {
+    const count = this.controllablePoints().length;
+    return count > 0 ? `${count} 台设备在线` : '暂未配置设备';
+  }
+
+  private sidePoints(): PointSpec[] {
+    return this.controllablePoints().slice(1, 3);
+  }
+
+  private extraPoints(): PointSpec[] {
+    return this.controllablePoints().slice(3);
+  }
+
   private dotLeft(point: PointSpec): string {
     return this.percent(Math.min(Math.max(point.x - 3.1, 0), 92));
   }
@@ -658,19 +933,23 @@ struct Index {
   @Builder
   TopBar() {
     Row() {
-      Text(this.activeRoom().name)
-        .fontSize(30)
+      Text('我的家')
+        .fontSize(34)
         .fontColor(this.primaryText())
         .fontWeight(FontWeight.Bold)
         .layoutWeight(1)
 
       Button(this.isNight ? '夜间' : '日间')
-        .height(40)
+        .height(42)
         .fontSize(13)
         .fontWeight(FontWeight.Bold)
         .fontColor(this.inverseText())
         .backgroundColor(this.translucentInverseBg())
-        .borderRadius(20)
+        .border({
+          width: 1,
+          color: this.glassBorderColor()
+        })
+        .borderRadius(21)
         .scale(this.buttonScale('toggle_period'))
         .opacity(this.buttonOpacity('toggle_period'))
         .animation({ duration: 120, curve: Curve.EaseOut })
@@ -682,7 +961,7 @@ struct Index {
         })
     }
     .width('100%')
-    .alignItems(VerticalAlign.Top)
+    .alignItems(VerticalAlign.Center)
   }
 
   @Builder
@@ -695,12 +974,12 @@ struct Index {
             .fontSize(14)
             .fontWeight(FontWeight.Bold)
             .fontColor(this.activeRoomId === room.id ? this.inverseText() : this.primaryText())
-            .backgroundColor(this.activeRoomId === room.id ? this.translucentInverseBg() : this.translucentCardColor())
+            .backgroundColor(this.activeRoomId === room.id ? this.translucentInverseBg() : this.glassShellColor())
             .borderRadius(22)
-          .border({
-            width: 1,
-            color: this.lineColor()
-          })
+            .border({
+              width: 1,
+              color: this.activeRoomId === room.id ? this.glassBorderColor() : this.lineColor()
+            })
           .margin({ right: 10 })
           .padding({ left: 18, right: 18 })
           .scale(this.buttonScale(`room_${room.id}`))
@@ -719,7 +998,7 @@ struct Index {
           .fontSize(14)
           .fontWeight(FontWeight.Medium)
           .fontColor(this.primaryText())
-          .backgroundColor(this.translucentCardColor())
+          .backgroundColor(this.glassShellColor())
           .borderRadius(22)
           .border({
             width: 1,
@@ -742,7 +1021,7 @@ struct Index {
     .width('100%')
     .scrollBar(BarState.Off)
     .scrollable(ScrollDirection.Horizontal)
-    .margin({ top: 22 })
+    .margin({ top: 18 })
   }
 
   @Builder
@@ -916,173 +1195,671 @@ struct Index {
     }
     .width('100%')
     .padding({ left: 16, right: 16, top: 14, bottom: 14 })
-    .backgroundColor(this.translucentPanelColor())
+    .backgroundColor(this.glassStrongColor())
     .border({
       width: 1,
-      color: this.lineColor()
+      color: this.glassBorderColor()
     })
-    .borderRadius(20)
+    .borderRadius(18)
     .margin({ top: 12 })
   }
 
   @Builder
   RoomMap() {
-    Stack({ alignContent: Alignment.Center }) {
-      if (this.hasRoomImage(this.activeRoomId)) {
-        Image(this.roomImage())
-          .width('100%')
-          .aspectRatio(ROOM_ASPECT)
-          .objectFit(ImageFit.Contain)
-          .borderRadius(24)
+    Column() {
+      Stack({ alignContent: Alignment.Center }) {
+        if (this.hasRoomImage(this.activeRoomId)) {
+          Image(this.roomImage())
+            .width('100%')
+            .aspectRatio(ROOM_ASPECT)
+            .objectFit(ImageFit.Contain)
+            .borderRadius(16)
 
-        ForEach(this.pointsForActiveRoom(), (point: PointSpec) => {
-          this.PointDot(point)
-        }, (point: PointSpec) => point.id)
-      } else {
+          ForEach(this.pointsForActiveRoom(), (point: PointSpec) => {
+            this.PointDot(point)
+          }, (point: PointSpec) => point.id)
+        } else {
+          Column() {
+            Text(this.activeRoom().name)
+              .fontSize(30)
+              .fontWeight(FontWeight.Bold)
+              .fontColor(this.primaryText())
+
+            Text('当前房间暂未配置 2.5D 视角图')
+              .fontSize(13)
+              .fontColor(this.secondaryText())
+              .margin({ top: 10 })
+          }
+          .width('100%')
+          .height('100%')
+          .justifyContent(FlexAlign.Center)
+          .alignItems(HorizontalAlign.Center)
+          .backgroundColor(this.cardColor())
+          .borderRadius(16)
+        }
+      }
+      .width('100%')
+      .aspectRatio(ROOM_ASPECT)
+      .clip(true)
+
+      Row() {
         Column() {
           Text(this.activeRoom().name)
-            .fontSize(28)
+            .fontSize(17)
             .fontWeight(FontWeight.Bold)
             .fontColor(this.primaryText())
 
-          Text('当前房间暂未配置 2.5D 视角图')
-            .fontSize(13)
+          Text(this.mapSummary())
+            .fontSize(11)
             .fontColor(this.secondaryText())
-            .margin({ top: 10 })
+            .margin({ top: 2 })
         }
-        .alignItems(HorizontalAlign.Center)
+        .alignItems(HorizontalAlign.Start)
+        .layoutWeight(1)
+
+        Text(this.isNight ? 'Night' : 'Day')
+          .fontSize(11)
+          .fontWeight(FontWeight.Bold)
+          .fontColor(this.primaryText())
+          .padding({ left: 12, right: 12, top: 7, bottom: 7 })
+          .backgroundColor(this.glassShellColor())
+          .border({
+            width: 1,
+            color: this.glassBorderColor()
+          })
+          .borderRadius(16)
       }
+      .width('100%')
+      .margin({ top: 10 })
+      .padding({ left: 4, right: 4 })
     }
     .width('100%')
-    .aspectRatio(ROOM_ASPECT)
-    .backgroundColor(this.cardColor())
+    .padding(8)
+    .backgroundColor(this.glassStrongColor())
     .border({
       width: 1,
-      color: this.lineColor()
+      color: this.glassBorderColor()
     })
-    .borderRadius(24)
-    .clip(true)
+    .borderRadius(18)
     .margin({ top: 18 })
   }
 
   @Builder
-  DeviceControls() {
+  ToneBadge(label: string, tint: string, size: number) {
+    Stack() {
+      Column()
+        .width(size)
+        .height(size)
+        .borderRadius(size / 2)
+        .backgroundColor(this.translucentCardColor())
+        .border({
+          width: 1,
+          color: this.glassBorderColor()
+        })
+
+      Text(label)
+        .fontSize(size * 0.38)
+        .fontWeight(FontWeight.Bold)
+        .fontColor(tint)
+    }
+    .width(size)
+    .height(size)
+  }
+
+  @Builder
+  SummaryOverview() {
+    Scroll() {
+      Row() {
+        ForEach(this.summaryChips(), (chip: SummaryChipSpec) => {
+          Column() {
+            Row() {
+              this.ToneBadge(chip.badge, this.chipTint(chip.id), 30)
+
+              Column() {
+                Text(chip.label)
+                  .fontSize(12)
+                  .fontWeight(FontWeight.Medium)
+                  .fontColor(this.secondaryText())
+
+                Text(chip.value)
+                  .fontSize(14)
+                  .fontWeight(FontWeight.Bold)
+                  .fontColor(this.primaryText())
+                  .margin({ top: 3 })
+                  .maxLines(1)
+              }
+              .layoutWeight(1)
+              .alignItems(HorizontalAlign.Start)
+              .margin({ left: 10 })
+            }
+            .width('100%')
+          }
+          .width(150)
+          .height(76)
+          .padding({ left: 14, right: 14, top: 12, bottom: 12 })
+          .backgroundColor(this.glassShellColor())
+          .border({
+            width: 1,
+            color: this.glassBorderColor()
+          })
+          .borderRadius(16)
+          .margin({ right: 10 })
+        }, (chip: SummaryChipSpec) => chip.id)
+      }
+      .padding({ right: 8 })
+    }
+    .width('100%')
+    .scrollBar(BarState.Off)
+    .scrollable(ScrollDirection.Horizontal)
+    .margin({ top: 18 })
+  }
+
+  @Builder
+  SceneStrip() {
     Column() {
       Row() {
-        Text('设备控制')
-          .fontSize(18)
+        Text('场景')
+          .fontSize(20)
           .fontWeight(FontWeight.Bold)
           .fontColor(this.primaryText())
           .layoutWeight(1)
 
-        Text(`${this.controllablePoints().length} 个设备`)
+        Text('轻点执行')
           .fontSize(12)
           .fontColor(this.secondaryText())
       }
       .width('100%')
 
-      if (this.controllablePoints().length > 0) {
-        ForEach(this.controllablePoints(), (point: PointSpec) => {
+      Scroll() {
+        Row() {
+          ForEach(SCENES, (scene: SceneSpec) => {
+            Row() {
+              this.ToneBadge(scene.badge, this.sceneTint(scene.id), 32)
+
+              Column() {
+                Text(scene.label)
+                  .fontSize(14)
+                  .fontWeight(FontWeight.Bold)
+                  .fontColor(this.activeSceneId === scene.id ? this.inverseText() : this.primaryText())
+
+                Text(scene.detail)
+                  .fontSize(11)
+                  .fontColor(this.activeSceneId === scene.id ? '#B0FFFFFF' : this.secondaryText())
+                  .margin({ top: 2 })
+              }
+              .alignItems(HorizontalAlign.Start)
+              .margin({ left: 10, right: 10 })
+
+              Text('+')
+                .fontSize(16)
+                .fontWeight(FontWeight.Bold)
+                .fontColor(this.activeSceneId === scene.id ? this.inverseText() : this.primaryText())
+            }
+            .padding({ left: 12, right: 14, top: 12, bottom: 12 })
+            .backgroundColor(this.activeSceneId === scene.id ? this.translucentInverseBg() : this.glassShellColor())
+            .border({
+              width: 1,
+              color: this.activeSceneId === scene.id ? this.glassBorderColor() : this.lineColor()
+            })
+            .borderRadius(18)
+            .margin({ right: 10 })
+            .scale(this.buttonScale(`scene_${scene.id}`))
+            .opacity(this.buttonOpacity(`scene_${scene.id}`))
+            .animation({ duration: 120, curve: Curve.EaseOut })
+            .onTouch((event: TouchEvent) => {
+              this.handlePressState(`scene_${scene.id}`, event);
+            })
+            .onClick(() => {
+              this.applyScene(scene.id);
+            })
+          }, (scene: SceneSpec) => scene.id)
+        }
+        .padding({ right: 8 })
+      }
+      .width('100%')
+      .scrollBar(BarState.Off)
+      .scrollable(ScrollDirection.Horizontal)
+      .margin({ top: 12 })
+    }
+    .width('100%')
+    .margin({ top: 24 })
+  }
+
+  @Builder
+  FeaturedDeviceCard(point: PointSpec) {
+    Column() {
+      Column() {
+        Row() {
           Row() {
+            this.ToneBadge(this.pointBadge(point), this.tintColor(point.type), 34)
+
             Column() {
               Text(point.name)
-                .fontSize(15)
+                .fontSize(16)
                 .fontWeight(FontWeight.Bold)
                 .fontColor(this.primaryText())
 
-              Text(`${point.type} · ${this.pointStatus(point)}`)
-                .fontSize(12)
+              Text(point.type)
+                .fontSize(11)
                 .fontColor(this.secondaryText())
-                .margin({ top: 4 })
-                .maxLines(1)
+                .margin({ top: 2 })
             }
+            .margin({ left: 10 })
             .alignItems(HorizontalAlign.Start)
-            .layoutWeight(1)
-
-            Button(this.listPrimaryLabel(point))
-              .height(36)
-              .fontSize(12)
-              .fontWeight(FontWeight.Bold)
-              .fontColor(this.inverseText())
-              .backgroundColor(this.translucentInverseBg())
-              .borderRadius(18)
-              .padding({ left: 14, right: 14 })
-              .scale(this.buttonScale(`list_primary_${point.id}`))
-              .opacity(this.buttonOpacity(`list_primary_${point.id}`))
-              .animation({ duration: 120, curve: Curve.EaseOut })
-              .onTouch((event: TouchEvent) => {
-                this.handlePressState(`list_primary_${point.id}`, event);
-              })
-              .onClick(() => {
-                if (point.action === 'temperature' || point.action === 'curtain') {
-                  this.adjustPoint(point.id, -1);
-                } else {
-                  this.togglePoint(point.id);
-                }
-              })
-
-            Button(this.listSecondaryLabel(point))
-              .height(36)
-              .fontSize(12)
-              .fontWeight(FontWeight.Medium)
-              .fontColor(this.primaryText())
-              .backgroundColor(this.translucentCardColor())
-              .borderRadius(18)
-              .border({
-                width: 1,
-                color: this.lineColor()
-              })
-              .padding({ left: 14, right: 14 })
-              .margin({ left: 8 })
-              .scale(this.buttonScale(`list_secondary_${point.id}`))
-              .opacity(this.buttonOpacity(`list_secondary_${point.id}`))
-              .animation({ duration: 120, curve: Curve.EaseOut })
-              .onTouch((event: TouchEvent) => {
-                this.handlePressState(`list_secondary_${point.id}`, event);
-              })
-              .onClick(() => {
-                this.selectedPointId = point.id;
-                this.detailPointId = point.id;
-                this.addRoomPanelVisible = false;
-                this.selectionVersion++;
-              })
           }
-          .width('100%')
-          .padding({ left: 14, right: 14, top: 14, bottom: 14 })
-          .backgroundColor(this.translucentPanelColor())
-          .border({
-            width: 1,
-            color: this.lineColor()
-          })
-          .borderRadius(20)
-          .margin({ top: 10 })
-        }, (point: PointSpec) => point.id)
-      } else {
-        Column() {
-          Text('当前房间还没有可控制设备')
-            .fontSize(14)
-            .fontWeight(FontWeight.Medium)
-            .fontColor(this.primaryText())
+          .layoutWeight(1)
 
-          Text('后续可以在这里添加设备开关和快捷设置。')
-            .fontSize(12)
-            .fontColor(this.secondaryText())
-            .margin({ top: 6 })
+          Text('+')
+            .fontSize(18)
+            .fontWeight(FontWeight.Bold)
+            .fontColor(this.primaryText())
+            .width(34)
+            .height(34)
+            .textAlign(TextAlign.Center)
+            .backgroundColor(this.translucentCardColor())
+            .border({
+              width: 1,
+              color: this.glassBorderColor()
+            })
+            .borderRadius(17)
+            .scale(this.iconScale(`feature_detail_${point.id}`))
+            .opacity(this.buttonOpacity(`feature_detail_${point.id}`))
+            .animation({ duration: 120, curve: Curve.EaseOut })
+            .onTouch((event: TouchEvent) => {
+              this.handlePressState(`feature_detail_${point.id}`, event);
+            })
+            .onClick(() => {
+              this.openPointDetail(point.id);
+            })
         }
         .width('100%')
-        .padding({ left: 14, right: 14, top: 18, bottom: 18 })
-        .backgroundColor(this.translucentPanelColor())
+
+        Text(this.pointStatus(point))
+          .fontSize(24)
+          .fontWeight(FontWeight.Bold)
+          .fontColor(this.primaryText())
+          .margin({ top: 18 })
+
+        Text(point.detail)
+          .fontSize(12)
+          .lineHeight(18)
+          .fontColor(this.secondaryText())
+          .margin({ top: 8 })
+          .maxLines(2)
+      }
+      .width('100%')
+      .alignItems(HorizontalAlign.Start)
+
+      Column()
+        .layoutWeight(1)
+
+      Button(this.deviceActionLabel(point))
+        .width('100%')
+        .height(42)
+        .fontSize(13)
+        .fontWeight(FontWeight.Bold)
+        .fontColor(this.inverseText())
+        .backgroundColor(this.translucentInverseBg())
+        .borderRadius(15)
+        .scale(this.buttonScale(`feature_action_${point.id}`))
+        .opacity(this.buttonOpacity(`feature_action_${point.id}`))
+        .animation({ duration: 120, curve: Curve.EaseOut })
+        .onTouch((event: TouchEvent) => {
+          this.handlePressState(`feature_action_${point.id}`, event);
+        })
+        .onClick(() => {
+          this.runDeviceAction(point.id);
+        })
+    }
+    .height(220)
+    .padding({ left: 16, right: 16, top: 16, bottom: 16 })
+    .backgroundColor(this.glassStrongColor())
+    .border({
+      width: 1,
+      color: this.glassBorderColor()
+    })
+    .borderRadius(18)
+  }
+
+  @Builder
+  MiniDeviceCard(point: PointSpec) {
+    Column() {
+      Row() {
+        this.ToneBadge(this.pointBadge(point), this.tintColor(point.type), 28)
+
+        Text('+')
+          .fontSize(16)
+          .fontWeight(FontWeight.Bold)
+          .fontColor(this.primaryText())
+          .width(30)
+          .height(30)
+          .textAlign(TextAlign.Center)
+          .backgroundColor(this.translucentCardColor())
+          .border({
+            width: 1,
+            color: this.glassBorderColor()
+          })
+          .borderRadius(15)
+          .scale(this.iconScale(`mini_detail_${point.id}`))
+          .opacity(this.buttonOpacity(`mini_detail_${point.id}`))
+          .animation({ duration: 120, curve: Curve.EaseOut })
+          .onTouch((event: TouchEvent) => {
+            this.handlePressState(`mini_detail_${point.id}`, event);
+          })
+          .onClick(() => {
+            this.openPointDetail(point.id);
+          })
+      }
+      .width('100%')
+      .justifyContent(FlexAlign.SpaceBetween)
+
+      Column() {
+        Text(point.name)
+          .fontSize(14)
+          .fontWeight(FontWeight.Bold)
+          .fontColor(this.primaryText())
+
+        Text(this.pointStatus(point))
+          .fontSize(12)
+          .fontColor(this.secondaryText())
+          .margin({ top: 4 })
+          .maxLines(1)
+      }
+      .width('100%')
+      .alignItems(HorizontalAlign.Start)
+      .margin({ top: 12 })
+
+      Column()
+        .layoutWeight(1)
+
+      Button(this.deviceActionLabel(point))
+        .width('100%')
+        .height(36)
+        .fontSize(12)
+        .fontWeight(FontWeight.Bold)
+        .fontColor(this.primaryText())
+        .backgroundColor(this.glassShellColor())
         .border({
           width: 1,
           color: this.lineColor()
         })
-        .borderRadius(20)
-        .margin({ top: 10 })
+        .borderRadius(14)
+        .scale(this.buttonScale(`mini_action_${point.id}`))
+        .opacity(this.buttonOpacity(`mini_action_${point.id}`))
+        .animation({ duration: 120, curve: Curve.EaseOut })
+        .onTouch((event: TouchEvent) => {
+          this.handlePressState(`mini_action_${point.id}`, event);
+        })
+        .onClick(() => {
+          this.runDeviceAction(point.id);
+        })
+    }
+    .height(105)
+    .padding({ left: 14, right: 14, top: 14, bottom: 14 })
+    .backgroundColor(this.glassShellColor())
+    .border({
+      width: 1,
+      color: this.glassBorderColor()
+    })
+    .borderRadius(18)
+  }
+
+  @Builder
+  CompactDeviceCard(point: PointSpec) {
+    Column() {
+      Row() {
+        this.ToneBadge(this.pointBadge(point), this.tintColor(point.type), 28)
+
+        Column() {
+          Text(point.name)
+            .fontSize(14)
+            .fontWeight(FontWeight.Bold)
+            .fontColor(this.primaryText())
+
+          Text(this.pointStatus(point))
+            .fontSize(11)
+            .fontColor(this.secondaryText())
+            .margin({ top: 4 })
+            .maxLines(1)
+        }
         .alignItems(HorizontalAlign.Start)
+        .layoutWeight(1)
+        .margin({ left: 10 })
+      }
+      .width('100%')
+
+      Column()
+        .layoutWeight(1)
+
+      Row() {
+        Button(this.deviceActionLabel(point))
+          .layoutWeight(1)
+          .height(34)
+          .fontSize(12)
+          .fontWeight(FontWeight.Bold)
+          .fontColor(this.primaryText())
+          .backgroundColor(this.glassShellColor())
+          .border({
+            width: 1,
+            color: this.lineColor()
+          })
+          .borderRadius(14)
+          .scale(this.buttonScale(`compact_action_${point.id}`))
+          .opacity(this.buttonOpacity(`compact_action_${point.id}`))
+          .animation({ duration: 120, curve: Curve.EaseOut })
+          .onTouch((event: TouchEvent) => {
+            this.handlePressState(`compact_action_${point.id}`, event);
+          })
+          .onClick(() => {
+            this.runDeviceAction(point.id);
+          })
+
+        Text('+')
+          .fontSize(16)
+          .fontWeight(FontWeight.Bold)
+          .fontColor(this.primaryText())
+          .width(34)
+          .height(34)
+          .textAlign(TextAlign.Center)
+          .backgroundColor(this.translucentCardColor())
+          .border({
+            width: 1,
+            color: this.glassBorderColor()
+          })
+          .borderRadius(17)
+          .margin({ left: 8 })
+          .scale(this.iconScale(`compact_detail_${point.id}`))
+          .opacity(this.buttonOpacity(`compact_detail_${point.id}`))
+          .animation({ duration: 120, curve: Curve.EaseOut })
+          .onTouch((event: TouchEvent) => {
+            this.handlePressState(`compact_detail_${point.id}`, event);
+          })
+          .onClick(() => {
+            this.openPointDetail(point.id);
+          })
+      }
+      .width('100%')
+    }
+    .height(116)
+    .padding({ left: 14, right: 14, top: 14, bottom: 14 })
+    .backgroundColor(this.glassShellColor())
+    .border({
+      width: 1,
+      color: this.glassBorderColor()
+    })
+    .borderRadius(18)
+  }
+
+  @Builder
+  WideDeviceCard(point: PointSpec) {
+    Row() {
+      Row() {
+        this.ToneBadge(this.pointBadge(point), this.tintColor(point.type), 30)
+
+        Column() {
+          Text(point.name)
+            .fontSize(15)
+            .fontWeight(FontWeight.Bold)
+            .fontColor(this.primaryText())
+
+          Text(`${point.type} · ${this.pointStatus(point)}`)
+            .fontSize(12)
+            .fontColor(this.secondaryText())
+            .margin({ top: 4 })
+            .maxLines(1)
+        }
+        .alignItems(HorizontalAlign.Start)
+        .margin({ left: 10 })
+      }
+      .layoutWeight(1)
+
+      Button(this.deviceActionLabel(point))
+        .height(38)
+        .fontSize(12)
+        .fontWeight(FontWeight.Bold)
+        .fontColor(this.inverseText())
+        .backgroundColor(this.translucentInverseBg())
+        .borderRadius(15)
+        .padding({ left: 14, right: 14 })
+        .scale(this.buttonScale(`wide_action_${point.id}`))
+        .opacity(this.buttonOpacity(`wide_action_${point.id}`))
+        .animation({ duration: 120, curve: Curve.EaseOut })
+        .onTouch((event: TouchEvent) => {
+          this.handlePressState(`wide_action_${point.id}`, event);
+        })
+        .onClick(() => {
+          this.runDeviceAction(point.id);
+        })
+
+      Text('+')
+        .fontSize(16)
+        .fontWeight(FontWeight.Bold)
+        .fontColor(this.primaryText())
+        .width(34)
+        .height(34)
+        .textAlign(TextAlign.Center)
+        .backgroundColor(this.translucentCardColor())
+        .border({
+          width: 1,
+          color: this.glassBorderColor()
+        })
+        .borderRadius(17)
+        .margin({ left: 8 })
+        .scale(this.iconScale(`wide_detail_${point.id}`))
+        .opacity(this.buttonOpacity(`wide_detail_${point.id}`))
+        .animation({ duration: 120, curve: Curve.EaseOut })
+        .onTouch((event: TouchEvent) => {
+          this.handlePressState(`wide_detail_${point.id}`, event);
+        })
+        .onClick(() => {
+          this.openPointDetail(point.id);
+        })
+    }
+    .width('100%')
+    .padding({ left: 14, right: 14, top: 14, bottom: 14 })
+    .backgroundColor(this.glassStrongColor())
+    .border({
+      width: 1,
+      color: this.glassBorderColor()
+    })
+    .borderRadius(18)
+  }
+
+  @Builder
+  DeviceControls() {
+    Column() {
+      this.SummaryOverview()
+      this.SceneStrip()
+
+      Row() {
+        Text(`${this.activeRoom().name} 设备`)
+          .fontSize(20)
+          .fontWeight(FontWeight.Bold)
+          .fontColor(this.primaryText())
+          .layoutWeight(1)
+
+        Text(this.devicesSummary())
+          .fontSize(12)
+          .fontColor(this.secondaryText())
+      }
+      .width('100%')
+      .margin({ top: 24, bottom: 12 })
+
+      if (this.controllablePoints().length > 0) {
+        if (this.sidePoints().length > 0) {
+          Row() {
+            Column() {
+              this.FeaturedDeviceCard(this.controllablePoints()[0])
+            }
+            .layoutWeight(11)
+
+            Column() {
+              if (this.sidePoints().length > 0) {
+                this.MiniDeviceCard(this.sidePoints()[0])
+              }
+              if (this.sidePoints().length > 1) {
+                Column() {
+                  this.MiniDeviceCard(this.sidePoints()[1])
+                }
+                .margin({ top: 10 })
+              }
+            }
+            .layoutWeight(9)
+            .margin({ left: 10 })
+          }
+          .width('100%')
+        } else {
+          this.FeaturedDeviceCard(this.controllablePoints()[0])
+        }
+
+        if (this.extraPoints().length > 0) {
+          Row() {
+            Column() {
+              this.CompactDeviceCard(this.extraPoints()[0])
+            }
+            .layoutWeight(1)
+
+            if (this.extraPoints().length > 1) {
+              Column() {
+                this.CompactDeviceCard(this.extraPoints()[1])
+              }
+              .layoutWeight(1)
+              .margin({ left: 10 })
+            }
+          }
+          .width('100%')
+          .margin({ top: 10 })
+        }
+
+        if (this.extraPoints().length > 2) {
+          Column() {
+            this.WideDeviceCard(this.extraPoints()[2])
+          }
+          .margin({ top: 10 })
+        }
+      } else {
+        Column() {
+          Text('当前房间还没有可控制设备')
+            .fontSize(15)
+            .fontWeight(FontWeight.Bold)
+            .fontColor(this.primaryText())
+
+          Text('先添加设备或继续为这个房间配置 2.5D 图与点位。')
+            .fontSize(12)
+            .fontColor(this.secondaryText())
+            .margin({ top: 8 })
+        }
+        .width('100%')
+        .padding({ left: 16, right: 16, top: 18, bottom: 18 })
+        .backgroundColor(this.glassShellColor())
+        .border({
+          width: 1,
+          color: this.glassBorderColor()
+        })
+        .borderRadius(18)
       }
     }
     .width('100%')
-    .margin({ top: 18 })
   }
 
   @Builder
@@ -1306,12 +2083,12 @@ struct Index {
     }
     .width('100%')
     .padding({ left: 16, right: 16, top: 16, bottom: 16 })
-    .backgroundColor(this.translucentPanelColor())
+    .backgroundColor(this.glassStrongColor())
     .border({
       width: 1,
-      color: this.lineColor()
+      color: this.glassBorderColor()
     })
-    .borderRadius(24)
+    .borderRadius(20)
     .margin({ top: 16 })
   }
 
@@ -1425,41 +2202,54 @@ struct Index {
     }
     .width('100%')
     .padding({ left: 16, right: 16, top: 16, bottom: 16 })
-    .backgroundColor(this.translucentPanelColor())
+    .backgroundColor(this.glassStrongColor())
     .border({
       width: 1,
-      color: this.lineColor()
+      color: this.glassBorderColor()
     })
-    .borderRadius(24)
+    .borderRadius(20)
     .transition(this.overlayTransition())
   }
 
   @Builder
   OverlayPanel() {
     if (this.overlayVisible()) {
-      Column() {
-        Scroll() {
-          Column() {
-            if (this.addRoomPanelVisible) {
-              this.AddRoomPanel()
-            } else if (this.detailPointId.length > 0) {
-              this.DetailPanel(this.pointById(this.detailPointId))
-            } else if (this.selectedPointId.length > 0) {
-              this.Bubble(this.pointById(this.selectedPointId))
+      Stack({ alignContent: Alignment.Bottom }) {
+        Column()
+          .width('100%')
+          .height('100%')
+          .backgroundColor(this.isNight ? '#8C000000' : '#59000000')
+          .transition(TransitionEffect.opacity(0).animation({ duration: 180, curve: Curve.EaseOut }))
+          .onClick(() => {
+            this.closeOverlayPanel();
+          })
+
+        Column() {
+          Scroll() {
+            Column() {
+              if (this.addRoomPanelVisible) {
+                this.AddRoomPanel()
+              } else if (this.detailPointId.length > 0) {
+                this.DetailPanel(this.pointById(this.detailPointId))
+              } else if (this.selectedPointId.length > 0) {
+                this.Bubble(this.pointById(this.selectedPointId))
+              }
             }
+            .width('100%')
           }
           .width('100%')
+          .height(this.panelViewportHeight() + 16)
+          .scrollBar(BarState.Off)
         }
         .width('100%')
-        .height(this.panelViewportHeight() + 16)
-        .scrollBar(BarState.Off)
+        .padding({ left: 18, right: 18, bottom: 118 })
+        .alignItems(HorizontalAlign.Center)
+        .justifyContent(FlexAlign.End)
+        .backgroundColor('#00000000')
+        .transition(this.overlayTransition())
       }
       .width('100%')
-      .padding({ left: 18, right: 18, bottom: 92 })
-      .alignItems(HorizontalAlign.Center)
-      .justifyContent(FlexAlign.End)
-      .backgroundColor('#00000000')
-      .transition(this.overlayTransition())
+      .height('100%')
     }
   }
 
@@ -1473,10 +2263,10 @@ struct Index {
         this.DeviceControls()
       }
       .width('100%')
-      .padding({ left: 18, right: 18, top: 28, bottom: 30 })
+      .padding({ left: 18, right: 18, top: 28, bottom: 132 })
     }
     .width('100%')
-    .layoutWeight(1)
+    .height('100%')
     .scrollBar(BarState.Off)
   }
 
@@ -1484,8 +2274,36 @@ struct Index {
   EmptyPage() {
     Column()
       .width('100%')
-      .layoutWeight(1)
+      .height('100%')
       .backgroundColor(this.bgColor())
+  }
+
+  @Builder
+  PageAtmosphere() {
+    Stack() {
+      Column()
+        .width('100%')
+        .height('100%')
+        .backgroundColor(this.bgColor())
+
+      Column()
+        .width(460)
+        .height(280)
+        .borderRadius(160)
+        .backgroundColor(this.atmosphereCoolColor())
+        .opacity(this.isNight ? 0.22 : 0.94)
+        .position({ x: -80, y: -50 })
+
+      Column()
+        .width(560)
+        .height(340)
+        .borderRadius(200)
+        .backgroundColor(this.atmosphereWarmColor())
+        .opacity(this.isNight ? 0.18 : 0.78)
+        .position({ x: 24, y: 520 })
+    }
+    .width('100%')
+    .height('100%')
   }
 
   @Builder
@@ -1678,59 +2496,63 @@ struct Index {
 
   @Builder
   BottomNav() {
-    Row() {
-      ForEach(NAV_ITEMS, (item: NavSpec) => {
-        Column() {
-          this.NavIcon(item)
+    Column() {
+      Row() {
+        ForEach(NAV_ITEMS, (item: NavSpec) => {
+          Column() {
+            this.NavIcon(item)
 
-          Text(item.label)
-            .fontSize(12)
-            .fontWeight(this.activeTab === item.id ? FontWeight.Bold : FontWeight.Medium)
-            .fontColor(this.navTextColor(item.id))
-            .margin({ top: 3 })
-        }
-        .layoutWeight(1)
-        .height(58)
-        .justifyContent(FlexAlign.Center)
-        .borderRadius(16)
-        .backgroundColor(this.navItemBg(item.id))
-        .scale(this.buttonScale(`nav_${item.id}`))
-        .opacity(this.buttonOpacity(`nav_${item.id}`))
-        .animation({ duration: 120, curve: Curve.EaseOut })
-        .onTouch((event: TouchEvent) => {
-          this.handlePressState(`nav_${item.id}`, event);
-        })
-        .onClick(() => {
-          this.activeTab = item.id;
-          if (item.id !== 'home') {
-            this.selectedPointId = '';
-            this.detailPointId = '';
+            Text(item.label)
+              .fontSize(12)
+              .fontWeight(this.activeTab === item.id ? FontWeight.Bold : FontWeight.Medium)
+              .fontColor(this.navTextColor(item.id))
+              .margin({ top: 3 })
           }
-        })
-      }, (item: NavSpec) => item.id)
+          .layoutWeight(1)
+          .height(54)
+          .justifyContent(FlexAlign.Center)
+          .borderRadius(18)
+          .backgroundColor(this.navItemBg(item.id))
+          .scale(this.buttonScale(`nav_${item.id}`))
+          .opacity(this.buttonOpacity(`nav_${item.id}`))
+          .animation({ duration: 120, curve: Curve.EaseOut })
+          .onTouch((event: TouchEvent) => {
+            this.handlePressState(`nav_${item.id}`, event);
+          })
+          .onClick(() => {
+            this.activeTab = item.id;
+            if (item.id !== 'home') {
+              this.selectedPointId = '';
+              this.detailPointId = '';
+            }
+          })
+        }, (item: NavSpec) => item.id)
+      }
+      .width('100%')
+      .height(74)
+      .padding({ left: 12, right: 12, top: 10, bottom: 10 })
+      .backgroundColor(this.glassStrongColor())
+      .border({
+        width: 1,
+        color: this.glassBorderColor()
+      })
+      .borderRadius(30)
     }
     .width('100%')
-    .height(86)
-    .padding({ left: 12, right: 12, top: 10, bottom: 14 })
-    .backgroundColor(this.translucentPanelColor())
-    .border({
-      width: { top: 1 },
-      color: this.lineColor()
-    })
+    .padding({ left: 18, right: 18, bottom: 18 })
   }
 
   build() {
     Stack({ alignContent: Alignment.Bottom }) {
-      Column() {
-        if (this.activeTab === 'home') {
-          this.HomePage()
-        } else {
-          this.EmptyPage()
-        }
-        this.BottomNav()
+      this.PageAtmosphere()
+
+      if (this.activeTab === 'home') {
+        this.HomePage()
+      } else {
+        this.EmptyPage()
       }
-      .width('100%')
-      .height('100%')
+
+      this.BottomNav()
 
       if (this.activeTab === 'home') {
         this.OverlayPanel()
@@ -1738,6 +2560,6 @@ struct Index {
     }
     .width('100%')
     .height('100%')
-    .backgroundColor(this.bgColor())
+    .backgroundColor('#00000000')
   }
 }
