@@ -1,0 +1,444 @@
+{
+  "asset": {
+    "generator": "glTF-Transform v4.4.0",
+    "version": "2.0"
+  },
+  "accessors": [
+    {
+      "type": "VEC3",
+      "componentType": 5126,
+      "count": 156,
+      "max": [
+        0.9529999494552612,
+        0.375,
+        0
+      ],
+      "min": [
+        0.003000000026077032,
+        0,
+        -1.125
+      ],
+      "bufferView": 0,
+      "byteOffset": 0
+    },
+    {
+      "type": "VEC3",
+      "componentType": 5126,
+      "count": 156,
+      "bufferView": 0,
+      "byteOffset": 12
+    },
+    {
+      "type": "VEC2",
+      "componentType": 5126,
+      "count": 156,
+      "bufferView": 0,
+      "byteOffset": 24
+    },
+    {
+      "type": "SCALAR",
+      "componentType": 5125,
+      "count": 24,
+      "bufferView": 1,
+      "byteOffset": 0
+    },
+    {
+      "type": "SCALAR",
+      "componentType": 5125,
+      "count": 156,
+      "bufferView": 1,
+      "byteOffset": 96
+    },
+    {
+      "type": "SCALAR",
+      "componentType": 5125,
+      "count": 120,
+      "bufferView": 1,
+      "byteOffset": 720
+    },
+    {
+      "type": "SCALAR",
+      "componentType": 5125,
+      "count": 90,
+      "bufferView": 1,
+      "byteOffset": 1200
+    },
+    {
+      "type": "SCALAR",
+      "componentType": 5125,
+      "count": 102,
+      "bufferView": 1,
+      "byteOffset": 1560
+    },
+    {
+      "type": "SCALAR",
+      "componentType": 5125,
+      "count": 150,
+      "bufferView": 1,
+      "byteOffset": 1968
+    },
+    {
+      "type": "SCALAR",
+      "componentType": 5125,
+      "count": 150,
+      "bufferView": 1,
+      "byteOffset": 2568
+    },
+    {
+      "type": "VEC3",
+      "componentType": 5126,
+      "count": 103,
+      "max": [
+        1.564693808555603,
+        0.08999999612569809,
+        0.019999999552965164
+      ],
+      "min": [
+        -0.05855054408311844,
+        -0.12999999523162842,
+        -1.8919999599456787
+      ],
+      "bufferView": 2,
+      "byteOffset": 0
+    },
+    {
+      "type": "VEC3",
+      "componentType": 5126,
+      "count": 103,
+      "bufferView": 2,
+      "byteOffset": 12
+    },
+    {
+      "type": "VEC2",
+      "componentType": 5126,
+      "count": 103,
+      "bufferView": 2,
+      "byteOffset": 24
+    },
+    {
+      "type": "VEC3",
+      "componentType": 5126,
+      "count": 96,
+      "max": [
+        0.4000000059604645,
+        0.14000000059604645,
+        0
+      ],
+      "min": [
+        -7.219114108078224e-16,
+        0.06000000238418579,
+        -0.4000000059604645
+      ],
+      "bufferView": 3,
+      "byteOffset": 0
+    },
+    {
+      "type": "VEC3",
+      "componentType": 5126,
+      "count": 96,
+      "bufferView": 3,
+      "byteOffset": 12
+    },
+    {
+      "type": "VEC2",
+      "componentType": 5126,
+      "count": 96,
+      "bufferView": 3,
+      "byteOffset": 24
+    },
+    {
+      "type": "VEC3",
+      "componentType": 5126,
+      "count": 96,
+      "max": [
+        0.4000000059604645,
+        0.14000000059604645,
+        0
+      ],
+      "min": [
+        -7.219114108078224e-16,
+        0.06000000238418579,
+        -0.4000000059604645
+      ],
+      "bufferView": 4,
+      "byteOffset": 0
+    },
+    {
+      "type": "VEC3",
+      "componentType": 5126,
+      "count": 96,
+      "bufferView": 4,
+      "byteOffset": 12
+    },
+    {
+      "type": "VEC2",
+      "componentType": 5126,
+      "count": 96,
+      "bufferView": 4,
+      "byteOffset": 24
+    }
+  ],
+  "bufferViews": [
+    {
+      "buffer": 0,
+      "byteOffset": 0,
+      "byteLength": 4992,
+      "byteStride": 32,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 4992,
+      "byteLength": 3168,
+      "target": 34963
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 8160,
+      "byteLength": 3296,
+      "byteStride": 32,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 11456,
+      "byteLength": 3072,
+      "byteStride": 32,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 14528,
+      "byteLength": 3072,
+      "byteStride": 32,
+      "target": 34962
+    }
+  ],
+  "buffers": [
+    {
+      "uri": "bedDouble.bin",
+      "byteLength": 17600
+    }
+  ],
+  "materials": [
+    {
+      "name": "carpetWhite",
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [
+          0.972549,
+          1,
+          1,
+          1
+        ],
+        "metallicFactor": 0
+      }
+    },
+    {
+      "name": "wood",
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [
+          0.8962264,
+          0.6015712,
+          0.3931559,
+          1
+        ],
+        "metallicFactor": 0
+      }
+    },
+    {
+      "name": "metal",
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [
+          0.74061054,
+          0.822866738,
+          0.8396226,
+          1
+        ],
+        "metallicFactor": 0
+      }
+    },
+    {
+      "name": "carpet",
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [
+          0.9433962,
+          0.367175967,
+          0.3426486,
+          1
+        ],
+        "metallicFactor": 0
+      }
+    }
+  ],
+  "meshes": [
+    {
+      "name": "Mesh bedDouble",
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 0,
+            "NORMAL": 1,
+            "TEXCOORD_0": 2
+          },
+          "mode": 4,
+          "material": 0,
+          "indices": 3
+        },
+        {
+          "attributes": {
+            "POSITION": 0,
+            "NORMAL": 1,
+            "TEXCOORD_0": 2
+          },
+          "mode": 4,
+          "material": 1,
+          "indices": 4
+        },
+        {
+          "attributes": {
+            "POSITION": 0,
+            "NORMAL": 1,
+            "TEXCOORD_0": 2
+          },
+          "mode": 4,
+          "material": 2,
+          "indices": 5
+        }
+      ]
+    },
+    {
+      "name": "Mesh cover",
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 10,
+            "NORMAL": 11,
+            "TEXCOORD_0": 12
+          },
+          "mode": 4,
+          "material": 3,
+          "indices": 6
+        },
+        {
+          "attributes": {
+            "POSITION": 10,
+            "NORMAL": 11,
+            "TEXCOORD_0": 12
+          },
+          "mode": 4,
+          "material": 0,
+          "indices": 7
+        }
+      ]
+    },
+    {
+      "name": "Mesh pillowLeft",
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 13,
+            "NORMAL": 14,
+            "TEXCOORD_0": 15
+          },
+          "mode": 4,
+          "material": 0,
+          "indices": 8
+        }
+      ]
+    },
+    {
+      "name": "Mesh pillowLeft",
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 16,
+            "NORMAL": 17,
+            "TEXCOORD_0": 18
+          },
+          "mode": 4,
+          "material": 0,
+          "indices": 9
+        }
+      ]
+    }
+  ],
+  "nodes": [
+    {
+      "name": "bedDouble(Clone)",
+      "mesh": 0,
+      "children": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "name": "cover",
+      "translation": [
+        0.01,
+        0.215,
+        -0.7923018
+      ],
+      "rotation": [
+        0,
+        -0.707106769,
+        0,
+        0.7071068
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "mesh": 1
+    },
+    {
+      "name": "pillowLeft",
+      "translation": [
+        0.112999991,
+        0.217044547,
+        -1.03126669
+      ],
+      "rotation": [
+        0.0443996079,
+        -0.705711544,
+        -0.0443996079,
+        0.7057115
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.85
+      ],
+      "mesh": 2
+    },
+    {
+      "name": "pillowRight",
+      "translation": [
+        0.503,
+        0.217044547,
+        -1.03126669
+      ],
+      "rotation": [
+        0.0443996079,
+        -0.705711544,
+        -0.0443996079,
+        0.7057115
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.85
+      ],
+      "mesh": 2
+    }
+  ],
+  "scenes": [
+    {
+      "nodes": [
+        0
+      ]
+    }
+  ],
+  "scene": 0
+}

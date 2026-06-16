@@ -1,0 +1,313 @@
+{
+  "asset": {
+    "generator": "glTF-Transform v4.4.0",
+    "version": "2.0"
+  },
+  "accessors": [
+    {
+      "type": "VEC3",
+      "componentType": 5126,
+      "count": 244,
+      "max": [
+        0.39000001549720764,
+        0.4699999988079071,
+        0
+      ],
+      "min": [
+        0,
+        0,
+        -0.3499999940395355
+      ],
+      "bufferView": 0,
+      "byteOffset": 0
+    },
+    {
+      "type": "VEC3",
+      "componentType": 5126,
+      "count": 244,
+      "bufferView": 0,
+      "byteOffset": 12
+    },
+    {
+      "type": "VEC2",
+      "componentType": 5126,
+      "count": 244,
+      "bufferView": 0,
+      "byteOffset": 24
+    },
+    {
+      "type": "SCALAR",
+      "componentType": 5125,
+      "count": 240,
+      "bufferView": 1,
+      "byteOffset": 0
+    },
+    {
+      "type": "SCALAR",
+      "componentType": 5125,
+      "count": 264,
+      "bufferView": 1,
+      "byteOffset": 960
+    },
+    {
+      "type": "SCALAR",
+      "componentType": 5125,
+      "count": 12,
+      "bufferView": 1,
+      "byteOffset": 2016
+    },
+    {
+      "type": "SCALAR",
+      "componentType": 5125,
+      "count": 1494,
+      "bufferView": 1,
+      "byteOffset": 2064
+    },
+    {
+      "type": "SCALAR",
+      "componentType": 5125,
+      "count": 138,
+      "bufferView": 1,
+      "byteOffset": 8040
+    },
+    {
+      "type": "SCALAR",
+      "componentType": 5125,
+      "count": 12,
+      "bufferView": 1,
+      "byteOffset": 8592
+    },
+    {
+      "type": "VEC3",
+      "componentType": 5126,
+      "count": 852,
+      "max": [
+        0.25999999046325684,
+        0.030000001192092896,
+        0.12999999523162842
+      ],
+      "min": [
+        0,
+        -0.030000001192092896,
+        -0.12999999523162842
+      ],
+      "bufferView": 2,
+      "byteOffset": 0
+    },
+    {
+      "type": "VEC3",
+      "componentType": 5126,
+      "count": 852,
+      "bufferView": 2,
+      "byteOffset": 12
+    },
+    {
+      "type": "VEC2",
+      "componentType": 5126,
+      "count": 852,
+      "bufferView": 2,
+      "byteOffset": 24
+    }
+  ],
+  "bufferViews": [
+    {
+      "buffer": 0,
+      "byteOffset": 0,
+      "byteLength": 7808,
+      "byteStride": 32,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 7808,
+      "byteLength": 8640,
+      "target": 34963
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 16448,
+      "byteLength": 27264,
+      "byteStride": 32,
+      "target": 34962
+    }
+  ],
+  "buffers": [
+    {
+      "uri": "washer.bin",
+      "byteLength": 43712
+    }
+  ],
+  "materials": [
+    {
+      "name": "metalLight",
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [
+          0.9372549,
+          0.980392158,
+          0.956862748,
+          1
+        ],
+        "metallicFactor": 0
+      }
+    },
+    {
+      "name": "metalMedium",
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [
+          0.368627459,
+          0.466666669,
+          0.466666669,
+          1
+        ],
+        "metallicFactor": 0
+      }
+    },
+    {
+      "name": "metalDark",
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [
+          0.305882365,
+          0.3882353,
+          0.3882353,
+          1
+        ],
+        "metallicFactor": 0
+      }
+    },
+    {
+      "name": "metal",
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [
+          0.74061054,
+          0.822866738,
+          0.8396226,
+          1
+        ],
+        "metallicFactor": 0
+      }
+    },
+    {
+      "name": "glass",
+      "alphaMode": "BLEND",
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [
+          0.698039234,
+          0.827451,
+          0.768627465,
+          0.5
+        ],
+        "metallicFactor": 0
+      }
+    },
+    {
+      "name": "_defaultMat",
+      "pbrMetallicRoughness": {
+        "metallicFactor": 0
+      }
+    }
+  ],
+  "meshes": [
+    {
+      "name": "Mesh washer",
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 0,
+            "NORMAL": 1,
+            "TEXCOORD_0": 2
+          },
+          "mode": 4,
+          "material": 0,
+          "indices": 3
+        },
+        {
+          "attributes": {
+            "POSITION": 0,
+            "NORMAL": 1,
+            "TEXCOORD_0": 2
+          },
+          "mode": 4,
+          "material": 1,
+          "indices": 4
+        },
+        {
+          "attributes": {
+            "POSITION": 0,
+            "NORMAL": 1,
+            "TEXCOORD_0": 2
+          },
+          "mode": 4,
+          "material": 2,
+          "indices": 5
+        }
+      ]
+    },
+    {
+      "name": "Mesh washerDoor",
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 9,
+            "NORMAL": 10,
+            "TEXCOORD_0": 11
+          },
+          "mode": 4,
+          "material": 3,
+          "indices": 6
+        },
+        {
+          "attributes": {
+            "POSITION": 9,
+            "NORMAL": 10,
+            "TEXCOORD_0": 11
+          },
+          "mode": 4,
+          "material": 4,
+          "indices": 7
+        },
+        {
+          "attributes": {
+            "POSITION": 9,
+            "NORMAL": 10,
+            "TEXCOORD_0": 11
+          },
+          "mode": 4,
+          "material": 5,
+          "indices": 8
+        }
+      ]
+    }
+  ],
+  "nodes": [
+    {
+      "name": "washer(Clone)",
+      "mesh": 0,
+      "children": [
+        1
+      ]
+    },
+    {
+      "name": "washerDoor",
+      "translation": [
+        0.065,
+        0.22577481,
+        0.01
+      ],
+      "rotation": [
+        0.707106769,
+        0,
+        0,
+        0.7071068
+      ],
+      "mesh": 1
+    }
+  ],
+  "scenes": [
+    {
+      "nodes": [
+        0
+      ]
+    }
+  ],
+  "scene": 0
+}
