@@ -601,8 +601,26 @@ struct Index {
     if (point.action === 'light') {
       return this.activeLightOn() ? '关灯' : '开灯';
     }
+    if (point.action === 'curtain') {
+      return this.detailValue(point) > 0 ? '关闭' : '打开';
+    }
+    if (point.id === 'living_tv') {
+      return this.livingTvOn ? '关机' : '开机';
+    }
+    if (point.id === 'living_purifier') {
+      return this.livingPurifierOn ? '关闭' : '开启';
+    }
+    if (point.id === 'living_robot') {
+      return this.livingRobotOn ? '暂停' : '开始';
+    }
+    if (point.id === 'bedroom_robot') {
+      return this.bedroomRobotOn ? '暂停' : '开始';
+    }
+    if (point.id === 'bedroom_door') {
+      return this.bedroomDoorLocked ? '解锁' : '上锁';
+    }
     if (point.action === 'toggle') {
-      return '切换';
+      return '开关';
     }
     if (point.action === 'info') {
       return '标记';
@@ -615,7 +633,7 @@ struct Index {
       return '升温';
     }
     if (point.action === 'curtain') {
-      return '打开';
+      return this.detailValue(point) >= 100 ? '关闭' : '打开';
     }
     if (point.action === 'light') {
       return '调亮';
@@ -841,21 +859,40 @@ struct Index {
       return '升温';
     }
     if (point.action === 'curtain') {
-      return '打开';
+      return this.detailValue(point) >= 100 ? '关闭' : '打开';
     }
     if (point.action === 'light') {
       return this.activeLightOn() ? '关灯' : '开灯';
     }
+    if (point.id === 'living_tv') {
+      return this.livingTvOn ? '关机' : '开机';
+    }
+    if (point.id === 'living_purifier') {
+      return this.livingPurifierOn ? '关闭' : '开启';
+    }
+    if (point.id === 'living_robot') {
+      return this.livingRobotOn ? '暂停' : '开始';
+    }
+    if (point.id === 'bedroom_robot') {
+      return this.bedroomRobotOn ? '暂停' : '开始';
+    }
+    if (point.id === 'bedroom_door') {
+      return this.bedroomDoorLocked ? '解锁' : '上锁';
+    }
     if (point.action === 'toggle') {
-      return '切换';
+      return '开关';
     }
     return '查看';
   }
 
   private runDeviceAction(pointId: string): void {
     const point = this.pointById(pointId);
-    if (point.action === 'temperature' || point.action === 'curtain') {
+    if (point.action === 'temperature') {
       this.adjustPoint(point.id, 1);
+      return;
+    }
+    if (point.action === 'curtain') {
+      this.setDetailValue(point, this.detailValue(point) >= 100 ? 0 : 100);
       return;
     }
     if (point.action === 'light' || point.action === 'toggle') {
@@ -917,10 +954,13 @@ struct Index {
     if (point.action === 'light') {
       return this.activeLightOn() ? '关闭' : '打开';
     }
-    if (point.action === 'temperature' || point.action === 'curtain') {
+    if (point.action === 'temperature') {
       return '-';
     }
-    return '切换';
+    if (point.action === 'curtain') {
+      return this.detailValue(point) >= 100 ? '关闭' : '打开';
+    }
+    return this.deviceActionLabel(point);
   }
 
   private listSecondaryLabel(point: PointSpec): string {
@@ -1525,7 +1565,27 @@ struct Index {
   MiniDeviceCard(point: PointSpec) {
     Column() {
       Row() {
-        this.ToneBadge(this.pointBadge(point), this.tintColor(point.type), 28)
+        Row() {
+          this.ToneBadge(this.pointBadge(point), this.tintColor(point.type), 28)
+
+          Column() {
+            Text(point.name)
+              .fontSize(14)
+              .fontWeight(FontWeight.Bold)
+              .fontColor(this.primaryText())
+              .maxLines(1)
+
+            Text(this.pointStatus(point))
+              .fontSize(11)
+              .fontColor(this.secondaryText())
+              .margin({ top: 4 })
+              .maxLines(1)
+          }
+          .layoutWeight(1)
+          .alignItems(HorizontalAlign.Start)
+          .margin({ left: 10 })
+        }
+        .layoutWeight(1)
 
         Text('+')
           .fontSize(16)
@@ -1551,26 +1611,7 @@ struct Index {
           })
       }
       .width('100%')
-      .justifyContent(FlexAlign.SpaceBetween)
-
-      Column() {
-        Text(point.name)
-          .fontSize(14)
-          .fontWeight(FontWeight.Bold)
-          .fontColor(this.primaryText())
-
-        Text(this.pointStatus(point))
-          .fontSize(12)
-          .fontColor(this.secondaryText())
-          .margin({ top: 4 })
-          .maxLines(1)
-      }
-      .width('100%')
-      .alignItems(HorizontalAlign.Start)
-      .margin({ top: 12 })
-
-      Column()
-        .layoutWeight(1)
+      .alignItems(VerticalAlign.Top)
 
       Button(this.deviceActionLabel(point))
         .width('100%')
@@ -1595,6 +1636,7 @@ struct Index {
         })
     }
     .height(105)
+    .justifyContent(FlexAlign.SpaceBetween)
     .padding({ left: 14, right: 14, top: 14, bottom: 14 })
     .backgroundColor(this.glassShellColor())
     .border({
@@ -2061,7 +2103,7 @@ struct Index {
         .width('100%')
         .margin({ top: 18 })
       } else if (point.action === 'toggle') {
-        Button('切换状态')
+        Button(this.deviceActionLabel(point))
           .width('100%')
           .height(46)
           .fontSize(14)
