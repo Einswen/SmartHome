@@ -43,6 +43,36 @@ interface SceneSpec {
   badge: string;
 }
 
+interface AgentSuggestionSpec {
+  id: string;
+  label: string;
+  prompt: string;
+}
+
+interface AgentRecordSpec {
+  id: string;
+  title: string;
+  detail: string;
+  time: string;
+  status: string;
+}
+
+interface AutomationSpec {
+  id: string;
+  title: string;
+  trigger: string;
+  action: string;
+  source: string;
+  enabled: boolean;
+}
+
+interface AgentMessageSpec {
+  id: string;
+  role: string;
+  text: string;
+  meta: string;
+}
+
 const ROOM_ASPECT: number = 1402 / 1122;
 const NIGHT_START_HOUR: number = 18;
 const NIGHT_END_HOUR: number = 6;
@@ -60,6 +90,51 @@ const SCENES: SceneSpec[] = [
   { id: 'movie', label: '观影', detail: '客厅联动', badge: '影' },
   { id: 'sleep', label: '睡眠', detail: '夜间静音', badge: '夜' }
 ];
+
+const SMART_SUGGESTIONS: AgentSuggestionSpec[] = [
+  { id: 'leave', label: '离家断电', prompt: '当我出门时，关闭客厅电视、空气净化器和主灯，并开启安防提醒' },
+  { id: 'night', label: '夜间入睡', prompt: '每天晚上十点半关闭客厅灯，拉上卧室窗帘并把卧室空调调到23度' },
+  { id: 'return', label: '回家模式', prompt: '我回家后打开客厅灯到70%，启动空气净化器并让电视进入待机' },
+  { id: 'clean', label: '周末清洁', prompt: '每周六上午十点启动客厅和卧室扫地机器人，清洁完成后提醒我' }
+];
+
+const DEFAULT_AGENT_RECORDS: AgentRecordSpec[] = [
+  {
+    id: 'record_seed_1',
+    title: '智能助手已整理晨间场景',
+    detail: '建议把窗帘、空调和照明联动成一个一键场景。',
+    time: '09:12',
+    status: '建议'
+  },
+  {
+    id: 'record_seed_2',
+    title: '离家脚本已同步',
+    detail: '关闭高功率设备，并保留必要的安防提醒。',
+    time: '08:46',
+    status: '已执行'
+  }
+];
+
+const DEFAULT_AUTOMATIONS: AutomationSpec[] = [
+  {
+    id: 'auto_leave',
+    title: '离家断电',
+    trigger: '离家定位或手动点击离家场景',
+    action: '关闭客厅电视、空气净化器和主灯',
+    source: 'agent',
+    enabled: true
+  },
+  {
+    id: 'auto_sleep',
+    title: '睡眠安静模式',
+    trigger: '每天 22:30',
+    action: '拉上卧室窗帘，客厅灯关闭，卧室空调调至 23°C',
+    source: 'manual',
+    enabled: true
+  }
+];
+
+const DEFAULT_AGENT_MESSAGES: AgentMessageSpec[] = [];
 
 const ROOMS: RoomSpec[] = [
   {
@@ -135,6 +210,16 @@ struct Index {
   @State rooms: RoomSpec[] = ROOMS;
   @State activeRoomId: string = 'living';
   @State activeSceneId: string = 'morning';
+  @State agentPrompt: string = '';
+  @State agentListening: boolean = false;
+  @State automationComposerVisible: boolean = false;
+  @State automationTitle: string = '';
+  @State automationTrigger: string = '';
+  @State automationAction: string = '';
+  @State expandedAutomationId: string = '';
+  @State agentRecords: AgentRecordSpec[] = DEFAULT_AGENT_RECORDS;
+  @State automations: AutomationSpec[] = DEFAULT_AUTOMATIONS;
+  @State chatMessages: AgentMessageSpec[] = DEFAULT_AGENT_MESSAGES;
   @State selectedPointId: string = '';
   @State detailPointId: string = '';
   @State selectionVersion: number = 0;
@@ -968,6 +1053,158 @@ struct Index {
       return '设置';
     }
     return '详情';
+  }
+
+  private previewPromptText(): string {
+    const value = this.agentPrompt.trim();
+    if (value.length > 0) {
+      return value;
+    }
+    return '例如：帮我创建一个出门后自动关闭高功率设备的脚本';
+  }
+
+  private pushChatMessage(role: string, text: string, meta: string): void {
+    this.chatMessages = [
+      ...this.chatMessages,
+      {
+        id: `${role}_${new Date().getTime()}`,
+        role: role,
+        text: text,
+        meta: meta
+      }
+    ];
+  }
+
+  private buildAgentResponse(prompt: string): string {
+    if (prompt.indexOf('自动') >= 0 || prompt.indexOf('脚本') >= 0 || prompt.indexOf('每天') >= 0 || prompt.indexOf('每周') >= 0) {
+      return `我已经把你的需求整理成自动化草稿，并放到上方脚本板块。接下来你可以继续补充触发条件，或者直接启用它。`;
+    }
+    return `我已经理解你的控制需求。当前可以先按这个方案执行，并且如果你愿意，我也可以进一步把它沉淀成一个自动化脚本。`;
+  }
+
+  private appendAgentRecord(title: string, detail: string, status: string): void {
+    const now = new Date();
+    const time = `${`${now.getHours()}`.padStart(2, '0')}:${`${now.getMinutes()}`.padStart(2, '0')}`;
+    this.agentRecords = [
+      {
+        id: `record_${now.getTime()}`,
+        title: title,
+        detail: detail,
+        time: time,
+        status: status
+      },
+      ...this.agentRecords
+    ];
+  }
+
+  private applyAgentSuggestion(prompt: string): void {
+    this.agentPrompt = prompt;
+    this.appendAgentRecord('智能助手已载入指令草稿', prompt, '草稿');
+    this.pushChatMessage('agent', `已将“${prompt}”带入输入框，你可以直接发送，或继续调整细节。`, '建议');
+  }
+
+  private toggleListening(): void {
+    this.agentListening = !this.agentListening;
+    this.appendAgentRecord(
+      this.agentListening ? '语音输入已开启' : '语音输入已关闭',
+      this.agentListening ? '现在可以通过语音描述想执行的指令。' : '你可以继续用文字调整脚本细节。',
+      '建议'
+    );
+    this.pushChatMessage(
+      'agent',
+      this.agentListening ? '语音输入已开启，你现在可以直接描述需求。' : '语音输入已关闭，你可以继续通过文字给我下达指令。',
+      this.agentListening ? '语音中' : '语音结束'
+    );
+  }
+
+  private runAgentPrompt(): void {
+    const prompt = this.agentPrompt.trim();
+    if (prompt.length === 0) {
+      this.appendAgentRecord('请输入指令', '智能助手需要明确的文字或语音指令才能生成执行方案。', '建议');
+      this.pushChatMessage('agent', '先告诉我你想执行什么，我再帮你生成动作或脚本。', '等待指令');
+      return;
+    }
+    this.pushChatMessage('user', prompt, '刚刚');
+    const title = prompt.indexOf('自动') >= 0 || prompt.indexOf('脚本') >= 0 ? '智能助手已生成自动化草稿' : '智能助手已生成执行方案';
+    this.appendAgentRecord(title, prompt, '已执行');
+    if (prompt.indexOf('自动') >= 0 || prompt.indexOf('脚本') >= 0 || prompt.indexOf('每天') >= 0 || prompt.indexOf('每周') >= 0) {
+      this.automations = [
+        {
+          id: `auto_${new Date().getTime()}`,
+          title: '智能助手新建自动化',
+          trigger: '等待你补充触发条件',
+          action: prompt,
+          source: 'agent',
+          enabled: true
+        },
+        ...this.automations
+      ];
+    }
+    this.pushChatMessage('agent', this.buildAgentResponse(prompt), title);
+    this.agentPrompt = '';
+  }
+
+  private openAutomationComposer(): void {
+    this.expandedAutomationId = '';
+    this.automationComposerVisible = true;
+  }
+
+  private toggleAutomationDetail(automationId: string): void {
+    this.automationComposerVisible = false;
+    if (this.expandedAutomationId === automationId) {
+      this.expandedAutomationId = '';
+      return;
+    }
+    this.expandedAutomationId = automationId;
+  }
+
+  private addManualAutomation(): void {
+    const title = this.automationTitle.trim();
+    const trigger = this.automationTrigger.trim();
+    const action = this.automationAction.trim();
+    if (title.length === 0 || trigger.length === 0 || action.length === 0) {
+      this.appendAgentRecord('自动化信息不完整', '请补全名称、触发条件和执行动作。', '建议');
+      return;
+    }
+    const automationId = `manual_${new Date().getTime()}`;
+    this.automations = [
+      {
+        id: automationId,
+        title: title,
+        trigger: trigger,
+        action: action,
+        source: 'manual',
+        enabled: true
+      },
+      ...this.automations
+    ];
+    this.appendAgentRecord('手动自动化已创建', `${title} · ${trigger}`, '已执行');
+    this.pushChatMessage('agent', `已创建脚本“${title}”，触发条件是“${trigger}”。你现在可以在上方脚本板块里继续启用或调整它。`, '脚本已保存');
+    this.automationTitle = '';
+    this.automationTrigger = '';
+    this.automationAction = '';
+    this.expandedAutomationId = automationId;
+    this.automationComposerVisible = false;
+  }
+
+  private toggleAutomation(automationId: string): void {
+    const nextAutomations: AutomationSpec[] = [];
+    for (let i = 0; i < this.automations.length; i++) {
+      const item = this.automations[i];
+      if (item.id === automationId) {
+        nextAutomations.push({
+          id: item.id,
+          title: item.title,
+          trigger: item.trigger,
+          action: item.action,
+          source: item.source,
+          enabled: !item.enabled
+        });
+      } else {
+        nextAutomations.push(item);
+      }
+    }
+    this.automations = nextAutomations;
   }
 
   @Builder
@@ -2313,11 +2550,575 @@ struct Index {
   }
 
   @Builder
-  EmptyPage() {
-    Column()
+  ScriptHeaderCard() {
+    Column() {
+      Row() {
+        Text('脚本')
+          .fontSize(15)
+          .fontWeight(FontWeight.Bold)
+          .fontColor(this.primaryText())
+          .margin({ right: 10 })
+
+        Scroll() {
+          Row() {
+            if (this.automations.length === 0) {
+              Text('暂无脚本')
+                .fontSize(11)
+                .fontColor(this.secondaryText())
+                .padding({ left: 14, right: 14, top: 10, bottom: 10 })
+                .backgroundColor(this.glassShellColor())
+                .border({
+                  width: 1,
+                  color: this.lineColor()
+                })
+                .borderRadius(16)
+            } else {
+              ForEach(this.automations.slice(0, 5), (item: AutomationSpec) => {
+                Row() {
+                  Column()
+                    .width(6)
+                    .height(6)
+                    .borderRadius(3)
+                    .backgroundColor(item.enabled ? this.primaryText() : this.secondaryText())
+
+                  Text(item.title)
+                    .fontSize(12)
+                    .fontWeight(FontWeight.Medium)
+                    .fontColor(this.primaryText())
+                    .maxLines(1)
+                    .margin({ left: 8 })
+
+                  Text('+')
+                    .fontSize(14)
+                    .fontWeight(FontWeight.Bold)
+                    .fontColor(this.primaryText())
+                    .width(18)
+                    .textAlign(TextAlign.Center)
+                    .margin({ left: 8 })
+                }
+                .padding({ left: 12, right: 12, top: 10, bottom: 10 })
+                .backgroundColor(this.expandedAutomationId === item.id ? this.translucentCardColor() : this.glassShellColor())
+                .border({
+                  width: 1,
+                  color: this.expandedAutomationId === item.id ? this.glassBorderColor() : this.lineColor()
+                })
+                .borderRadius(16)
+                .margin({ right: 8 })
+                .scale(this.buttonScale(`script_detail_${item.id}`))
+                .opacity(this.buttonOpacity(`script_detail_${item.id}`))
+                .animation({ duration: 120, curve: Curve.EaseOut })
+                .onTouch((event: TouchEvent) => {
+                  this.handlePressState(`script_detail_${item.id}`, event);
+                })
+                .onClick(() => {
+                  this.toggleAutomationDetail(item.id);
+                })
+              }, (item: AutomationSpec) => item.id)
+            }
+          }
+          .alignItems(VerticalAlign.Center)
+          .padding({ right: 4 })
+        }
+        .layoutWeight(1)
+        .scrollBar(BarState.Off)
+        .scrollable(ScrollDirection.Horizontal)
+
+        Button('新建')
+          .height(34)
+          .fontSize(12)
+          .fontWeight(FontWeight.Bold)
+          .fontColor(this.primaryText())
+          .backgroundColor(this.glassShellColor())
+          .border({
+            width: 1,
+            color: this.glassBorderColor()
+          })
+          .borderRadius(17)
+          .padding({ left: 14, right: 14 })
+          .margin({ left: 10 })
+          .scale(this.buttonScale('script_add_top'))
+          .opacity(this.buttonOpacity('script_add_top'))
+          .animation({ duration: 120, curve: Curve.EaseOut })
+          .onTouch((event: TouchEvent) => {
+            this.handlePressState('script_add_top', event);
+          })
+          .onClick(() => {
+            this.openAutomationComposer();
+          })
+      }
       .width('100%')
-      .height('100%')
-      .backgroundColor(this.bgColor())
+      .height(54)
+      .alignItems(VerticalAlign.Center)
+
+      if (this.expandedAutomationId.length > 0) {
+        ForEach(this.automations, (item: AutomationSpec) => {
+          if (item.id === this.expandedAutomationId) {
+            Column() {
+              Row() {
+                Text(item.title)
+                  .fontSize(15)
+                  .fontWeight(FontWeight.Bold)
+                  .fontColor(this.primaryText())
+                  .layoutWeight(1)
+
+                Text(item.enabled ? '运行中' : '已暂停')
+                  .fontSize(10)
+                  .fontWeight(FontWeight.Bold)
+                  .fontColor(this.primaryText())
+                  .padding({ left: 8, right: 8, top: 5, bottom: 5 })
+                  .backgroundColor(this.translucentCardColor())
+                  .border({
+                    width: 1,
+                    color: this.glassBorderColor()
+                  })
+                  .borderRadius(12)
+              }
+              .width('100%')
+
+              Text(item.trigger)
+                .fontSize(12)
+                .fontColor(this.secondaryText())
+                .margin({ top: 10 })
+
+              Text(item.action)
+                .fontSize(12)
+                .lineHeight(18)
+                .fontColor(this.primaryText())
+                .margin({ top: 8 })
+
+              Row() {
+                Text(item.source === 'agent' ? '智能助手创建' : '手动创建')
+                  .fontSize(11)
+                  .fontColor(this.secondaryText())
+                  .layoutWeight(1)
+
+                Button(item.enabled ? '暂停' : '启用')
+                  .height(32)
+                  .fontSize(12)
+                  .fontWeight(FontWeight.Bold)
+                  .fontColor(this.primaryText())
+                  .backgroundColor(this.glassShellColor())
+                  .border({
+                    width: 1,
+                    color: this.glassBorderColor()
+                  })
+                  .borderRadius(16)
+                  .padding({ left: 14, right: 14 })
+                  .scale(this.buttonScale(`script_toggle_${item.id}`))
+                  .opacity(this.buttonOpacity(`script_toggle_${item.id}`))
+                  .animation({ duration: 120, curve: Curve.EaseOut })
+                  .onTouch((event: TouchEvent) => {
+                    this.handlePressState(`script_toggle_${item.id}`, event);
+                  })
+                  .onClick(() => {
+                    this.toggleAutomation(item.id);
+                  })
+
+                Button('收起')
+                  .height(32)
+                  .fontSize(12)
+                  .fontWeight(FontWeight.Bold)
+                  .fontColor(this.primaryText())
+                  .backgroundColor('#00000000')
+                  .border({
+                    width: 1,
+                    color: this.lineColor()
+                  })
+                  .borderRadius(16)
+                  .padding({ left: 14, right: 14 })
+                  .margin({ left: 8 })
+                  .scale(this.buttonScale(`script_collapse_${item.id}`))
+                  .opacity(this.buttonOpacity(`script_collapse_${item.id}`))
+                  .animation({ duration: 120, curve: Curve.EaseOut })
+                  .onTouch((event: TouchEvent) => {
+                    this.handlePressState(`script_collapse_${item.id}`, event);
+                  })
+                  .onClick(() => {
+                    this.expandedAutomationId = '';
+                  })
+              }
+              .width('100%')
+              .margin({ top: 14 })
+              .alignItems(VerticalAlign.Center)
+            }
+            .width('100%')
+            .padding({ left: 14, right: 14, top: 14, bottom: 14 })
+            .backgroundColor(this.glassShellColor())
+            .border({
+              width: 1,
+              color: this.glassBorderColor()
+            })
+            .borderRadius(18)
+            .margin({ top: 10 })
+          }
+        }, (item: AutomationSpec) => item.id)
+      }
+    }
+    .width('100%')
+    .padding({ left: 12, right: 12, top: 10, bottom: 10 })
+    .backgroundColor(this.glassStrongColor())
+    .border({
+      width: 1,
+      color: this.glassBorderColor()
+    })
+    .borderRadius(22)
+  }
+
+  @Builder
+  ChatMessageBubble(message: AgentMessageSpec) {
+    Column() {
+      Text(message.role === 'user' ? `你 · ${message.meta}` : message.meta)
+        .fontSize(10)
+        .fontWeight(FontWeight.Medium)
+        .fontColor(this.secondaryText())
+        .margin({ bottom: 6 })
+        .maxLines(1)
+
+      Text(message.text)
+        .fontSize(14)
+        .lineHeight(21)
+        .fontColor(message.role === 'user' ? this.inverseText() : this.primaryText())
+    }
+    .padding({ left: 15, right: 15, top: 13, bottom: 13 })
+    .backgroundColor(message.role === 'user' ? this.translucentInverseBg() : this.translucentCardColor())
+    .border({
+      width: 1,
+      color: message.role === 'user' ? this.glassBorderColor() : this.lineColor()
+    })
+    .borderRadius(20)
+    .width('100%')
+    .alignItems(HorizontalAlign.Start)
+  }
+
+  @Builder
+  ChatSurface() {
+    Scroll() {
+      Column() {
+        if (this.chatMessages.length === 0) {
+          Column() {
+            Text('智能助手')
+              .fontSize(28)
+              .fontWeight(FontWeight.Bold)
+              .fontColor(this.primaryText())
+
+            Scroll() {
+              Row() {
+                ForEach(SMART_SUGGESTIONS, (item: AgentSuggestionSpec) => {
+                  Text(item.label)
+                    .fontSize(12)
+                    .fontWeight(FontWeight.Medium)
+                    .fontColor(this.primaryText())
+                    .padding({ left: 14, right: 14, top: 10, bottom: 10 })
+                    .backgroundColor(this.glassShellColor())
+                    .border({
+                      width: 1,
+                      color: this.glassBorderColor()
+                    })
+                    .borderRadius(17)
+                    .margin({ right: 8, top: 16 })
+                    .scale(this.buttonScale(`chat_suggestion_${item.id}`))
+                    .opacity(this.buttonOpacity(`chat_suggestion_${item.id}`))
+                    .animation({ duration: 120, curve: Curve.EaseOut })
+                    .onTouch((event: TouchEvent) => {
+                      this.handlePressState(`chat_suggestion_${item.id}`, event);
+                    })
+                    .onClick(() => {
+                      this.applyAgentSuggestion(item.prompt);
+                    })
+                }, (item: AgentSuggestionSpec) => item.id)
+              }
+              .padding({ right: 6 })
+            }
+            .width('100%')
+            .scrollBar(BarState.Off)
+            .scrollable(ScrollDirection.Horizontal)
+          }
+          .width('100%')
+          .alignItems(HorizontalAlign.Center)
+          .margin({ top: 96, bottom: 12 })
+        }
+
+        ForEach(this.chatMessages, (message: AgentMessageSpec) => {
+          Row() {
+            Column() {
+              this.ChatMessageBubble(message)
+            }
+            .width(message.role === 'user' ? '78%' : '88%')
+          }
+          .width('100%')
+          .justifyContent(message.role === 'user' ? FlexAlign.End : FlexAlign.Start)
+          .margin({ top: 12 })
+        }, (message: AgentMessageSpec) => message.id)
+      }
+      .width('100%')
+      .padding({
+        left: 18,
+        right: 18,
+        top: 18,
+        bottom: 18
+      })
+    }
+    .width('100%')
+    .layoutWeight(1)
+    .scrollBar(BarState.Off)
+  }
+
+  @Builder
+  ChatComposer() {
+    Column() {
+      if (this.agentPrompt.trim().length > 0) {
+        Row() {
+          Text('草稿')
+            .fontSize(10)
+            .fontWeight(FontWeight.Bold)
+            .fontColor(this.primaryText())
+            .padding({ left: 8, right: 8, top: 4, bottom: 4 })
+            .backgroundColor(this.glassShellColor())
+            .border({
+              width: 1,
+              color: this.glassBorderColor()
+            })
+            .borderRadius(10)
+
+          Text(this.previewPromptText())
+            .fontSize(11)
+            .fontColor(this.secondaryText())
+            .margin({ left: 8 })
+            .layoutWeight(1)
+            .maxLines(1)
+        }
+        .width('100%')
+        .alignItems(VerticalAlign.Center)
+        .margin({ bottom: 12 })
+      }
+
+      Row() {
+        Button(this.agentListening ? '停止语音' : '语音')
+          .height(40)
+          .fontSize(12)
+          .fontWeight(FontWeight.Bold)
+          .fontColor(this.primaryText())
+          .backgroundColor(this.glassShellColor())
+          .border({
+            width: 1,
+            color: this.glassBorderColor()
+          })
+          .borderRadius(19)
+          .padding({ left: 14, right: 14 })
+          .scale(this.buttonScale('agent_voice'))
+          .opacity(this.buttonOpacity('agent_voice'))
+          .animation({ duration: 120, curve: Curve.EaseOut })
+          .onTouch((event: TouchEvent) => {
+            this.handlePressState('agent_voice', event);
+          })
+          .onClick(() => {
+            this.toggleListening();
+          })
+
+        TextInput({ placeholder: '输入设备控制指令或自动化需求', text: this.agentPrompt })
+          .layoutWeight(1)
+          .height(50)
+          .fontSize(14)
+          .fontColor(this.primaryText())
+          .placeholderColor(this.secondaryText())
+          .backgroundColor(this.glassShellColor())
+          .border({
+            width: 1,
+            color: this.glassBorderColor()
+          })
+          .borderRadius(20)
+          .padding({ left: 16, right: 16 })
+          .margin({ left: 10 })
+          .onChange((value: string) => {
+            this.agentPrompt = value;
+          })
+
+        Button('发送')
+          .height(40)
+          .fontSize(12)
+          .fontWeight(FontWeight.Bold)
+          .fontColor(this.inverseText())
+          .backgroundColor(this.translucentInverseBg())
+          .borderRadius(19)
+          .padding({ left: 16, right: 16 })
+          .margin({ left: 10 })
+          .scale(this.buttonScale('agent_run'))
+          .opacity(this.buttonOpacity('agent_run'))
+          .animation({ duration: 120, curve: Curve.EaseOut })
+          .onTouch((event: TouchEvent) => {
+            this.handlePressState('agent_run', event);
+          })
+          .onClick(() => {
+            this.runAgentPrompt();
+          })
+      }
+      .width('100%')
+      .alignItems(VerticalAlign.Center)
+    }
+    .width('100%')
+    .padding({ left: 14, right: 14, top: 14, bottom: 14 })
+    .backgroundColor(this.glassStrongColor())
+    .border({
+      width: 1,
+      color: this.glassBorderColor()
+    })
+    .borderRadius(24)
+  }
+
+  @Builder
+  AutomationComposerCard() {
+    Column() {
+      Row() {
+        Text('脚本草稿')
+          .fontSize(17)
+          .fontWeight(FontWeight.Bold)
+          .fontColor(this.primaryText())
+          .layoutWeight(1)
+
+        Button('收起')
+          .height(34)
+          .fontSize(12)
+          .fontWeight(FontWeight.Bold)
+          .fontColor(this.primaryText())
+          .backgroundColor(this.glassShellColor())
+          .border({
+            width: 1,
+            color: this.glassBorderColor()
+          })
+          .borderRadius(17)
+          .padding({ left: 14, right: 14 })
+          .scale(this.buttonScale('composer_close'))
+          .opacity(this.buttonOpacity('composer_close'))
+          .animation({ duration: 120, curve: Curve.EaseOut })
+          .onTouch((event: TouchEvent) => {
+            this.handlePressState('composer_close', event);
+          })
+          .onClick(() => {
+            this.automationComposerVisible = false;
+          })
+      }
+      .width('100%')
+
+      TextInput({ placeholder: '自动化名称，例如：出门断电', text: this.automationTitle })
+        .width('100%')
+        .height(44)
+        .fontSize(14)
+        .fontColor(this.primaryText())
+        .placeholderColor(this.secondaryText())
+        .backgroundColor(this.glassShellColor())
+        .border({
+          width: 1,
+          color: this.glassBorderColor()
+        })
+        .borderRadius(18)
+        .padding({ left: 16, right: 16 })
+        .margin({ top: 14 })
+        .onChange((value: string) => {
+          this.automationTitle = value;
+        })
+
+      TextInput({ placeholder: '触发条件，例如：每天 22:30 或离家定位', text: this.automationTrigger })
+        .width('100%')
+        .height(44)
+        .fontSize(14)
+        .fontColor(this.primaryText())
+        .placeholderColor(this.secondaryText())
+        .backgroundColor(this.glassShellColor())
+        .border({
+          width: 1,
+          color: this.glassBorderColor()
+        })
+        .borderRadius(18)
+        .padding({ left: 16, right: 16 })
+        .margin({ top: 10 })
+        .onChange((value: string) => {
+          this.automationTrigger = value;
+        })
+
+      TextInput({ placeholder: '执行动作，例如：关闭客厅电视与空气净化器', text: this.automationAction })
+        .width('100%')
+        .height(44)
+        .fontSize(14)
+        .fontColor(this.primaryText())
+        .placeholderColor(this.secondaryText())
+        .backgroundColor(this.glassShellColor())
+        .border({
+          width: 1,
+          color: this.glassBorderColor()
+        })
+        .borderRadius(18)
+        .padding({ left: 16, right: 16 })
+        .margin({ top: 10 })
+        .onChange((value: string) => {
+          this.automationAction = value;
+        })
+
+      Button('保存自动化')
+        .width('100%')
+        .height(42)
+        .fontSize(13)
+        .fontWeight(FontWeight.Bold)
+        .fontColor(this.inverseText())
+        .backgroundColor(this.translucentInverseBg())
+        .borderRadius(16)
+        .margin({ top: 14 })
+        .scale(this.buttonScale('automation_save'))
+        .opacity(this.buttonOpacity('automation_save'))
+        .animation({ duration: 120, curve: Curve.EaseOut })
+        .onTouch((event: TouchEvent) => {
+          this.handlePressState('automation_save', event);
+        })
+        .onClick(() => {
+          this.addManualAutomation();
+        })
+    }
+    .width('100%')
+    .padding({ left: 16, right: 16, top: 16, bottom: 16 })
+    .backgroundColor(this.glassShellColor())
+    .border({
+      width: 1,
+      color: this.lineColor()
+    })
+    .borderRadius(18)
+    .margin({ bottom: 10 })
+  }
+
+  @Builder
+  SmartPage() {
+    Column() {
+      this.ScriptHeaderCard()
+      this.ChatSurface()
+
+      if (this.automationComposerVisible) {
+        this.AutomationComposerCard()
+      }
+
+      this.ChatComposer()
+    }
+    .width('100%')
+    .height('100%')
+    .padding({ left: 14, right: 14, top: 8, bottom: 102 })
+  }
+
+  @Builder
+  EmptyPage() {
+    Column() {
+      Text(this.activeTab === 'store' ? '商场页面建设中' : '我的页面建设中')
+        .fontSize(22)
+        .fontWeight(FontWeight.Bold)
+        .fontColor(this.primaryText())
+
+      Text('当前先保留空白页，后续可以继续扩展完整功能。')
+        .fontSize(13)
+        .lineHeight(20)
+        .fontColor(this.secondaryText())
+        .margin({ top: 8 })
+    }
+    .width('100%')
+    .height('100%')
+    .justifyContent(FlexAlign.Center)
+    .alignItems(HorizontalAlign.Center)
+    .padding({ left: 28, right: 28, bottom: 90 })
   }
 
   @Builder
@@ -2590,6 +3391,8 @@ struct Index {
 
       if (this.activeTab === 'home') {
         this.HomePage()
+      } else if (this.activeTab === 'smart') {
+        this.SmartPage()
       } else {
         this.EmptyPage()
       }
