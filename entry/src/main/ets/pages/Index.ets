@@ -495,7 +495,7 @@ struct Index {
 
   private overlayPanelHeight(): number {
     if (this.detailPointId.length > 0) {
-      return 708;
+      return 536;
     }
     return this.panelViewportHeight();
   }
@@ -547,12 +547,8 @@ struct Index {
   }
 
   private selectPoint(pointId: string): void {
-    if (this.selectedPointId === pointId && this.detailPointId.length === 0) {
-      this.selectedPointId = '';
-    } else {
-      this.selectedPointId = pointId;
-    }
-    this.detailPointId = '';
+    this.selectedPointId = pointId;
+    this.detailPointId = pointId;
     this.addRoomPanelVisible = false;
     this.selectionVersion++;
   }
@@ -1033,7 +1029,7 @@ struct Index {
   }
 
   private overlayVisible(): boolean {
-    return this.addRoomPanelVisible || this.selectedPointId.length > 0 || this.detailPointId.length > 0;
+    return this.addRoomPanelVisible || this.detailPointId.length > 0;
   }
 
   private availablePresetRooms(): RoomSpec[] {
@@ -1360,134 +1356,6 @@ struct Index {
     .onClick(() => {
       this.selectPoint(point.id);
     })
-  }
-
-  @Builder
-  Bubble(point: PointSpec) {
-    Column() {
-      Row() {
-        Column() {
-          Text(point.name)
-            .fontSize(15)
-            .fontColor(this.primaryText())
-            .fontWeight(FontWeight.Bold)
-          Text(`${point.type} · ${this.pointStatus(point)}`)
-            .fontSize(11)
-            .fontColor(this.secondaryText())
-            .margin({ top: 3 })
-            .maxLines(1)
-        }
-        .alignItems(HorizontalAlign.Start)
-        .layoutWeight(1)
-
-        Text('+')
-          .fontSize(20)
-          .fontColor(this.primaryText())
-          .fontWeight(FontWeight.Bold)
-          .width(32)
-          .height(32)
-          .textAlign(TextAlign.Center)
-          .backgroundColor(this.translucentCardColor())
-          .borderRadius(16)
-          .scale(this.iconScale(`bubble_expand_${point.id}`))
-          .opacity(this.buttonOpacity(`bubble_expand_${point.id}`))
-          .animation({ duration: 120, curve: Curve.EaseOut })
-          .onTouch((event: TouchEvent) => {
-            this.handlePressState(`bubble_expand_${point.id}`, event);
-          })
-          .onClick(() => {
-            this.detailPointId = point.id;
-          })
-
-        Text('×')
-          .fontSize(16)
-          .fontColor(this.secondaryText())
-          .fontWeight(FontWeight.Medium)
-          .width(32)
-          .height(32)
-          .textAlign(TextAlign.Center)
-          .margin({ left: 6 })
-          .scale(this.iconScale(`bubble_close_${point.id}`))
-          .opacity(this.buttonOpacity(`bubble_close_${point.id}`))
-          .animation({ duration: 120, curve: Curve.EaseOut })
-          .onTouch((event: TouchEvent) => {
-            this.handlePressState(`bubble_close_${point.id}`, event);
-          })
-          .onClick(() => {
-            this.selectedPointId = '';
-            this.detailPointId = '';
-          })
-      }
-      .width('100%')
-
-      Text(point.detail)
-        .fontSize(12)
-        .fontColor(this.secondaryText())
-        .margin({ top: 8 })
-        .maxLines(2)
-
-      Row() {
-        Button(this.quickPrimaryLabel(point))
-          .height(34)
-          .fontSize(12)
-          .fontWeight(FontWeight.Bold)
-          .fontColor(this.inverseText())
-          .backgroundColor(this.translucentInverseBg())
-          .borderRadius(17)
-          .layoutWeight(1)
-          .scale(this.buttonScale(`bubble_primary_${point.id}`))
-          .opacity(this.buttonOpacity(`bubble_primary_${point.id}`))
-          .animation({ duration: 120, curve: Curve.EaseOut })
-          .onTouch((event: TouchEvent) => {
-            this.handlePressState(`bubble_primary_${point.id}`, event);
-          })
-          .onClick(() => {
-            if (point.action === 'temperature' || point.action === 'curtain') {
-              this.adjustPoint(point.id, -1);
-            } else {
-              this.togglePoint(point.id);
-            }
-          })
-
-        Button(this.quickSecondaryLabel(point))
-          .height(34)
-          .fontSize(12)
-          .fontWeight(FontWeight.Bold)
-          .fontColor(this.primaryText())
-          .backgroundColor(this.translucentCardColor())
-          .borderRadius(17)
-          .border({
-            width: 1,
-            color: this.lineColor()
-          })
-          .layoutWeight(1)
-          .margin({ left: 8 })
-          .scale(this.buttonScale(`bubble_secondary_${point.id}`))
-          .opacity(this.buttonOpacity(`bubble_secondary_${point.id}`))
-          .animation({ duration: 120, curve: Curve.EaseOut })
-          .onTouch((event: TouchEvent) => {
-            this.handlePressState(`bubble_secondary_${point.id}`, event);
-          })
-          .onClick(() => {
-            if (point.action === 'temperature' || point.action === 'curtain' || point.action === 'light') {
-              this.adjustPoint(point.id, 1);
-            } else {
-              this.detailPointId = point.id;
-            }
-          })
-      }
-      .width('100%')
-      .margin({ top: 10 })
-    }
-    .width('100%')
-    .padding({ left: 16, right: 16, top: 14, bottom: 14 })
-    .backgroundColor(this.glassStrongColor())
-    .border({
-      width: 1,
-      color: this.glassBorderColor()
-    })
-    .borderRadius(18)
-    .margin({ top: 12 })
   }
 
   @Builder
@@ -2303,8 +2171,6 @@ struct Index {
                 this.AddRoomPanel()
               } else if (this.detailPointId.length > 0) {
                 this.DetailPanel(this.pointById(this.detailPointId))
-              } else if (this.selectedPointId.length > 0) {
-                this.Bubble(this.pointById(this.selectedPointId))
               }
             }
             .width('100%')

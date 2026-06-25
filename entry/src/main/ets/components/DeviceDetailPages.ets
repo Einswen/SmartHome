@@ -564,17 +564,17 @@ export struct DeviceDetailPages {
       .alignItems(HorizontalAlign.Start)
 
       Image(page.hero)
-        .width(150)
-        .height(128)
+        .width(118)
+        .height(94)
         .objectFit(ImageFit.Contain)
-        .margin({ left: 10 })
+        .margin({ left: 8 })
     }
     .width('100%')
-    .padding({ left: 14, right: 10, top: 16, bottom: 12 })
+    .padding({ left: 12, right: 10, top: 12, bottom: 10 })
     .backgroundColor(this.shell())
     .border({ width: 1, color: this.line() })
-    .borderRadius(18)
-    .margin({ top: 14 })
+    .borderRadius(16)
+    .margin({ top: 10 })
   }
 
   @Builder
@@ -599,14 +599,13 @@ export struct DeviceDetailPages {
         .margin({ top: 4 })
         .maxLines(1)
     }
-    .height(82)
-    .layoutWeight(1)
+    .height(72)
     .alignItems(HorizontalAlign.Start)
     .justifyContent(FlexAlign.Center)
-    .padding({ left: 12, right: 8 })
+    .padding({ left: 10, right: 6 })
     .backgroundColor(this.card())
     .border({ width: 1, color: this.line() })
-    .borderRadius(15)
+    .borderRadius(14)
   }
 
   @Builder
@@ -616,6 +615,7 @@ export struct DeviceDetailPages {
         Column() {
           this.MetricTile(metric, page.accent)
         }
+        .height(72)
         .layoutWeight(1)
         .margin({ right: metric.id === page.metrics[page.metrics.length - 1].id ? 0 : 8 })
       }, (metric: DetailMetricSpec) => metric.id)
@@ -696,11 +696,11 @@ export struct DeviceDetailPages {
       .margin({ top: 10 })
     }
     .width('100%')
-    .padding({ left: 14, right: 14, top: 14, bottom: 14 })
+    .padding({ left: 12, right: 12, top: 12, bottom: 12 })
     .backgroundColor(this.shell())
     .border({ width: 1, color: this.line() })
-    .borderRadius(18)
-    .margin({ top: 10 })
+    .borderRadius(16)
+    .margin({ top: 8 })
   }
 
   @Builder
@@ -731,12 +731,12 @@ export struct DeviceDetailPages {
         .margin({ left: 8 })
     }
     .width('100%')
-    .height(43)
+    .height(40)
     .padding({ left: 14, right: 12 })
     .backgroundColor(this.card())
     .border({ width: 1, color: this.line() })
     .borderRadius(14)
-    .margin({ top: 8 })
+    .margin({ top: 7 })
   }
 
   @Builder
@@ -787,16 +787,16 @@ export struct DeviceDetailPages {
           .position({ x: 4, y: 6 })
       }
       .width('100%')
-      .height(104)
+      .height(78)
       .margin({ top: 8 })
       .clip(true)
     }
     .width('100%')
-    .padding({ left: 14, right: 14, top: 12, bottom: 10 })
+    .padding({ left: 12, right: 12, top: 10, bottom: 8 })
     .backgroundColor(this.shell())
     .border({ width: 1, color: this.line() })
-    .borderRadius(18)
-    .margin({ top: 10 })
+    .borderRadius(16)
+    .margin({ top: 8 })
   }
 
   @Builder
@@ -859,17 +859,17 @@ export struct DeviceDetailPages {
         .padding({ right: 8 })
       }
       .width('100%')
-      .height(118)
+      .height(104)
       .scrollBar(BarState.Off)
       .scrollable(ScrollDirection.Horizontal)
       .margin({ top: 8 })
     }
     .width('100%')
-    .padding({ left: 14, right: 14, top: 12, bottom: 12 })
+    .padding({ left: 12, right: 12, top: 10, bottom: 10 })
     .backgroundColor(this.shell())
     .border({ width: 1, color: this.line() })
-    .borderRadius(18)
-    .margin({ top: 10 })
+    .borderRadius(16)
+    .margin({ top: 8 })
   }
 
   @Builder
@@ -886,11 +886,11 @@ export struct DeviceDetailPages {
       }, (action: DetailActionSpec) => action.id)
     }
     .width('100%')
-    .padding({ left: 14, right: 14, top: 12, bottom: 12 })
+    .padding({ left: 12, right: 12, top: 10, bottom: 10 })
     .backgroundColor(this.shell())
     .border({ width: 1, color: this.line() })
-    .borderRadius(18)
-    .margin({ top: 10 })
+    .borderRadius(16)
+    .margin({ top: 8 })
   }
 
   build() {
@@ -900,8 +900,8 @@ export struct DeviceDetailPages {
       Scroll() {
         Column() {
           this.Hero(this.page())
-          this.Metrics(this.page())
           this.ControlDeck(this.page())
+          this.Metrics(this.page())
 
           if (this.pointId === 'living_purifier') {
             this.PurifierLinkedDevices()
@@ -914,15 +914,15 @@ export struct DeviceDetailPages {
         .padding({ bottom: 8 })
       }
       .width('100%')
-      .height(594)
+      .height(426)
       .scrollBar(BarState.Off)
     }
     .width('100%')
-    .height(690)
-    .padding({ left: 16, right: 16, top: 16, bottom: 14 })
+    .height(520)
+    .padding({ left: 14, right: 14, top: 14, bottom: 12 })
     .backgroundColor(this.bg())
     .border({ width: 1, color: this.isNight ? '#20FFFFFF' : '#73FFFFFF' })
-    .borderRadius(24)
-    .margin({ top: 16 })
+    .borderRadius(22)
+    .margin({ top: 8 })
   }
 }
