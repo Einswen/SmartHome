@@ -204,7 +204,7 @@ const DEVICE_PAGES: DevicePageSpec[] = [
     metrics: [
       { id: 'bright', label: '亮度', value: '68%', hint: '明亮' },
       { id: 'color', label: '色温', value: '3600K', hint: '暖白' },
-      { id: 'scene', label: '场景', value: '会客', hint: '已应用' }
+      { id: 'scene', label: '场景', value: '会客', hint: '当前' }
     ],
     actions: [
       { id: 'movie', label: '观影灯光', value: '22% 暖光' },
@@ -410,8 +410,9 @@ export struct DeviceDetailPages {
   @State pressedKey: string = '';
   @State currentValue: number = 0;
   @State powerOn: boolean = true;
+  @State autoManaged: boolean = false;
+  @State selectedActionId: string = '';
   @State activeSubDevice: string = 'gateway';
-  @State activeChart: string = 'today';
 
   aboutToAppear(): void {
     this.currentValue = this.page().sliderValue;
@@ -477,6 +478,86 @@ export struct DeviceDetailPages {
 
   private opacityFor(key: string): number {
     return this.pressedKey === key ? 0.82 : 1;
+  }
+
+  private sliderMin(page: DevicePageSpec): number {
+    return page.sliderUnit.indexOf('C') >= 0 ? 16 : 0;
+  }
+
+  private sliderMax(page: DevicePageSpec): number {
+    if (page.sliderUnit.indexOf('C') >= 0) {
+      return 30;
+    }
+    if (page.sliderUnit === 'cm') {
+      return 60;
+    }
+    return 100;
+  }
+
+  private dynamicMetricValue(metric: DetailMetricSpec): string {
+    if (metric.id === 'temp') {
+      return `${this.currentValue}.1°C`;
+    }
+    if (metric.id === 'open' || metric.id === 'bright') {
+      return `${this.currentValue}%`;
+    }
+    if (metric.id === 'battery') {
+      return `${Math.max(12, Math.min(100, this.currentValue + 28))}%`;
+    }
+    if (metric.id === 'noise') {
+      return this.powerOn ? `${Math.round(22 + this.currentValue * 0.28)} dB` : '0 dB';
+    }
+    if (metric.id === 'pm') {
+      return `${Math.max(5, Math.round(34 - this.currentValue * 0.32))}`;
+    }
+    if (metric.id === 'filter') {
+      return `${Math.max(20, 92 - Math.round(this.currentValue / 6))}%`;
+    }
+    if (metric.id === 'shade') {
+      return `${Math.max(10, 100 - this.currentValue)}%`;
+    }
+    if (metric.id === 'space') {
+      return `${Math.max(20, this.currentValue + 14)}cm`;
+    }
+    if (metric.id === 'event') {
+      return this.powerOn ? '2 次' : '暂停';
+    }
+    return metric.value;
+  }
+
+  private dynamicMetricHint(metric: DetailMetricSpec): string {
+    if (!this.powerOn) {
+      return metric.id === 'battery' || metric.id === 'filter' ? metric.hint : '已暂停';
+    }
+    if (this.autoManaged) {
+      return '托管中';
+    }
+    return metric.hint;
+  }
+
+  private dynamicActionValue(action: DetailActionSpec): string {
+    if (action.id === 'quiet' || action.id === 'eco' || action.id === 'sleep' || action.id === 'night') {
+      return this.autoManaged ? '托管中' : action.value;
+    }
+    if (action.id === 'mop') {
+      return this.currentValue > 70 ? '高' : this.currentValue > 38 ? '中' : '低';
+    }
+    if (action.id === 'swing') {
+      return this.currentValue > 25 ? '向上 24°' : '向上 18°';
+    }
+    if (action.id === 'robot') {
+      return this.currentValue > 35 ? `避让 ${this.currentValue}cm` : action.value;
+    }
+    if (action.id === 'gateway') {
+      return this.activeSubDevice === 'gateway' ? '当前查看' : action.value;
+    }
+    if (action.id === 'gesture') {
+      return this.activeSubDevice === 'gesture' ? '当前查看' : action.value;
+    }
+    if (action.id === 'env') {
+      return this.activeSubDevice === 'environment' ? '当前查看' : action.value;
+    }
+    return action.value;
   }
 
   @Builder
@@ -580,7 +661,7 @@ export struct DeviceDetailPages {
   @Builder
   MetricTile(metric: DetailMetricSpec, accent: string) {
     Column() {
-      Text(metric.value)
+      Text(this.dynamicMetricValue(metric))
         .fontSize(17)
         .fontWeight(FontWeight.Bold)
         .fontColor(accent)
@@ -593,16 +674,16 @@ export struct DeviceDetailPages {
         .margin({ top: 5 })
         .maxLines(1)
 
-      Text(metric.hint)
+      Text(this.dynamicMetricHint(metric))
         .fontSize(10)
         .fontColor(this.secondary())
         .margin({ top: 4 })
         .maxLines(1)
     }
-    .height(72)
-    .alignItems(HorizontalAlign.Start)
+    .height(76)
+    .alignItems(HorizontalAlign.Center)
     .justifyContent(FlexAlign.Center)
-    .padding({ left: 10, right: 6 })
+    .padding({ left: 8, right: 8 })
     .backgroundColor(this.card())
     .border({ width: 1, color: this.line() })
     .borderRadius(14)
@@ -615,7 +696,7 @@ export struct DeviceDetailPages {
         Column() {
           this.MetricTile(metric, page.accent)
         }
-        .height(72)
+        .height(76)
         .layoutWeight(1)
         .margin({ right: metric.id === page.metrics[page.metrics.length - 1].id ? 0 : 8 })
       }, (metric: DetailMetricSpec) => metric.id)
@@ -643,8 +724,8 @@ export struct DeviceDetailPages {
 
       Slider({
         value: this.currentValue,
-        min: page.sliderUnit === '°C' ? 16 : 0,
-        max: page.sliderUnit === '°C' ? 30 : 100,
+        min: this.sliderMin(page),
+        max: this.sliderMax(page),
         step: 1,
         style: SliderStyle.OutSet
       })
@@ -675,7 +756,7 @@ export struct DeviceDetailPages {
             this.powerOn = !this.powerOn;
           })
 
-        Button('智能托管')
+        Button(this.autoManaged ? '退出托管' : '智能托管')
           .layoutWeight(1)
           .height(42)
           .fontSize(13)
@@ -690,6 +771,9 @@ export struct DeviceDetailPages {
           .animation({ duration: 120, curve: Curve.EaseOut })
           .onTouch((event: TouchEvent) => {
             this.press('detail_auto', event);
+          })
+          .onClick(() => {
+            this.autoManaged = !this.autoManaged;
           })
       }
       .width('100%')
@@ -719,9 +803,9 @@ export struct DeviceDetailPages {
         .layoutWeight(1)
         .margin({ left: 10 })
 
-      Text(action.value)
+      Text(this.dynamicActionValue(action))
         .fontSize(12)
-        .fontColor(this.secondary())
+        .fontColor(this.selectedActionId === action.id ? accent : this.secondary())
         .maxLines(1)
 
       Text('>')
@@ -733,70 +817,19 @@ export struct DeviceDetailPages {
     .width('100%')
     .height(40)
     .padding({ left: 14, right: 12 })
-    .backgroundColor(this.card())
-    .border({ width: 1, color: this.line() })
+    .backgroundColor(this.selectedActionId === action.id ? this.shell() : this.card())
+    .border({ width: 1, color: this.selectedActionId === action.id ? accent : this.line() })
     .borderRadius(14)
     .margin({ top: 7 })
-  }
-
-  @Builder
-  ChartPill(id: string, label: string, accent: string) {
-    Text(label)
-      .fontSize(11)
-      .fontWeight(this.activeChart === id ? FontWeight.Bold : FontWeight.Medium)
-      .fontColor(this.activeChart === id ? accent : this.secondary())
-      .height(28)
-      .padding({ left: 12, right: 12 })
-      .textAlign(TextAlign.Center)
-      .backgroundColor(this.activeChart === id ? this.card() : '#00000000')
-      .borderRadius(14)
-      .onClick(() => {
-        this.activeChart = id;
-      })
-  }
-
-  @Builder
-  ActivityChart(page: DevicePageSpec) {
-    Column() {
-      Row() {
-        Text('运行趋势')
-          .fontSize(14)
-          .fontWeight(FontWeight.Bold)
-          .fontColor(this.primary())
-          .layoutWeight(1)
-
-        this.ChartPill('today', '今天', page.accent)
-        this.ChartPill('week', '本周', page.accent)
-      }
-      .width('100%')
-
-      Stack() {
-        ForEach([0, 1, 2, 3], (line: number) => {
-          Column()
-            .width('100%')
-            .height(1)
-            .backgroundColor(this.line())
-            .position({ x: 0, y: 18 + line * 22 })
-        }, (line: number) => `${line}`)
-
-        Polyline({ width: 340, height: 92 })
-          .points([[0, 62], [38, 55], [76, 68], [114, 45], [152, 51], [190, 32], [228, 38], [266, 24], [304, 34], [340, 20]])
-          .fillOpacity(0)
-          .stroke(page.accent)
-          .strokeWidth(2.2)
-          .position({ x: 4, y: 6 })
-      }
-      .width('100%')
-      .height(78)
-      .margin({ top: 8 })
-      .clip(true)
-    }
-    .width('100%')
-    .padding({ left: 12, right: 12, top: 10, bottom: 8 })
-    .backgroundColor(this.shell())
-    .border({ width: 1, color: this.line() })
-    .borderRadius(16)
-    .margin({ top: 8 })
+    .scale(this.scaleFor(`action_${action.id}`))
+    .opacity(this.opacityFor(`action_${action.id}`))
+    .animation({ duration: 120, curve: Curve.EaseOut })
+    .onTouch((event: TouchEvent) => {
+      this.press(`action_${action.id}`, event);
+    })
+    .onClick(() => {
+      this.selectedActionId = action.id;
+    })
   }
 
   @Builder
@@ -804,7 +837,7 @@ export struct DeviceDetailPages {
     Column() {
       Image(image)
         .width('100%')
-        .height(56)
+        .height(42)
         .objectFit(ImageFit.Contain)
 
       Text(name)
@@ -820,14 +853,20 @@ export struct DeviceDetailPages {
         .maxLines(1)
         .margin({ top: 3 })
     }
-    .width(94)
-    .height(112)
+    .width(92)
+    .height(96)
     .justifyContent(FlexAlign.Center)
-    .padding({ left: 8, right: 8, top: 8, bottom: 8 })
+    .padding({ left: 8, right: 8, top: 7, bottom: 7 })
     .backgroundColor(this.activeSubDevice === id ? this.shell() : this.card())
     .border({ width: 1, color: this.activeSubDevice === id ? accent : this.line() })
-    .borderRadius(16)
-    .margin({ right: 8 })
+    .borderRadius(14)
+    .margin({ right: 8, top: 4, bottom: 4 })
+    .scale(this.scaleFor(`sub_${id}`))
+    .opacity(this.opacityFor(`sub_${id}`))
+    .animation({ duration: 120, curve: Curve.EaseOut })
+    .onTouch((event: TouchEvent) => {
+      this.press(`sub_${id}`, event);
+    })
     .onClick(() => {
       this.activeSubDevice = id;
     })
@@ -859,10 +898,10 @@ export struct DeviceDetailPages {
         .padding({ right: 8 })
       }
       .width('100%')
-      .height(104)
+      .height(112)
       .scrollBar(BarState.Off)
       .scrollable(ScrollDirection.Horizontal)
-      .margin({ top: 8 })
+      .margin({ top: 6 })
     }
     .width('100%')
     .padding({ left: 12, right: 12, top: 10, bottom: 10 })
@@ -907,7 +946,6 @@ export struct DeviceDetailPages {
             this.PurifierLinkedDevices()
           }
 
-          this.ActivityChart(this.page())
           this.ActionList(this.page())
         }
         .width('100%')
