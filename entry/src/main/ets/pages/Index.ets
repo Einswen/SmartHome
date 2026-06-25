@@ -181,6 +181,11 @@ const ROOMS: RoomSpec[] = [
   }
 ];
 
+const INITIAL_ROOMS: RoomSpec[] = [
+  ROOMS[0],
+  ROOMS[1]
+];
+
 // 点位用图片百分比坐标，后续人工微调只需要改 x/y。
 const POINTS: PointSpec[] = [
   { id: 'living_air', roomId: 'living', name: '空调', type: '温控', x: 47, y: 14, detail: '24°C · 自动风 · 客厅北侧', action: 'temperature' },
@@ -207,8 +212,9 @@ const DEFAULT_POINT: PointSpec = POINTS[0];
 @Component
 struct Index {
   @State activeTab: string = 'home';
-  @State rooms: RoomSpec[] = ROOMS;
+  @State rooms: RoomSpec[] = INITIAL_ROOMS;
   @State activeRoomId: string = 'living';
+  @State homeRoomSwiperIndex: number = 0;
   @State activeSceneId: string = 'morning';
   @State agentPrompt: string = '';
   @State agentListening: boolean = false;
@@ -273,11 +279,6 @@ struct Index {
     return this.rooms[0];
   }
 
-  private hasRoomImage(roomId: string): boolean {
-    const room = this.roomById(roomId);
-    return room.images !== undefined;
-  }
-
   private roomById(roomId: string): RoomSpec {
     for (let i = 0; i < this.rooms.length; i++) {
       if (this.rooms[i].id === roomId) {
@@ -289,6 +290,10 @@ struct Index {
 
   private pointsForActiveRoom(): PointSpec[] {
     return POINTS.filter((point: PointSpec) => point.roomId === this.activeRoomId);
+  }
+
+  private pointsForRoom(roomId: string): PointSpec[] {
+    return POINTS.filter((point: PointSpec) => point.roomId === roomId);
   }
 
   private pointById(pointId: string): PointSpec {
@@ -320,12 +325,22 @@ struct Index {
     }
   }
 
-  private roomImage(): Resource {
-    const room = this.activeRoom();
+  private lightOnForRoom(roomId: string): boolean {
+    if (roomId === 'living') {
+      return this.livingLightOn;
+    }
+    if (roomId === 'bedroom') {
+      return this.bedroomLightOn;
+    }
+    return false;
+  }
+
+  private roomImageById(roomId: string): Resource {
+    const room = this.roomById(roomId);
     if (room.images === undefined) {
       return $r('app.media.room_living_day_lightoff');
     }
-    const lightOn = this.activeLightOn();
+    const lightOn = this.lightOnForRoom(roomId);
     if (this.isNight) {
       return lightOn ? room.images!.nightLightOn : room.images!.nightLightOff;
     }
@@ -531,10 +546,35 @@ struct Index {
 
   private selectRoom(roomId: string): void {
     this.activeRoomId = roomId;
+    this.homeRoomSwiperIndex = this.roomIndexById(roomId);
     this.selectedPointId = '';
     this.detailPointId = '';
     this.addRoomPanelVisible = false;
     this.selectionVersion++;
+  }
+
+  private roomIndexById(roomId: string): number {
+    for (let i = 0; i < this.rooms.length; i++) {
+      if (this.rooms[i].id === roomId) {
+        return i;
+      }
+    }
+    return 0;
+  }
+
+  private handleRoomSwiperChange(index: number): void {
+    if (index >= this.rooms.length) {
+      this.homeRoomSwiperIndex = index;
+      this.selectedPointId = '';
+      this.detailPointId = '';
+      this.addRoomPanelVisible = false;
+      return;
+    }
+    this.selectRoom(this.rooms[index].id);
+  }
+
+  private onAddRoomSwiperPage(): boolean {
+    return this.homeRoomSwiperIndex >= this.rooms.length;
   }
 
   private selectPoint(pointId: string): void {
@@ -573,14 +613,15 @@ struct Index {
 
   private addPresetRoom(roomId: string): void {
     if (this.roomExists(roomId)) {
-      this.activeRoomId = roomId;
-      this.addRoomPanelVisible = false;
+      this.selectRoom(roomId);
       return;
     }
     for (let i = 0; i < ROOMS.length; i++) {
       if (ROOMS[i].id === roomId) {
+        const nextIndex = this.rooms.length;
         this.rooms = [...this.rooms, ROOMS[i]];
         this.activeRoomId = roomId;
+        this.homeRoomSwiperIndex = nextIndex;
         this.addRoomPanelVisible = false;
         this.selectedPointId = '';
         this.detailPointId = '';
@@ -596,6 +637,7 @@ struct Index {
       return;
     }
     const customId = `custom_${new Date().getTime()}`;
+    const nextIndex = this.rooms.length;
     this.rooms = [
       ...this.rooms,
       {
@@ -606,6 +648,7 @@ struct Index {
       }
     ];
     this.activeRoomId = customId;
+    this.homeRoomSwiperIndex = nextIndex;
     this.customRoomName = '';
     this.addRoomPanelVisible = false;
     this.selectedPointId = '';
@@ -992,6 +1035,11 @@ struct Index {
     return count > 0 ? `${count} 台设备在线` : '暂未配置设备';
   }
 
+  private mapSummaryForRoom(roomId: string): string {
+    const count = this.pointsForRoom(roomId).filter((point: PointSpec) => point.action !== 'info').length;
+    return count > 0 ? `${count} 台设备在线` : '暂未配置设备';
+  }
+
   private sidePoints(): PointSpec[] {
     return this.controllablePoints().slice(1, 3);
   }
@@ -1008,15 +1056,28 @@ struct Index {
     return this.percent(Math.min(Math.max(point.y - 3.8, 0), 90));
   }
 
-  private selectedBubblePoints(): PointSpec[] {
-    if (this.selectedPointId.length === 0 || this.detailPointId.length > 0) {
-      return [];
+  private roomCardScaleByIndex(index: number): ScaleOptions {
+    if (this.homeRoomSwiperIndex === index) {
+      return { x: 1, y: 1 };
     }
-    return [this.pointById(this.selectedPointId)];
+    return { x: 0.94, y: 0.94 };
   }
 
-  private selectedBubbleKey(point: PointSpec): string {
-    return `${point.id}_${this.selectionVersion}`;
+  private roomCardOpacityByIndex(index: number): number {
+    return this.homeRoomSwiperIndex === index ? 1 : 0.76;
+  }
+
+  private roomStageColor(): string {
+    return this.isNight ? '#14181F' : '#EEF1F6';
+  }
+
+  private roomStageInnerColor(): string {
+    return this.isNight ? '#1B2028' : '#FAFBFD';
+  }
+
+  private roomPageHint(roomId: string): string {
+    const count = this.pointsForRoom(roomId).filter((point: PointSpec) => point.action !== 'info').length;
+    return count > 0 ? '滑动切换后，下方设备会同步更新' : '这个房间还没有关联设备';
   }
 
   private panelViewportHeight(): number {
@@ -1242,66 +1303,6 @@ struct Index {
   }
 
   @Builder
-  RoomTabs() {
-    Scroll() {
-      Row() {
-        ForEach(this.rooms, (room: RoomSpec) => {
-          Button(room.name)
-            .height(44)
-            .fontSize(14)
-            .fontWeight(FontWeight.Bold)
-            .fontColor(this.activeRoomId === room.id ? this.inverseText() : this.primaryText())
-            .backgroundColor(this.activeRoomId === room.id ? this.translucentInverseBg() : this.glassShellColor())
-            .borderRadius(22)
-            .border({
-              width: 1,
-              color: this.activeRoomId === room.id ? this.glassBorderColor() : this.lineColor()
-            })
-          .margin({ right: 10 })
-          .padding({ left: 18, right: 18 })
-          .scale(this.buttonScale(`room_${room.id}`))
-          .opacity(this.buttonOpacity(`room_${room.id}`))
-          .animation({ duration: 120, curve: Curve.EaseOut })
-          .onTouch((event: TouchEvent) => {
-            this.handlePressState(`room_${room.id}`, event);
-          })
-          .onClick(() => {
-            this.selectRoom(room.id);
-          })
-        }, (room: RoomSpec) => room.id)
-
-        Button('+ 房间')
-          .height(44)
-          .fontSize(14)
-          .fontWeight(FontWeight.Medium)
-          .fontColor(this.primaryText())
-          .backgroundColor(this.glassShellColor())
-          .borderRadius(22)
-          .border({
-            width: 1,
-            color: this.lineColor()
-          })
-          .padding({ left: 18, right: 18 })
-          .scale(this.buttonScale('add_room_entry'))
-          .opacity(this.buttonOpacity('add_room_entry'))
-          .animation({ duration: 120, curve: Curve.EaseOut })
-          .onTouch((event: TouchEvent) => {
-            this.handlePressState('add_room_entry', event);
-          })
-          .onClick(() => {
-            this.openAddRoomPanel();
-          })
-      }
-      .alignItems(VerticalAlign.Center)
-      .padding({ right: 8 })
-    }
-    .width('100%')
-    .scrollBar(BarState.Off)
-    .scrollable(ScrollDirection.Horizontal)
-    .margin({ top: 18 })
-  }
-
-  @Builder
   PointDot(point: PointSpec) {
     Stack() {
       Column()
@@ -1482,22 +1483,30 @@ struct Index {
   }
 
   @Builder
-  RoomMap() {
+  RoomScenePage(room: RoomSpec) {
     Column() {
       Stack({ alignContent: Alignment.Center }) {
-        if (this.hasRoomImage(this.activeRoomId)) {
-          Image(this.roomImage())
+        Column()
+          .width('92%')
+          .height('82%')
+          .backgroundColor(this.roomStageInnerColor())
+          .borderRadius(18)
+
+        if (room.images !== undefined) {
+          Image(this.roomImageById(room.id))
             .width('100%')
             .aspectRatio(ROOM_ASPECT)
             .objectFit(ImageFit.Contain)
             .borderRadius(16)
 
-          ForEach(this.pointsForActiveRoom(), (point: PointSpec) => {
-            this.PointDot(point)
+          ForEach(this.pointsForRoom(room.id), (point: PointSpec) => {
+            if (this.activeRoomId === room.id) {
+              this.PointDot(point)
+            }
           }, (point: PointSpec) => point.id)
         } else {
           Column() {
-            Text(this.activeRoom().name)
+            Text(room.name)
               .fontSize(30)
               .fontWeight(FontWeight.Bold)
               .fontColor(this.primaryText())
@@ -1511,30 +1520,142 @@ struct Index {
           .height('100%')
           .justifyContent(FlexAlign.Center)
           .alignItems(HorizontalAlign.Center)
-          .backgroundColor(this.cardColor())
-          .borderRadius(16)
         }
       }
       .width('100%')
       .aspectRatio(ROOM_ASPECT)
+      .padding(6)
+      .backgroundColor(this.roomStageColor())
+      .border({
+        width: 1,
+        color: this.glassBorderColor()
+      })
+      .borderRadius(20)
       .clip(true)
+    }
+    .width('100%')
+  }
+
+  @Builder
+  AddRoomScenePage() {
+    Column() {
+      Column() {
+        Text('+')
+          .fontSize(44)
+          .fontWeight(FontWeight.Lighter)
+          .fontColor(this.primaryText())
+
+        Text('添加房间')
+          .fontSize(18)
+          .fontWeight(FontWeight.Bold)
+          .fontColor(this.primaryText())
+          .margin({ top: 12 })
+
+        Text('滑到最右侧后从这里继续添加空间')
+          .fontSize(12)
+          .fontColor(this.secondaryText())
+          .margin({ top: 8 })
+
+        Button('开始添加')
+          .height(40)
+          .fontSize(13)
+          .fontWeight(FontWeight.Bold)
+          .fontColor(this.primaryText())
+          .backgroundColor(this.glassShellColor())
+          .border({
+            width: 1,
+            color: this.glassBorderColor()
+          })
+          .borderRadius(20)
+          .padding({ left: 18, right: 18 })
+          .margin({ top: 20 })
+          .scale(this.buttonScale('room_swiper_add'))
+          .opacity(this.buttonOpacity('room_swiper_add'))
+          .animation({ duration: 120, curve: Curve.EaseOut })
+          .onTouch((event: TouchEvent) => {
+            this.handlePressState('room_swiper_add', event);
+          })
+          .onClick(() => {
+            this.openAddRoomPanel();
+          })
+      }
+      .width('100%')
+      .height('100%')
+      .justifyContent(FlexAlign.Center)
+      .alignItems(HorizontalAlign.Center)
+      .backgroundColor(this.roomStageColor())
+      .border({
+        width: 1,
+        color: this.glassBorderColor()
+      })
+      .borderRadius(20)
+    }
+    .width('100%')
+    .aspectRatio(ROOM_ASPECT)
+  }
+
+  @Builder
+  RoomMap() {
+    Column() {
+      Swiper() {
+        ForEach(this.rooms, (room: RoomSpec) => {
+          Column() {
+            this.RoomScenePage(room)
+          }
+          .scale(this.roomCardScaleByIndex(this.roomIndexById(room.id)))
+          .opacity(this.roomCardOpacityByIndex(this.roomIndexById(room.id)))
+          .animation({ duration: 180, curve: Curve.EaseOut })
+        }, (room: RoomSpec) => room.id)
+
+        Column() {
+          this.AddRoomScenePage()
+        }
+        .scale(this.roomCardScaleByIndex(this.rooms.length))
+        .opacity(this.roomCardOpacityByIndex(this.rooms.length))
+        .animation({ duration: 180, curve: Curve.EaseOut })
+      }
+      .index(this.homeRoomSwiperIndex)
+      .indicator(true)
+      .loop(false)
+      .cachedCount(1)
+      .onChange((index: number) => {
+        this.handleRoomSwiperChange(index);
+      })
+      .width('100%')
+      .aspectRatio(ROOM_ASPECT)
 
       Row() {
-        Column() {
-          Text(this.activeRoom().name)
-            .fontSize(17)
-            .fontWeight(FontWeight.Bold)
-            .fontColor(this.primaryText())
+        if (this.onAddRoomSwiperPage()) {
+          Column() {
+            Text('添加房间')
+              .fontSize(17)
+              .fontWeight(FontWeight.Bold)
+              .fontColor(this.primaryText())
 
-          Text(this.mapSummary())
-            .fontSize(11)
-            .fontColor(this.secondaryText())
-            .margin({ top: 2 })
+            Text('预设房间与自定义房间都可以从这里继续添加')
+              .fontSize(11)
+              .fontColor(this.secondaryText())
+              .margin({ top: 2 })
+          }
+          .alignItems(HorizontalAlign.Start)
+          .layoutWeight(1)
+        } else {
+          Column() {
+            Text(this.activeRoom().name)
+              .fontSize(17)
+              .fontWeight(FontWeight.Bold)
+              .fontColor(this.primaryText())
+
+            Text(this.roomPageHint(this.activeRoomId))
+              .fontSize(11)
+              .fontColor(this.secondaryText())
+              .margin({ top: 2 })
+          }
+          .alignItems(HorizontalAlign.Start)
+          .layoutWeight(1)
         }
-        .alignItems(HorizontalAlign.Start)
-        .layoutWeight(1)
 
-        Text(this.isNight ? 'Night' : 'Day')
+        Text(this.onAddRoomSwiperPage() ? '末尾' : this.mapSummaryForRoom(this.activeRoomId))
           .fontSize(11)
           .fontWeight(FontWeight.Bold)
           .fontColor(this.primaryText())
@@ -2537,9 +2658,10 @@ struct Index {
     Scroll() {
       Column() {
         this.TopBar()
-        this.RoomTabs()
         this.RoomMap()
-        this.DeviceControls()
+        if (!this.onAddRoomSwiperPage()) {
+          this.DeviceControls()
+        }
       }
       .width('100%')
       .padding({ left: 18, right: 18, top: 28, bottom: 132 })
