@@ -11,6 +11,7 @@ interface RoomSpec {
   id: string;
   name: string;
   subtitle: string;
+  templateId?: string;
   images?: RoomImageSet;
   preset: boolean;
 }
@@ -59,6 +60,22 @@ interface AgentRecordSpec {
   status: string;
 }
 
+interface SmartTriggerSpec {
+  type: string;
+  label: string;
+  time?: string;
+  weekday?: string;
+  sceneId?: string;
+  roomId?: string;
+}
+
+interface SmartActionSpec {
+  pointId: string;
+  command: string;
+  label: string;
+  value?: number;
+}
+
 interface AutomationSpec {
   id: string;
   title: string;
@@ -66,6 +83,8 @@ interface AutomationSpec {
   action: string;
   source: string;
   enabled: boolean;
+  triggerSpec: SmartTriggerSpec;
+  actions: SmartActionSpec[];
 }
 
 interface AgentMessageSpec {
@@ -73,6 +92,11 @@ interface AgentMessageSpec {
   role: string;
   text: string;
   meta: string;
+}
+
+interface RoomDeviceState {
+  roomId: string;
+  pointIds: string[];
 }
 
 const ROOM_ASPECT: number = 1402 / 1122;
@@ -124,7 +148,16 @@ const DEFAULT_AUTOMATIONS: AutomationSpec[] = [
     trigger: '离家定位或手动点击离家场景',
     action: '关闭客厅电视、空气净化器和主灯',
     source: 'agent',
-    enabled: true
+    enabled: true,
+    triggerSpec: {
+      type: 'presence',
+      label: '离家定位或手动点击离家场景'
+    },
+    actions: [
+      { pointId: 'living_tv', command: 'off', label: '关闭客厅电视' },
+      { pointId: 'living_purifier', command: 'off', label: '关闭空气净化器' },
+      { pointId: 'living_light', command: 'off', label: '关闭客厅主灯' }
+    ]
   },
   {
     id: 'auto_sleep',
@@ -132,7 +165,17 @@ const DEFAULT_AUTOMATIONS: AutomationSpec[] = [
     trigger: '每天 22:30',
     action: '拉上卧室窗帘，客厅灯关闭，卧室空调调至 23°C',
     source: 'manual',
-    enabled: true
+    enabled: true,
+    triggerSpec: {
+      type: 'time',
+      label: '每天 22:30',
+      time: '22:30'
+    },
+    actions: [
+      { pointId: 'bedroom_curtain', command: 'set', label: '拉上卧室窗帘', value: 100 },
+      { pointId: 'living_light', command: 'off', label: '关闭客厅灯' },
+      { pointId: 'bedroom_air', command: 'set', label: '卧室空调调至 23°C', value: 23 }
+    ]
   }
 ];
 
@@ -210,6 +253,17 @@ const POINTS: PointSpec[] = [
 
 const DEFAULT_POINT: PointSpec = POINTS[0];
 
+const INITIAL_ROOM_DEVICES: RoomDeviceState[] = [
+  {
+    roomId: 'living',
+    pointIds: ['living_air', 'living_curtain', 'living_tv', 'living_purifier', 'living_robot', 'living_light']
+  },
+  {
+    roomId: 'bedroom',
+    pointIds: ['bedroom_air', 'bedroom_curtain', 'bedroom_left_light', 'bedroom_right_light', 'bedroom_robot', 'bedroom_door']
+  }
+];
+
 @Entry
 @Component
 struct Index {
@@ -233,7 +287,9 @@ struct Index {
   @State selectionVersion: number = 0;
   @State pressedKey: string = '';
   @State addRoomPanelVisible: boolean = false;
+  @State devicePanelMode: string = '';
   @State customRoomName: string = '';
+  @State roomDevices: RoomDeviceState[] = INITIAL_ROOM_DEVICES;
   @State isNight: boolean = false;
   @State manualPeriod: boolean = false;
   @State livingLightOn: boolean = false;
@@ -290,12 +346,51 @@ struct Index {
     return this.rooms[0];
   }
 
+  private roomTemplateId(roomId: string): string {
+    const room = this.roomById(roomId);
+    return room.templateId !== undefined ? room.templateId : room.id;
+  }
+
+  private activeTemplateRoomId(): string {
+    return this.roomTemplateId(this.activeRoomId);
+  }
+
+  private templateControllablePoints(roomId: string): PointSpec[] {
+    const templateId = this.roomTemplateId(roomId);
+    return POINTS.filter((point: PointSpec) => point.roomId === templateId && point.action !== 'info');
+  }
+
+  private installedPointIds(roomId: string): string[] {
+    for (let i = 0; i < this.roomDevices.length; i++) {
+      if (this.roomDevices[i].roomId === roomId) {
+        return this.roomDevices[i].pointIds;
+      }
+    }
+    return [];
+  }
+
+  private setInstalledPointIds(roomId: string, pointIds: string[]): void {
+    let matched = false;
+    const nextRoomDevices: RoomDeviceState[] = this.roomDevices.map((item: RoomDeviceState) => {
+      if (item.roomId === roomId) {
+        matched = true;
+        return {
+          roomId: item.roomId,
+          pointIds: pointIds
+        };
+      }
+      return item;
+    });
+    this.roomDevices = matched ? nextRoomDevices : [...nextRoomDevices, { roomId: roomId, pointIds: pointIds }];
+  }
+
   private pointsForActiveRoom(): PointSpec[] {
-    return POINTS.filter((point: PointSpec) => point.roomId === this.activeRoomId);
+    return this.pointsForRoom(this.activeRoomId);
   }
 
   private pointsForRoom(roomId: string): PointSpec[] {
-    return POINTS.filter((point: PointSpec) => point.roomId === roomId);
+    const installedIds = this.installedPointIds(roomId);
+    return this.templateControllablePoints(roomId).filter((point: PointSpec) => installedIds.indexOf(point.id) >= 0);
   }
 
   private pointById(pointId: string): PointSpec {
@@ -308,30 +403,33 @@ struct Index {
   }
 
   private activeLightOn(): boolean {
-    if (this.activeRoomId === 'living') {
+    const templateId = this.activeTemplateRoomId();
+    if (templateId === 'living') {
       return this.livingLightOn;
     }
-    if (this.activeRoomId === 'bedroom') {
+    if (templateId === 'bedroom') {
       return this.bedroomLightOn;
     }
     return false;
   }
 
   private setActiveLight(value: boolean): void {
-    if (this.activeRoomId === 'living') {
+    const templateId = this.activeTemplateRoomId();
+    if (templateId === 'living') {
       this.livingLightOn = value;
       return;
     }
-    if (this.activeRoomId === 'bedroom') {
+    if (templateId === 'bedroom') {
       this.bedroomLightOn = value;
     }
   }
 
   private lightOnForRoom(roomId: string): boolean {
-    if (roomId === 'living') {
+    const templateId = this.roomTemplateId(roomId);
+    if (templateId === 'living') {
       return this.livingLightOn;
     }
-    if (roomId === 'bedroom') {
+    if (templateId === 'bedroom') {
       return this.bedroomLightOn;
     }
     return false;
@@ -521,7 +619,7 @@ struct Index {
 
   private pointStatus(point: PointSpec): string {
     if (point.action === 'light') {
-      return this.activeLightOn() ? `已开 · ${this.activeRoomId === 'living' ? this.livingLightLevel : this.bedroomLightLevel}%` : '已关闭';
+      return this.activeLightOn() ? `已开 · ${this.activeTemplateRoomId() === 'living' ? this.livingLightLevel : this.bedroomLightLevel}%` : '已关闭';
     }
     if (point.id === 'living_air') {
       return `${this.livingTemperature}°C`;
@@ -559,6 +657,7 @@ struct Index {
     this.selectedPointId = '';
     this.detailPointId = '';
     this.addRoomPanelVisible = false;
+    this.devicePanelMode = '';
     this.selectionVersion++;
   }
 
@@ -577,6 +676,7 @@ struct Index {
       this.selectedPointId = '';
       this.detailPointId = '';
       this.addRoomPanelVisible = false;
+      this.devicePanelMode = '';
       return;
     }
     this.selectRoom(this.rooms[index].id);
@@ -590,13 +690,23 @@ struct Index {
     this.selectedPointId = pointId;
     this.detailPointId = pointId;
     this.addRoomPanelVisible = false;
+    this.devicePanelMode = '';
     this.selectionVersion++;
   }
 
   private openAddRoomPanel(): void {
     this.selectedPointId = '';
     this.detailPointId = '';
+    this.devicePanelMode = '';
     this.addRoomPanelVisible = true;
+    this.selectionVersion++;
+  }
+
+  private openDevicePanel(mode: string): void {
+    this.selectedPointId = '';
+    this.detailPointId = '';
+    this.addRoomPanelVisible = false;
+    this.devicePanelMode = mode;
     this.selectionVersion++;
   }
 
@@ -604,28 +714,42 @@ struct Index {
     this.selectedPointId = '';
     this.detailPointId = '';
     this.addRoomPanelVisible = false;
+    this.devicePanelMode = '';
     this.selectionVersion++;
   }
 
-  private roomExists(roomId: string): boolean {
+  private presetRoomCount(templateId: string): number {
+    let count = 0;
     for (let i = 0; i < this.rooms.length; i++) {
-      if (this.rooms[i].id === roomId) {
-        return true;
+      if (this.roomTemplateId(this.rooms[i].id) === templateId) {
+        count++;
       }
     }
-    return false;
+    return count;
+  }
+
+  private nextPresetRoomName(room: RoomSpec): string {
+    const count = this.presetRoomCount(room.id);
+    return count > 0 ? `${room.name} ${count + 1}` : room.name;
   }
 
   private addPresetRoom(roomId: string): void {
-    if (this.roomExists(roomId)) {
-      this.selectRoom(roomId);
-      return;
-    }
     for (let i = 0; i < ROOMS.length; i++) {
       if (ROOMS[i].id === roomId) {
+        const room = ROOMS[i];
         const nextIndex = this.rooms.length;
-        this.rooms = [...this.rooms, ROOMS[i]];
-        this.activeRoomId = roomId;
+        const instanceId = `${room.id}_${new Date().getTime()}`;
+        const newRoom: RoomSpec = {
+          id: instanceId,
+          name: this.nextPresetRoomName(room),
+          subtitle: room.subtitle,
+          templateId: room.id,
+          images: room.images,
+          preset: room.preset
+        };
+        this.rooms = [...this.rooms, newRoom];
+        this.roomDevices = [...this.roomDevices, { roomId: instanceId, pointIds: [] }];
+        this.activeRoomId = instanceId;
         this.homeRoomSwiperIndex = nextIndex;
         this.addRoomPanelVisible = false;
         this.selectedPointId = '';
@@ -652,6 +776,7 @@ struct Index {
         preset: false
       }
     ];
+    this.roomDevices = [...this.roomDevices, { roomId: customId, pointIds: [] }];
     this.activeRoomId = customId;
     this.homeRoomSwiperIndex = nextIndex;
     this.customRoomName = '';
@@ -670,6 +795,7 @@ struct Index {
     this.selectedPointId = pointId;
     this.detailPointId = pointId;
     this.addRoomPanelVisible = false;
+    this.devicePanelMode = '';
     this.selectionVersion++;
   }
 
@@ -722,7 +848,7 @@ struct Index {
       if (!this.activeLightOn()) {
         this.setActiveLight(true);
       }
-      if (this.activeRoomId === 'living') {
+      if (this.activeTemplateRoomId() === 'living') {
         this.livingLightLevel = Math.min(Math.max(this.livingLightLevel + delta * 10, 1), 100);
       } else {
         this.bedroomLightLevel = Math.min(Math.max(this.bedroomLightLevel + delta * 10, 1), 100);
@@ -788,7 +914,7 @@ struct Index {
       return this.bedroomCurtain;
     }
     if (point.action === 'light') {
-      return this.activeRoomId === 'living' ? this.livingLightLevel : this.bedroomLightLevel;
+      return this.activeTemplateRoomId() === 'living' ? this.livingLightLevel : this.bedroomLightLevel;
     }
     return 0;
   }
@@ -824,7 +950,7 @@ struct Index {
       if (!this.activeLightOn()) {
         this.setActiveLight(true);
       }
-      if (this.activeRoomId === 'living') {
+      if (this.activeTemplateRoomId() === 'living') {
         this.livingLightLevel = Math.round(value);
       } else {
         this.bedroomLightLevel = Math.round(value);
@@ -841,10 +967,11 @@ struct Index {
   }
 
   private currentLightLevel(): number {
-    if (this.activeRoomId === 'living') {
+    const templateId = this.activeTemplateRoomId();
+    if (templateId === 'living') {
       return this.livingLightLevel;
     }
-    if (this.activeRoomId === 'bedroom') {
+    if (templateId === 'bedroom') {
       return this.bedroomLightLevel;
     }
     return 0;
@@ -861,10 +988,11 @@ struct Index {
   }
 
   private temperatureSummary(): string {
-    if (this.activeRoomId === 'living') {
+    const templateId = this.activeTemplateRoomId();
+    if (templateId === 'living') {
       return `${this.livingTemperature}°C`;
     }
-    if (this.activeRoomId === 'bedroom') {
+    if (templateId === 'bedroom') {
       return `${this.bedroomTemperature}°C`;
     }
     return '未配置';
@@ -878,7 +1006,7 @@ struct Index {
   }
 
   private securitySummary(): string {
-    if (this.activeRoomId === 'bedroom') {
+    if (this.activeTemplateRoomId() === 'bedroom') {
       return this.bedroomDoorLocked ? '已上锁' : '未上锁';
     }
     return this.controllablePoints().length > 0 ? '状态正常' : '未配置';
@@ -1041,7 +1169,7 @@ struct Index {
   }
 
   private mapSummaryForRoom(roomId: string): string {
-    const count = this.pointsForRoom(roomId).filter((point: PointSpec) => point.action !== 'info').length;
+    const count = this.pointsForRoom(roomId).length;
     return count > 0 ? `${count} 台设备在线` : '暂未配置设备';
   }
 
@@ -1081,7 +1209,7 @@ struct Index {
   }
 
   private roomPageHint(roomId: string): string {
-    const count = this.pointsForRoom(roomId).filter((point: PointSpec) => point.action !== 'info').length;
+    const count = this.pointsForRoom(roomId).length;
     return count > 0 ? '滑动切换后，下方设备会同步更新' : '这个房间还没有关联设备';
   }
 
@@ -1090,15 +1218,69 @@ struct Index {
   }
 
   private overlayVisible(): boolean {
-    return this.addRoomPanelVisible || this.detailPointId.length > 0;
+    return this.addRoomPanelVisible || this.devicePanelMode.length > 0 || this.selectedPointId.length > 0 || this.detailPointId.length > 0;
   }
 
   private availablePresetRooms(): RoomSpec[] {
-    return ROOMS.filter((room: RoomSpec) => !this.roomExists(room.id));
+    return ROOMS;
   }
 
   private controllablePoints(): PointSpec[] {
-    return this.pointsForActiveRoom().filter((point: PointSpec) => point.action !== 'info');
+    return this.pointsForActiveRoom();
+  }
+
+  private availableDevicesForActiveRoom(): PointSpec[] {
+    const installedIds = this.installedPointIds(this.activeRoomId);
+    return this.templateControllablePoints(this.activeRoomId).filter((point: PointSpec) => installedIds.indexOf(point.id) < 0);
+  }
+
+  private canAddDeviceInActiveRoom(): boolean {
+    return this.availableDevicesForActiveRoom().length > 0;
+  }
+
+  private canRemoveDeviceInActiveRoom(): boolean {
+    return this.controllablePoints().length > 0;
+  }
+
+  private addDeviceToActiveRoom(pointId: string): void {
+    const installedIds = this.installedPointIds(this.activeRoomId);
+    if (installedIds.indexOf(pointId) >= 0) {
+      return;
+    }
+    this.setInstalledPointIds(this.activeRoomId, [...installedIds, pointId]);
+    this.selectionVersion++;
+  }
+
+  private removeDeviceFromActiveRoom(pointId: string): void {
+    const nextInstalledIds = this.installedPointIds(this.activeRoomId).filter((id: string) => id !== pointId);
+    this.setInstalledPointIds(this.activeRoomId, nextInstalledIds);
+    if (this.selectedPointId === pointId) {
+      this.selectedPointId = '';
+    }
+    if (this.detailPointId === pointId) {
+      this.detailPointId = '';
+    }
+    this.selectionVersion++;
+  }
+
+  private devicePanelPoints(): PointSpec[] {
+    return this.devicePanelMode === 'add' ? this.availableDevicesForActiveRoom() : this.controllablePoints();
+  }
+
+  private devicePanelTitle(): string {
+    return this.devicePanelMode === 'add' ? '添加设备' : '删除设备';
+  }
+
+  private devicePanelHint(): string {
+    return this.devicePanelMode === 'add' ? '添加后会同步出现在 2.5D 图里' : '删除后会同时从设备区和 2.5D 图中移除';
+  }
+
+  private devicePanelEmptyText(): string {
+    return this.devicePanelMode === 'add' ? '当前房间没有可继续添加的设备' : '当前房间还没有可删除的设备';
+  }
+
+  private devicePanelActionLabel(): string {
+    return this.devicePanelMode === 'add' ? '添加' : '删除';
   }
 
   private listPrimaryLabel(point: PointSpec): string {
@@ -1146,6 +1328,41 @@ struct Index {
       return `我已经把你的需求整理成自动化草稿，并放到上方脚本板块。接下来你可以继续补充触发条件，或者直接启用它。`;
     }
     return `我已经理解你的控制需求。当前可以先按这个方案执行，并且如果你愿意，我也可以进一步把它沉淀成一个自动化脚本。`;
+  }
+
+  private createManualTriggerSpec(trigger: string): SmartTriggerSpec {
+    if (trigger.indexOf('每天') >= 0 || trigger.indexOf(':') >= 0 || trigger.indexOf('点') >= 0) {
+      return {
+        type: 'time',
+        label: trigger
+      };
+    }
+    if (trigger.indexOf('每周') >= 0 || trigger.indexOf('周') >= 0) {
+      return {
+        type: 'weekly',
+        label: trigger
+      };
+    }
+    if (trigger.indexOf('离家') >= 0 || trigger.indexOf('回家') >= 0) {
+      return {
+        type: 'presence',
+        label: trigger
+      };
+    }
+    return {
+      type: 'manual',
+      label: trigger
+    };
+  }
+
+  private createDraftActions(action: string): SmartActionSpec[] {
+    return [
+      {
+        pointId: '',
+        command: 'draft',
+        label: action
+      }
+    ];
   }
 
   private appendAgentRecord(title: string, detail: string, status: string): void {
@@ -1201,7 +1418,12 @@ struct Index {
           trigger: '等待你补充触发条件',
           action: prompt,
           source: 'agent',
-          enabled: true
+          enabled: true,
+          triggerSpec: {
+            type: 'draft',
+            label: '等待你补充触发条件'
+          },
+          actions: this.createDraftActions(prompt)
         },
         ...this.automations
       ];
@@ -1240,7 +1462,9 @@ struct Index {
         trigger: trigger,
         action: action,
         source: 'manual',
-        enabled: true
+        enabled: true,
+        triggerSpec: this.createManualTriggerSpec(trigger),
+        actions: this.createDraftActions(action)
       },
       ...this.automations
     ];
@@ -1264,7 +1488,9 @@ struct Index {
           trigger: item.trigger,
           action: item.action,
           source: item.source,
-          enabled: !item.enabled
+          enabled: !item.enabled,
+          triggerSpec: item.triggerSpec,
+          actions: item.actions
         });
       } else {
         nextAutomations.push(item);
@@ -2264,10 +2490,196 @@ struct Index {
         })
         .borderRadius(18)
       }
+
+      Row() {
+        Button('添加设备')
+          .layoutWeight(1)
+          .height(44)
+          .fontSize(14)
+          .fontWeight(FontWeight.Bold)
+          .fontColor(this.primaryText())
+          .backgroundColor(this.glassShellColor())
+          .border({
+            width: 1,
+            color: this.glassBorderColor()
+          })
+          .borderRadius(22)
+          .opacity(this.canAddDeviceInActiveRoom() ? this.buttonOpacity('device_add_entry') : 0.36)
+          .scale(this.canAddDeviceInActiveRoom() ? this.buttonScale('device_add_entry') : { x: 1, y: 1 })
+          .animation({ duration: 120, curve: Curve.EaseOut })
+          .onTouch((event: TouchEvent) => {
+            if (this.canAddDeviceInActiveRoom()) {
+              this.handlePressState('device_add_entry', event);
+            }
+          })
+          .onClick(() => {
+            if (this.canAddDeviceInActiveRoom()) {
+              this.openDevicePanel('add');
+            }
+          })
+
+        Button('删除设备')
+          .layoutWeight(1)
+          .height(44)
+          .fontSize(14)
+          .fontWeight(FontWeight.Bold)
+          .fontColor(this.inverseText())
+          .backgroundColor(this.translucentInverseBg())
+          .borderRadius(22)
+          .margin({ left: 10 })
+          .opacity(this.canRemoveDeviceInActiveRoom() ? this.buttonOpacity('device_remove_entry') : 0.36)
+          .scale(this.canRemoveDeviceInActiveRoom() ? this.buttonScale('device_remove_entry') : { x: 1, y: 1 })
+          .animation({ duration: 120, curve: Curve.EaseOut })
+          .onTouch((event: TouchEvent) => {
+            if (this.canRemoveDeviceInActiveRoom()) {
+              this.handlePressState('device_remove_entry', event);
+            }
+          })
+          .onClick(() => {
+            if (this.canRemoveDeviceInActiveRoom()) {
+              this.openDevicePanel('remove');
+            }
+          })
+      }
+      .width('100%')
+      .margin({ top: 16 })
+
+      Text(this.canAddDeviceInActiveRoom() || this.canRemoveDeviceInActiveRoom() ? '设备白点会和这里的增删保持同步' : '当前房间还没有预设可管理设备')
+        .fontSize(12)
+        .fontColor(this.secondaryText())
+        .margin({ top: 10 })
     }
     .width('100%')
   }
 
+
+  @Builder
+  DeviceManagePanel() {
+    Column() {
+      Row() {
+        Column() {
+          Text(this.devicePanelTitle())
+            .fontSize(20)
+            .fontWeight(FontWeight.Bold)
+            .fontColor(this.primaryText())
+
+          Text(this.devicePanelHint())
+            .fontSize(12)
+            .fontColor(this.secondaryText())
+            .margin({ top: 4 })
+        }
+        .layoutWeight(1)
+        .alignItems(HorizontalAlign.Start)
+
+        Button('关闭')
+          .height(34)
+          .fontSize(12)
+          .fontColor(this.primaryText())
+          .backgroundColor(this.translucentCardColor())
+          .borderRadius(17)
+          .scale(this.buttonScale('device_panel_close'))
+          .opacity(this.buttonOpacity('device_panel_close'))
+          .animation({ duration: 120, curve: Curve.EaseOut })
+          .onTouch((event: TouchEvent) => {
+            this.handlePressState('device_panel_close', event);
+          })
+          .onClick(() => {
+            this.closeOverlayPanel();
+          })
+      }
+      .width('100%')
+      .alignItems(VerticalAlign.Top)
+
+      if (this.devicePanelPoints().length > 0) {
+        Column() {
+          ForEach(this.devicePanelPoints(), (point: PointSpec) => {
+            Row() {
+              Column() {
+                Text(point.name)
+                  .fontSize(15)
+                  .fontWeight(FontWeight.Bold)
+                  .fontColor(this.primaryText())
+
+                Text(point.type)
+                  .fontSize(11)
+                  .fontColor(this.secondaryText())
+                  .margin({ top: 3 })
+              }
+              .layoutWeight(1)
+              .alignItems(HorizontalAlign.Start)
+
+              Button(this.devicePanelActionLabel())
+                .height(36)
+                .fontSize(12)
+                .fontWeight(FontWeight.Bold)
+                .fontColor(this.devicePanelMode === 'add' ? this.inverseText() : this.primaryText())
+                .backgroundColor(this.devicePanelMode === 'add' ? this.translucentInverseBg() : this.translucentCardColor())
+                .border({
+                  width: 1,
+                  color: this.devicePanelMode === 'add' ? this.glassBorderColor() : this.lineColor()
+                })
+                .borderRadius(18)
+                .padding({ left: 16, right: 16 })
+                .scale(this.buttonScale(`${this.devicePanelMode}_${point.id}`))
+                .opacity(this.buttonOpacity(`${this.devicePanelMode}_${point.id}`))
+                .animation({ duration: 120, curve: Curve.EaseOut })
+                .onTouch((event: TouchEvent) => {
+                  this.handlePressState(`${this.devicePanelMode}_${point.id}`, event);
+                })
+                .onClick(() => {
+                  if (this.devicePanelMode === 'add') {
+                    this.addDeviceToActiveRoom(point.id);
+                  } else {
+                    this.removeDeviceFromActiveRoom(point.id);
+                  }
+                })
+            }
+            .width('100%')
+            .padding({ left: 14, right: 14, top: 14, bottom: 14 })
+            .backgroundColor(this.glassShellColor())
+            .border({
+              width: 1,
+              color: this.glassBorderColor()
+            })
+            .borderRadius(18)
+            .margin({ top: 10 })
+          }, (point: PointSpec) => point.id)
+        }
+        .width('100%')
+        .margin({ top: 10 })
+      } else {
+        Column() {
+          Text(this.devicePanelEmptyText())
+            .fontSize(14)
+            .fontWeight(FontWeight.Bold)
+            .fontColor(this.primaryText())
+
+          Text('切换房间后可以继续管理当前空间里的设备。')
+            .fontSize(12)
+            .fontColor(this.secondaryText())
+            .margin({ top: 8 })
+        }
+        .width('100%')
+        .padding({ left: 14, right: 14, top: 18, bottom: 18 })
+        .backgroundColor(this.glassShellColor())
+        .border({
+          width: 1,
+          color: this.glassBorderColor()
+        })
+        .borderRadius(18)
+        .margin({ top: 14 })
+      }
+    }
+    .width('100%')
+    .padding({ left: 16, right: 16, top: 16, bottom: 16 })
+    .backgroundColor(this.glassStrongColor())
+    .border({
+      width: 1,
+      color: this.glassBorderColor()
+    })
+    .borderRadius(20)
+    .transition(this.overlayTransition())
+  }
 
   @Builder
   DetailPanel(point: PointSpec) {
@@ -2415,15 +2827,24 @@ struct Index {
           })
 
         Column() {
-          Scroll() {
-            Column() {
-              if (this.addRoomPanelVisible) {
-                this.AddRoomPanel()
-              } else if (this.detailPointId.length > 0) {
-                this.DetailPanel(this.pointById(this.detailPointId))
+          if (this.addRoomPanelVisible) {
+            this.AddRoomPanel()
+          } else if (this.devicePanelMode.length > 0) {
+            this.DeviceManagePanel()
+          } else {
+            Scroll() {
+              Column() {
+                if (this.detailPointId.length > 0) {
+                  this.DetailPanel(this.pointById(this.detailPointId))
+                } else if (this.selectedPointId.length > 0) {
+                  this.Bubble(this.pointById(this.selectedPointId))
+                }
               }
+              .width('100%')
             }
             .width('100%')
+            .height(this.panelViewportHeight() + 16)
+            .scrollBar(BarState.Off)
           }
           .width('100%')
           .height(this.overlayPanelHeight() + 16)
