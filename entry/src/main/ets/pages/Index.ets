@@ -57,6 +57,7 @@ interface SceneSpec {
   label: string;
   detail: string;
   badge: string;
+  baseId?: string;
 }
 
 interface RoomDeviceState {
@@ -75,12 +76,78 @@ const NAV_ITEMS: NavSpec[] = [
   { id: 'profile', label: '我的' }
 ];
 
-const SCENES: SceneSpec[] = [
-  { id: 'morning', label: '早安', detail: '开帘与日间', badge: '晨' },
-  { id: 'arrive', label: '回家', detail: '灯光与空气', badge: '家' },
-  { id: 'movie', label: '观影', detail: '客厅联动', badge: '影' },
-  { id: 'sleep', label: '睡眠', detail: '夜间静音', badge: '夜' }
+const SCENE_TEMPLATES: SceneSpec[] = [
+  { id: 'morning', label: '早安', detail: '开帘与日间', badge: '晨', baseId: 'morning' },
+  { id: 'arrive', label: '回家', detail: '灯光与空气', badge: '家', baseId: 'arrive' },
+  { id: 'movie', label: '观影', detail: '客厅联动', badge: '影', baseId: 'movie' },
+  { id: 'sleep', label: '睡眠', detail: '夜间静音', badge: '夜', baseId: 'sleep' }
 ];
+
+const INITIAL_SCENES: SceneSpec[] = SCENE_TEMPLATES;
+
+const SMART_SUGGESTIONS: AgentSuggestionSpec[] = [
+  { id: 'leave', label: '离家断电', prompt: '当我出门时，关闭客厅电视、空气净化器和主灯，并开启安防提醒' },
+  { id: 'night', label: '夜间入睡', prompt: '每天晚上十点半关闭客厅灯，拉上卧室窗帘并把卧室空调调到23度' },
+  { id: 'return', label: '回家模式', prompt: '我回家后打开客厅灯到70%，启动空气净化器并让电视进入待机' },
+  { id: 'clean', label: '周末清洁', prompt: '每周六上午十点启动客厅和卧室扫地机器人，清洁完成后提醒我' }
+];
+
+const DEFAULT_AGENT_RECORDS: AgentRecordSpec[] = [
+  {
+    id: 'record_seed_1',
+    title: '智能助手已整理晨间场景',
+    detail: '建议把窗帘、空调和照明联动成一个一键场景。',
+    time: '09:12',
+    status: '建议'
+  },
+  {
+    id: 'record_seed_2',
+    title: '离家脚本已同步',
+    detail: '关闭高功率设备，并保留必要的安防提醒。',
+    time: '08:46',
+    status: '已执行'
+  }
+];
+
+const DEFAULT_AUTOMATIONS: AutomationSpec[] = [
+  {
+    id: 'auto_leave',
+    title: '离家断电',
+    trigger: '离家定位或手动点击离家场景',
+    action: '关闭客厅电视、空气净化器和主灯',
+    source: 'agent',
+    enabled: true,
+    triggerSpec: {
+      type: 'presence',
+      label: '离家定位或手动点击离家场景'
+    },
+    actions: [
+      { pointId: 'living_tv', command: 'off', label: '关闭客厅电视' },
+      { pointId: 'living_purifier', command: 'off', label: '关闭空气净化器' },
+      { pointId: 'living_light', command: 'off', label: '关闭客厅主灯' }
+    ]
+  },
+  {
+    id: 'auto_sleep',
+    title: '睡眠安静模式',
+    trigger: '每天 22:30',
+    action: '拉上卧室窗帘，客厅灯关闭，卧室空调调至 23°C',
+    source: 'manual',
+    enabled: true,
+    triggerSpec: {
+      type: 'time',
+      label: '每天 22:30',
+      time: '22:30'
+    },
+    actions: [
+      { pointId: 'bedroom_curtain', command: 'set', label: '拉上卧室窗帘', value: 100 },
+      { pointId: 'living_light', command: 'off', label: '关闭客厅灯' },
+      { pointId: 'bedroom_air', command: 'set', label: '卧室空调调至 23°C', value: 23 }
+    ]
+  }
+];
+
+const DEFAULT_AGENT_MESSAGES: AgentMessageSpec[] = [];
 
 const ROOMS: RoomSpec[] = [
   {
@@ -172,6 +239,7 @@ struct Index {
   @State rooms: RoomSpec[] = INITIAL_ROOMS;
   @State activeRoomId: string = 'living';
   @State homeRoomSwiperIndex: number = 0;
+  @State scenes: SceneSpec[] = INITIAL_SCENES;
   @State activeSceneId: string = 'morning';
   @State agentPrompt: string = '';
   @State agentListening: boolean = false;
@@ -189,8 +257,12 @@ struct Index {
   @State selectionVersion: number = 0;
   @State pressedKey: string = '';
   @State addRoomPanelVisible: boolean = false;
+  @State addScenePanelVisible: boolean = false;
   @State devicePanelMode: string = '';
   @State customRoomName: string = '';
+  @State customSceneName: string = '';
+  @State customSceneDetail: string = '';
+  @State selectedSceneTemplateId: string = 'morning';
   @State roomDevices: RoomDeviceState[] = INITIAL_ROOM_DEVICES;
   @State isNight: boolean = false;
   @State manualPeriod: boolean = false;
@@ -211,16 +283,23 @@ struct Index {
 
   aboutToAppear(): void {
     this.applyAutoPeriod();
-    this.clockTimer = setInterval(() => {
-      if (!this.manualPeriod) {
-        this.applyAutoPeriod();
-      }
-    }, 60000);
+    try {
+      this.clockTimer = setInterval(() => {
+        if (!this.manualPeriod) {
+          this.applyAutoPeriod();
+        }
+      }, 60000);
+    } catch (error) {
+      this.clockTimer = -1;
+    }
   }
 
   aboutToDisappear(): void {
     if (this.clockTimer >= 0) {
-      clearInterval(this.clockTimer);
+      try {
+        clearInterval(this.clockTimer);
+      } catch (error) {
+      }
       this.clockTimer = -1;
     }
   }
@@ -374,7 +453,7 @@ struct Index {
   }
 
   private inverseBg(): string {
-    return this.isNight ? '#F5F7FB' : '#111317';
+    return this.isNight ? '#324763' : '#687BF6';
   }
 
   private translucentPanelColor(): string {
@@ -386,7 +465,7 @@ struct Index {
   }
 
   private translucentInverseBg(): string {
-    return this.isNight ? '#D9F5F7FB' : '#D9111317';
+    return this.isNight ? '#D9324763' : '#D9687BF6';
   }
 
   private glassShellColor(): string {
@@ -464,7 +543,7 @@ struct Index {
   }
 
   private inverseText(): string {
-    return this.isNight ? '#000000' : '#FFFFFF';
+    return this.isNight ? '#EEF4FF' : '#F8FAFF';
   }
 
   private navTextColor(tabId: string): string {
@@ -509,6 +588,7 @@ struct Index {
   }
 
   private overlayPanelHeight(): number {
+    // 设备详情页比普通气泡高，外层 Scroll 需要单独放大，否则底部会被裁掉。
     if (this.detailPointId.length > 0) {
       return 536;
     }
@@ -559,6 +639,7 @@ struct Index {
     this.selectedPointId = '';
     this.detailPointId = '';
     this.addRoomPanelVisible = false;
+    this.addScenePanelVisible = false;
     this.devicePanelMode = '';
     this.selectionVersion++;
   }
@@ -578,6 +659,7 @@ struct Index {
       this.selectedPointId = '';
       this.detailPointId = '';
       this.addRoomPanelVisible = false;
+      this.addScenePanelVisible = false;
       this.devicePanelMode = '';
       return;
     }
@@ -592,6 +674,7 @@ struct Index {
     this.selectedPointId = pointId;
     this.detailPointId = pointId;
     this.addRoomPanelVisible = false;
+    this.addScenePanelVisible = false;
     this.devicePanelMode = '';
     this.selectionVersion++;
   }
@@ -600,7 +683,20 @@ struct Index {
     this.selectedPointId = '';
     this.detailPointId = '';
     this.devicePanelMode = '';
+    this.addScenePanelVisible = false;
     this.addRoomPanelVisible = true;
+    this.selectionVersion++;
+  }
+
+  private openAddScenePanel(): void {
+    this.selectedPointId = '';
+    this.detailPointId = '';
+    this.addRoomPanelVisible = false;
+    this.devicePanelMode = '';
+    this.addScenePanelVisible = true;
+    this.customSceneName = '';
+    this.customSceneDetail = '';
+    this.selectedSceneTemplateId = this.sceneBaseId(this.activeSceneId);
     this.selectionVersion++;
   }
 
@@ -608,6 +704,7 @@ struct Index {
     this.selectedPointId = '';
     this.detailPointId = '';
     this.addRoomPanelVisible = false;
+    this.addScenePanelVisible = false;
     this.devicePanelMode = mode;
     this.selectionVersion++;
   }
@@ -616,8 +713,45 @@ struct Index {
     this.selectedPointId = '';
     this.detailPointId = '';
     this.addRoomPanelVisible = false;
+    this.addScenePanelVisible = false;
     this.devicePanelMode = '';
     this.selectionVersion++;
+  }
+
+  private addPresetScene(sceneId: string): void {
+    const template = this.sceneTemplateById(sceneId);
+    const nextScene: SceneSpec = {
+      id: `${sceneId}_${new Date().getTime()}`,
+      label: this.nextSceneLabel(sceneId),
+      detail: template.detail,
+      badge: template.badge,
+      baseId: sceneId
+    };
+    this.scenes = [...this.scenes, nextScene];
+    this.activeSceneId = nextScene.id;
+    this.applyScene(nextScene.id);
+    this.addScenePanelVisible = false;
+  }
+
+  private addCustomScene(): void {
+    const name = this.customSceneName.trim();
+    if (name.length === 0) {
+      return;
+    }
+    const template = this.selectedSceneTemplate();
+    const nextScene: SceneSpec = {
+      id: `custom_scene_${new Date().getTime()}`,
+      label: name,
+      detail: this.sceneDraftDetailValue(),
+      badge: template.badge,
+      baseId: template.id
+    };
+    this.scenes = [...this.scenes, nextScene];
+    this.activeSceneId = nextScene.id;
+    this.applyScene(nextScene.id);
+    this.customSceneName = '';
+    this.customSceneDetail = '';
+    this.addScenePanelVisible = false;
   }
 
   private presetRoomCount(templateId: string): number {
@@ -654,6 +788,7 @@ struct Index {
         this.activeRoomId = instanceId;
         this.homeRoomSwiperIndex = nextIndex;
         this.addRoomPanelVisible = false;
+        this.addScenePanelVisible = false;
         this.selectedPointId = '';
         this.detailPointId = '';
         this.selectionVersion++;
@@ -683,6 +818,7 @@ struct Index {
     this.homeRoomSwiperIndex = nextIndex;
     this.customRoomName = '';
     this.addRoomPanelVisible = false;
+    this.addScenePanelVisible = false;
     this.selectedPointId = '';
     this.detailPointId = '';
     this.selectionVersion++;
@@ -697,6 +833,7 @@ struct Index {
     this.selectedPointId = pointId;
     this.detailPointId = pointId;
     this.addRoomPanelVisible = false;
+    this.addScenePanelVisible = false;
     this.devicePanelMode = '';
     this.selectionVersion++;
   }
@@ -756,50 +893,6 @@ struct Index {
         this.bedroomLightLevel = Math.min(Math.max(this.bedroomLightLevel + delta * 10, 1), 100);
       }
     }
-  }
-
-  private quickPrimaryLabel(point: PointSpec): string {
-    if (point.action === 'light') {
-      return this.activeLightOn() ? '关灯' : '开灯';
-    }
-    if (point.action === 'curtain') {
-      return this.detailValue(point) > 0 ? '关闭' : '打开';
-    }
-    if (point.id === 'living_tv') {
-      return this.livingTvOn ? '关机' : '开机';
-    }
-    if (point.id === 'living_purifier') {
-      return this.livingPurifierOn ? '关闭' : '开启';
-    }
-    if (point.id === 'living_robot') {
-      return this.livingRobotOn ? '暂停' : '开始';
-    }
-    if (point.id === 'bedroom_robot') {
-      return this.bedroomRobotOn ? '暂停' : '开始';
-    }
-    if (point.id === 'bedroom_door') {
-      return this.bedroomDoorLocked ? '解锁' : '上锁';
-    }
-    if (point.action === 'toggle') {
-      return '开关';
-    }
-    if (point.action === 'info') {
-      return '标记';
-    }
-    return '-';
-  }
-
-  private quickSecondaryLabel(point: PointSpec): string {
-    if (point.action === 'temperature') {
-      return '升温';
-    }
-    if (point.action === 'curtain') {
-      return this.detailValue(point) >= 100 ? '关闭' : '打开';
-    }
-    if (point.action === 'light') {
-      return '调亮';
-    }
-    return '详情';
   }
 
   private detailValue(point: PointSpec): number {
@@ -928,14 +1021,54 @@ struct Index {
     ];
   }
 
+  private sceneById(sceneId: string): SceneSpec {
+    for (let i = 0; i < this.scenes.length; i++) {
+      if (this.scenes[i].id === sceneId) {
+        return this.scenes[i];
+      }
+    }
+    return this.scenes[0];
+  }
+
+  private sceneBaseId(sceneId: string): string {
+    const scene = this.sceneById(sceneId);
+    return scene.baseId !== undefined ? scene.baseId : scene.id;
+  }
+
+  private sceneTemplateById(sceneId: string): SceneSpec {
+    for (let i = 0; i < SCENE_TEMPLATES.length; i++) {
+      if (SCENE_TEMPLATES[i].id === sceneId) {
+        return SCENE_TEMPLATES[i];
+      }
+    }
+    return SCENE_TEMPLATES[0];
+  }
+
+  private sceneTemplateCount(sceneId: string): number {
+    let count = 0;
+    for (let i = 0; i < this.scenes.length; i++) {
+      if (this.sceneBaseId(this.scenes[i].id) === sceneId) {
+        count++;
+      }
+    }
+    return count;
+  }
+
+  private nextSceneLabel(sceneId: string): string {
+    const template = this.sceneTemplateById(sceneId);
+    const count = this.sceneTemplateCount(sceneId);
+    return count > 0 ? `${template.label} ${count + 1}` : template.label;
+  }
+
   private sceneTint(sceneId: string): string {
-    if (sceneId === 'morning') {
+    const baseId = this.sceneBaseId(sceneId);
+    if (baseId === 'morning') {
       return '#F4C94A';
     }
-    if (sceneId === 'arrive') {
+    if (baseId === 'arrive') {
       return '#D6A96D';
     }
-    if (sceneId === 'movie') {
+    if (baseId === 'movie') {
       return '#7F9CFF';
     }
     return '#78A9FF';
@@ -957,7 +1090,8 @@ struct Index {
   private applyScene(sceneId: string): void {
     this.activeSceneId = sceneId;
     this.manualPeriod = true;
-    if (sceneId === 'morning') {
+    const baseId = this.sceneBaseId(sceneId);
+    if (baseId === 'morning') {
       this.isNight = false;
       this.livingCurtain = 82;
       this.bedroomCurtain = 68;
@@ -967,7 +1101,7 @@ struct Index {
       this.bedroomDoorLocked = true;
       return;
     }
-    if (sceneId === 'arrive') {
+    if (baseId === 'arrive') {
       this.isNight = false;
       this.livingLightOn = true;
       this.livingLightLevel = 76;
@@ -975,7 +1109,7 @@ struct Index {
       this.bedroomDoorLocked = false;
       return;
     }
-    if (sceneId === 'movie') {
+    if (baseId === 'movie') {
       this.isNight = true;
       this.livingTvOn = true;
       this.livingLightOn = true;
@@ -1112,7 +1246,19 @@ struct Index {
 
   private roomPageHint(roomId: string): string {
     const count = this.pointsForRoom(roomId).length;
-    return count > 0 ? '滑动切换后，下方设备会同步更新' : '这个房间还没有关联设备';
+    return count > 0 ? '滑动来切换房间' : '这个房间还没有关联设备';
+  }
+
+  private selectedSceneTemplate(): SceneSpec {
+    return this.sceneTemplateById(this.selectedSceneTemplateId);
+  }
+
+  private sceneDraftDetailValue(): string {
+    const value = this.customSceneDetail.trim();
+    if (value.length > 0) {
+      return value;
+    }
+    return this.selectedSceneTemplate().detail;
   }
 
   private panelViewportHeight(): number {
@@ -1120,7 +1266,8 @@ struct Index {
   }
 
   private overlayVisible(): boolean {
-    return this.addRoomPanelVisible || this.devicePanelMode.length > 0 || this.selectedPointId.length > 0 || this.detailPointId.length > 0;
+    // selectedPointId 只保留地图点高亮，不再触发快捷气泡弹层。
+    return this.addRoomPanelVisible || this.addScenePanelVisible || this.devicePanelMode.length > 0 || this.detailPointId.length > 0;
   }
 
   private availablePresetRooms(): RoomSpec[] {
@@ -1477,134 +1624,6 @@ struct Index {
   }
 
   @Builder
-  Bubble(point: PointSpec) {
-    Column() {
-      Row() {
-        Column() {
-          Text(point.name)
-            .fontSize(15)
-            .fontColor(this.primaryText())
-            .fontWeight(FontWeight.Bold)
-          Text(`${point.type} · ${this.pointStatus(point)}`)
-            .fontSize(11)
-            .fontColor(this.secondaryText())
-            .margin({ top: 3 })
-            .maxLines(1)
-        }
-        .alignItems(HorizontalAlign.Start)
-        .layoutWeight(1)
-
-        Text('+')
-          .fontSize(20)
-          .fontColor(this.primaryText())
-          .fontWeight(FontWeight.Bold)
-          .width(32)
-          .height(32)
-          .textAlign(TextAlign.Center)
-          .backgroundColor(this.translucentCardColor())
-          .borderRadius(16)
-          .scale(this.iconScale(`bubble_expand_${point.id}`))
-          .opacity(this.buttonOpacity(`bubble_expand_${point.id}`))
-          .animation({ duration: 120, curve: Curve.EaseOut })
-          .onTouch((event: TouchEvent) => {
-            this.handlePressState(`bubble_expand_${point.id}`, event);
-          })
-          .onClick(() => {
-            this.detailPointId = point.id;
-          })
-
-        Text('×')
-          .fontSize(16)
-          .fontColor(this.secondaryText())
-          .fontWeight(FontWeight.Medium)
-          .width(32)
-          .height(32)
-          .textAlign(TextAlign.Center)
-          .margin({ left: 6 })
-          .scale(this.iconScale(`bubble_close_${point.id}`))
-          .opacity(this.buttonOpacity(`bubble_close_${point.id}`))
-          .animation({ duration: 120, curve: Curve.EaseOut })
-          .onTouch((event: TouchEvent) => {
-            this.handlePressState(`bubble_close_${point.id}`, event);
-          })
-          .onClick(() => {
-            this.selectedPointId = '';
-            this.detailPointId = '';
-          })
-      }
-      .width('100%')
-
-      Text(point.detail)
-        .fontSize(12)
-        .fontColor(this.secondaryText())
-        .margin({ top: 8 })
-        .maxLines(2)
-
-      Row() {
-        Button(this.quickPrimaryLabel(point))
-          .height(34)
-          .fontSize(12)
-          .fontWeight(FontWeight.Bold)
-          .fontColor(this.inverseText())
-          .backgroundColor(this.translucentInverseBg())
-          .borderRadius(17)
-          .layoutWeight(1)
-          .scale(this.buttonScale(`bubble_primary_${point.id}`))
-          .opacity(this.buttonOpacity(`bubble_primary_${point.id}`))
-          .animation({ duration: 120, curve: Curve.EaseOut })
-          .onTouch((event: TouchEvent) => {
-            this.handlePressState(`bubble_primary_${point.id}`, event);
-          })
-          .onClick(() => {
-            if (point.action === 'temperature' || point.action === 'curtain') {
-              this.adjustPoint(point.id, -1);
-            } else {
-              this.togglePoint(point.id);
-            }
-          })
-
-        Button(this.quickSecondaryLabel(point))
-          .height(34)
-          .fontSize(12)
-          .fontWeight(FontWeight.Bold)
-          .fontColor(this.primaryText())
-          .backgroundColor(this.translucentCardColor())
-          .borderRadius(17)
-          .border({
-            width: 1,
-            color: this.lineColor()
-          })
-          .layoutWeight(1)
-          .margin({ left: 8 })
-          .scale(this.buttonScale(`bubble_secondary_${point.id}`))
-          .opacity(this.buttonOpacity(`bubble_secondary_${point.id}`))
-          .animation({ duration: 120, curve: Curve.EaseOut })
-          .onTouch((event: TouchEvent) => {
-            this.handlePressState(`bubble_secondary_${point.id}`, event);
-          })
-          .onClick(() => {
-            if (point.action === 'temperature' || point.action === 'curtain' || point.action === 'light') {
-              this.adjustPoint(point.id, 1);
-            } else {
-              this.detailPointId = point.id;
-            }
-          })
-      }
-      .width('100%')
-      .margin({ top: 10 })
-    }
-    .width('100%')
-    .padding({ left: 16, right: 16, top: 14, bottom: 14 })
-    .backgroundColor(this.glassStrongColor())
-    .border({
-      width: 1,
-      color: this.glassBorderColor()
-    })
-    .borderRadius(18)
-    .margin({ top: 12 })
-  }
-
-  @Builder
   RoomScenePage(room: RoomSpec) {
     Column() {
       Stack({ alignContent: Alignment.Center }) {
@@ -1833,37 +1852,37 @@ struct Index {
         ForEach(this.summaryChips(), (chip: SummaryChipSpec) => {
           Column() {
             Row() {
-              this.ToneBadge(chip.badge, this.chipTint(chip.id), 30)
+              this.ToneBadge(chip.badge, this.chipTint(chip.id), 28)
 
               Column() {
                 Text(chip.label)
-                  .fontSize(12)
+                  .fontSize(11)
                   .fontWeight(FontWeight.Medium)
                   .fontColor(this.secondaryText())
 
                 Text(chip.value)
-                  .fontSize(14)
+                  .fontSize(13)
                   .fontWeight(FontWeight.Bold)
                   .fontColor(this.primaryText())
-                  .margin({ top: 3 })
+                  .margin({ top: 2 })
                   .maxLines(1)
               }
               .layoutWeight(1)
               .alignItems(HorizontalAlign.Start)
-              .margin({ left: 10 })
+              .margin({ left: 8 })
             }
             .width('100%')
           }
-          .width(150)
-          .height(76)
-          .padding({ left: 14, right: 14, top: 12, bottom: 12 })
+          .width(138)
+          .height(68)
+          .padding({ left: 12, right: 12, top: 10, bottom: 10 })
           .backgroundColor(this.glassShellColor())
           .border({
             width: 1,
             color: this.glassBorderColor()
           })
-          .borderRadius(16)
-          .margin({ right: 10 })
+          .borderRadius(15)
+          .margin({ right: 8 })
         }, (chip: SummaryChipSpec) => chip.id)
       }
       .padding({ right: 8 })
@@ -1871,7 +1890,7 @@ struct Index {
     .width('100%')
     .scrollBar(BarState.Off)
     .scrollable(ScrollDirection.Horizontal)
-    .margin({ top: 18 })
+    .margin({ top: 14 })
   }
 
   @Builder
@@ -1892,7 +1911,7 @@ struct Index {
 
       Scroll() {
         Row() {
-          ForEach(SCENES, (scene: SceneSpec) => {
+          ForEach(this.scenes, (scene: SceneSpec) => {
             Row() {
               this.ToneBadge(scene.badge, this.sceneTint(scene.id), 32)
 
@@ -1923,6 +1942,8 @@ struct Index {
             })
             .borderRadius(18)
             .margin({ right: 10 })
+            .width(154)
+            .height(88)
             .scale(this.buttonScale(`scene_${scene.id}`))
             .opacity(this.buttonOpacity(`scene_${scene.id}`))
             .animation({ duration: 120, curve: Curve.EaseOut })
@@ -1933,6 +1954,48 @@ struct Index {
               this.applyScene(scene.id);
             })
           }, (scene: SceneSpec) => scene.id)
+
+          Row() {
+            this.ToneBadge('+', this.chipTint('devices'), 32)
+
+            Column() {
+              Text('添加场景')
+                .fontSize(14)
+                .fontWeight(FontWeight.Bold)
+                .fontColor(this.primaryText())
+
+              Text('继续扩展')
+                .fontSize(11)
+                .fontColor(this.secondaryText())
+                .margin({ top: 2 })
+            }
+            .alignItems(HorizontalAlign.Start)
+            .margin({ left: 10, right: 10 })
+
+            Text('+')
+              .fontSize(16)
+              .fontWeight(FontWeight.Bold)
+              .fontColor(this.primaryText())
+          }
+          .padding({ left: 12, right: 14, top: 12, bottom: 12 })
+          .backgroundColor(this.glassShellColor())
+          .border({
+            width: 1,
+            color: this.glassBorderColor()
+          })
+          .borderRadius(18)
+          .margin({ right: 10 })
+          .width(154)
+          .height(88)
+          .scale(this.buttonScale('scene_add_entry'))
+          .opacity(this.buttonOpacity('scene_add_entry'))
+          .animation({ duration: 120, curve: Curve.EaseOut })
+          .onTouch((event: TouchEvent) => {
+            this.handlePressState('scene_add_entry', event);
+          })
+          .onClick(() => {
+            this.openAddScenePanel();
+          })
         }
         .padding({ right: 8 })
       }
@@ -2704,6 +2767,288 @@ struct Index {
   }
 
   @Builder
+  AddScenePanel() {
+    Column() {
+      Row() {
+        Column() {
+          Text('添加场景')
+            .fontSize(24)
+            .fontWeight(FontWeight.Bold)
+            .fontColor(this.primaryText())
+
+          Text('新增后的场景会出现在右侧滑动列表里，并且可以直接执行。')
+            .fontSize(12)
+            .fontColor(this.secondaryText())
+            .margin({ top: 6 })
+        }
+        .layoutWeight(1)
+        .alignItems(HorizontalAlign.Start)
+
+        Button('关闭')
+          .height(36)
+          .fontSize(12)
+          .fontWeight(FontWeight.Bold)
+          .fontColor(this.primaryText())
+          .backgroundColor(this.translucentCardColor())
+          .borderRadius(18)
+          .scale(this.buttonScale('add_scene_close'))
+          .opacity(this.buttonOpacity('add_scene_close'))
+          .animation({ duration: 120, curve: Curve.EaseOut })
+          .onTouch((event: TouchEvent) => {
+            this.handlePressState('add_scene_close', event);
+          })
+          .onClick(() => {
+            this.closeOverlayPanel();
+          })
+      }
+      .width('100%')
+      .padding({ left: 20, right: 20, top: 18, bottom: 12 })
+
+      Scroll() {
+        Column() {
+          Text('快速添加')
+            .fontSize(13)
+            .fontWeight(FontWeight.Bold)
+            .fontColor(this.primaryText())
+
+          Text('选一个场景模板，马上复制出一个同风格场景。')
+            .fontSize(12)
+            .fontColor(this.secondaryText())
+            .margin({ top: 4 })
+
+          Scroll() {
+            Row() {
+              ForEach(SCENE_TEMPLATES, (scene: SceneSpec) => {
+                Column() {
+                  this.ToneBadge(scene.badge, this.sceneTint(scene.id), 36)
+
+                  Text(scene.label)
+                    .fontSize(14)
+                    .fontWeight(FontWeight.Bold)
+                    .fontColor(this.primaryText())
+                    .margin({ top: 10 })
+
+                  Text(scene.detail)
+                    .fontSize(11)
+                    .fontColor(this.secondaryText())
+                    .margin({ top: 4 })
+                    .maxLines(2)
+
+                  Button('添加')
+                    .height(34)
+                    .fontSize(12)
+                    .fontWeight(FontWeight.Bold)
+                    .fontColor(this.primaryText())
+                    .backgroundColor(this.glassShellColor())
+                    .border({
+                      width: 1,
+                      color: this.glassBorderColor()
+                    })
+                    .borderRadius(17)
+                    .padding({ left: 16, right: 16 })
+                    .margin({ top: 14 })
+                    .scale(this.buttonScale(`scene_preset_${scene.id}`))
+                    .opacity(this.buttonOpacity(`scene_preset_${scene.id}`))
+                    .animation({ duration: 120, curve: Curve.EaseOut })
+                    .onTouch((event: TouchEvent) => {
+                      this.handlePressState(`scene_preset_${scene.id}`, event);
+                    })
+                    .onClick(() => {
+                      this.addPresetScene(scene.id);
+                    })
+                }
+                .width(170)
+                .height(190)
+                .justifyContent(FlexAlign.Center)
+                .alignItems(HorizontalAlign.Center)
+                .padding({ left: 16, right: 16, top: 18, bottom: 18 })
+                .backgroundColor(this.glassShellColor())
+                .border({
+                  width: 1,
+                  color: this.glassBorderColor()
+                })
+                .borderRadius(22)
+                .margin({ right: 12 })
+              }, (scene: SceneSpec) => scene.id)
+            }
+            .padding({ right: 8 })
+          }
+          .width('100%')
+          .scrollBar(BarState.Off)
+          .scrollable(ScrollDirection.Horizontal)
+          .margin({ top: 14 })
+
+          Column() {
+            Text('自定义场景')
+              .fontSize(13)
+              .fontWeight(FontWeight.Bold)
+              .fontColor(this.primaryText())
+
+            Text('自己命名，并借用一种现成场景的执行逻辑。')
+              .fontSize(12)
+              .fontColor(this.secondaryText())
+              .margin({ top: 4 })
+
+            Scroll() {
+              Row() {
+                ForEach(SCENE_TEMPLATES, (scene: SceneSpec) => {
+                  Column() {
+                    this.ToneBadge(scene.badge, this.sceneTint(scene.id), 30)
+
+                    Text(scene.label)
+                      .fontSize(12)
+                      .fontWeight(FontWeight.Bold)
+                      .fontColor(this.selectedSceneTemplateId === scene.id ? this.inverseText() : this.primaryText())
+                      .margin({ top: 8 })
+                  }
+                  .width(96)
+                  .height(86)
+                  .justifyContent(FlexAlign.Center)
+                  .alignItems(HorizontalAlign.Center)
+                  .backgroundColor(this.selectedSceneTemplateId === scene.id ? this.translucentInverseBg() : this.glassShellColor())
+                  .border({
+                    width: 1,
+                    color: this.selectedSceneTemplateId === scene.id ? this.glassBorderColor() : this.lineColor()
+                  })
+                  .borderRadius(18)
+                  .margin({ right: 10 })
+                  .scale(this.buttonScale(`scene_template_${scene.id}`))
+                  .opacity(this.buttonOpacity(`scene_template_${scene.id}`))
+                  .animation({ duration: 120, curve: Curve.EaseOut })
+                  .onTouch((event: TouchEvent) => {
+                    this.handlePressState(`scene_template_${scene.id}`, event);
+                  })
+                  .onClick(() => {
+                    this.selectedSceneTemplateId = scene.id;
+                  })
+                }, (scene: SceneSpec) => scene.id)
+              }
+              .padding({ right: 8 })
+            }
+            .width('100%')
+            .scrollBar(BarState.Off)
+            .scrollable(ScrollDirection.Horizontal)
+            .margin({ top: 14 })
+
+            TextInput({ placeholder: '场景名称，例如：晚餐模式', text: this.customSceneName })
+              .width('100%')
+              .height(52)
+              .fontSize(15)
+              .fontColor(this.primaryText())
+              .placeholderColor(this.secondaryText())
+              .backgroundColor(this.translucentCardColor())
+              .border({
+                width: 1,
+                color: this.lineColor()
+              })
+              .borderRadius(18)
+              .padding({ left: 16, right: 16 })
+              .margin({ top: 16 })
+              .onChange((value: string) => {
+                this.customSceneName = value;
+              })
+
+            TextInput({ placeholder: '补充说明，可为空', text: this.customSceneDetail })
+              .width('100%')
+              .height(52)
+              .fontSize(14)
+              .fontColor(this.primaryText())
+              .placeholderColor(this.secondaryText())
+              .backgroundColor(this.translucentCardColor())
+              .border({
+                width: 1,
+                color: this.lineColor()
+              })
+              .borderRadius(18)
+              .padding({ left: 16, right: 16 })
+              .margin({ top: 12 })
+              .onChange((value: string) => {
+                this.customSceneDetail = value;
+              })
+
+            Column() {
+              Row() {
+                this.ToneBadge(this.selectedSceneTemplate().badge, this.sceneTint(this.selectedSceneTemplateId), 34)
+
+                Column() {
+                  Text(this.customSceneName.trim().length > 0 ? this.customSceneName.trim() : '新场景预览')
+                    .fontSize(15)
+                    .fontWeight(FontWeight.Bold)
+                    .fontColor(this.primaryText())
+
+                  Text(this.sceneDraftDetailValue())
+                    .fontSize(12)
+                    .fontColor(this.secondaryText())
+                    .margin({ top: 4 })
+                    .maxLines(2)
+                }
+                .layoutWeight(1)
+                .alignItems(HorizontalAlign.Start)
+                .margin({ left: 12 })
+              }
+              .width('100%')
+            }
+            .width('100%')
+            .padding({ left: 16, right: 16, top: 16, bottom: 16 })
+            .backgroundColor(this.glassShellColor())
+            .border({
+              width: 1,
+              color: this.glassBorderColor()
+            })
+            .borderRadius(20)
+            .margin({ top: 16 })
+
+            Button('创建场景')
+              .width('100%')
+              .height(50)
+              .fontSize(15)
+              .fontWeight(FontWeight.Bold)
+              .fontColor(this.inverseText())
+              .backgroundColor(this.translucentInverseBg())
+              .borderRadius(22)
+              .margin({ top: 18, bottom: 22 })
+              .opacity(this.customSceneName.trim().length > 0 ? this.buttonOpacity('create_scene') : 0.36)
+              .scale(this.customSceneName.trim().length > 0 ? this.buttonScale('create_scene') : { x: 1, y: 1 })
+              .animation({ duration: 120, curve: Curve.EaseOut })
+              .onTouch((event: TouchEvent) => {
+                if (this.customSceneName.trim().length > 0) {
+                  this.handlePressState('create_scene', event);
+                }
+              })
+              .onClick(() => {
+                if (this.customSceneName.trim().length > 0) {
+                  this.addCustomScene();
+                }
+              })
+          }
+          .width('100%')
+          .padding({ top: 24 })
+        }
+        .width('100%')
+        .padding({ left: 20, right: 20, top: 8, bottom: 18 })
+      }
+      .width('100%')
+      .layoutWeight(1)
+      .scrollBar(BarState.Off)
+    }
+    .width('100%')
+    .height('92%')
+    .backgroundColor(this.panelColor())
+    .border({
+      width: 1,
+      color: this.glassBorderColor()
+    })
+    .borderRadius({
+      topLeft: 30,
+      topRight: 30,
+      bottomLeft: 0,
+      bottomRight: 0
+    })
+    .clip(true)
+    .transition(this.overlayTransition())
+  }
+
+  @Builder
   OverlayPanel() {
     if (this.overlayVisible()) {
       Stack({ alignContent: Alignment.Bottom }) {
@@ -2716,33 +3061,39 @@ struct Index {
             this.closeOverlayPanel();
           })
 
-        Column() {
-          if (this.addRoomPanelVisible) {
-            this.AddRoomPanel()
-          } else if (this.devicePanelMode.length > 0) {
-            this.DeviceManagePanel()
-          } else {
-            Scroll() {
-              Column() {
-                if (this.detailPointId.length > 0) {
-                  this.DetailPanel(this.pointById(this.detailPointId))
-                } else if (this.selectedPointId.length > 0) {
-                  this.Bubble(this.pointById(this.selectedPointId))
-                }
-              }
-              .width('100%')
-            }
-            .width('100%')
-            .height(this.panelViewportHeight() + 16)
-            .scrollBar(BarState.Off)
+        if (this.addScenePanelVisible) {
+          Column() {
+            this.AddScenePanel()
           }
+          .width('100%')
+          .height('100%')
+          .alignItems(HorizontalAlign.Center)
+          .justifyContent(FlexAlign.End)
+          .backgroundColor('#00000000')
+        } else {
+          Column() {
+            if (this.detailPointId.length > 0) {
+              this.DetailPanel(this.pointById(this.detailPointId))
+            } else if (this.addRoomPanelVisible) {
+              this.AddRoomPanel()
+            } else if (this.devicePanelMode.length > 0) {
+              this.DeviceManagePanel()
+            } else {
+              Column()
+                .width('100%')
+            }
+          }
+          .width('100%')
+          .padding({
+            left: 18,
+            right: 18,
+            bottom: this.detailPointId.length > 0 ? 18 : 118
+          })
+          .alignItems(HorizontalAlign.Center)
+          .justifyContent(FlexAlign.End)
+          .backgroundColor('#00000000')
+          .transition(this.overlayTransition())
         }
-        .width('100%')
-        .padding({ left: 18, right: 18, bottom: 118 })
-        .alignItems(HorizontalAlign.Center)
-        .justifyContent(FlexAlign.End)
-        .backgroundColor('#00000000')
-        .transition(this.overlayTransition())
       }
       .width('100%')
       .height('100%')
@@ -2751,16 +3102,29 @@ struct Index {
 
   @Builder
   HomePage() {
-    Scroll() {
-      Column() {
-        this.TopBar()
-        this.RoomMap()
-        if (!this.onAddRoomSwiperPage()) {
-          this.DeviceControls()
+    List() {
+      ListItem() {
+        Column() {
+          this.TopBar()
+          this.RoomMap()
         }
+        .width('100%')
+        .padding({ left: 18, right: 18, top: 28 })
       }
-      .width('100%')
-      .padding({ left: 18, right: 18, top: 28, bottom: 132 })
+
+      ListItem() {
+        Column() {
+          if (!this.onAddRoomSwiperPage()) {
+            this.DeviceControls()
+          } else {
+            Column()
+              .width('100%')
+              .height(132)
+          }
+        }
+        .width('100%')
+        .padding({ left: 18, right: 18, top: 16, bottom: 132 })
+      }
     }
     .width('100%')
     .height('100%')
