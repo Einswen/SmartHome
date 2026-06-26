@@ -57,6 +57,22 @@ interface AgentRecordSpec {
   status: string;
 }
 
+interface SmartTriggerSpec {
+  type: string;
+  label: string;
+  time?: string;
+  weekday?: string;
+  sceneId?: string;
+  roomId?: string;
+}
+
+interface SmartActionSpec {
+  pointId: string;
+  command: string;
+  label: string;
+  value?: number;
+}
+
 interface AutomationSpec {
   id: string;
   title: string;
@@ -64,6 +80,8 @@ interface AutomationSpec {
   action: string;
   source: string;
   enabled: boolean;
+  triggerSpec: SmartTriggerSpec;
+  actions: SmartActionSpec[];
 }
 
 interface AgentMessageSpec {
@@ -122,7 +140,16 @@ const DEFAULT_AUTOMATIONS: AutomationSpec[] = [
     trigger: '离家定位或手动点击离家场景',
     action: '关闭客厅电视、空气净化器和主灯',
     source: 'agent',
-    enabled: true
+    enabled: true,
+    triggerSpec: {
+      type: 'presence',
+      label: '离家定位或手动点击离家场景'
+    },
+    actions: [
+      { pointId: 'living_tv', command: 'off', label: '关闭客厅电视' },
+      { pointId: 'living_purifier', command: 'off', label: '关闭空气净化器' },
+      { pointId: 'living_light', command: 'off', label: '关闭客厅主灯' }
+    ]
   },
   {
     id: 'auto_sleep',
@@ -130,7 +157,17 @@ const DEFAULT_AUTOMATIONS: AutomationSpec[] = [
     trigger: '每天 22:30',
     action: '拉上卧室窗帘，客厅灯关闭，卧室空调调至 23°C',
     source: 'manual',
-    enabled: true
+    enabled: true,
+    triggerSpec: {
+      type: 'time',
+      label: '每天 22:30',
+      time: '22:30'
+    },
+    actions: [
+      { pointId: 'bedroom_curtain', command: 'set', label: '拉上卧室窗帘', value: 100 },
+      { pointId: 'living_light', command: 'off', label: '关闭客厅灯' },
+      { pointId: 'bedroom_air', command: 'set', label: '卧室空调调至 23°C', value: 23 }
+    ]
   }
 ];
 
@@ -1082,6 +1119,41 @@ struct Index {
     return `我已经理解你的控制需求。当前可以先按这个方案执行，并且如果你愿意，我也可以进一步把它沉淀成一个自动化脚本。`;
   }
 
+  private createManualTriggerSpec(trigger: string): SmartTriggerSpec {
+    if (trigger.indexOf('每天') >= 0 || trigger.indexOf(':') >= 0 || trigger.indexOf('点') >= 0) {
+      return {
+        type: 'time',
+        label: trigger
+      };
+    }
+    if (trigger.indexOf('每周') >= 0 || trigger.indexOf('周') >= 0) {
+      return {
+        type: 'weekly',
+        label: trigger
+      };
+    }
+    if (trigger.indexOf('离家') >= 0 || trigger.indexOf('回家') >= 0) {
+      return {
+        type: 'presence',
+        label: trigger
+      };
+    }
+    return {
+      type: 'manual',
+      label: trigger
+    };
+  }
+
+  private createDraftActions(action: string): SmartActionSpec[] {
+    return [
+      {
+        pointId: '',
+        command: 'draft',
+        label: action
+      }
+    ];
+  }
+
   private appendAgentRecord(title: string, detail: string, status: string): void {
     const now = new Date();
     const time = `${`${now.getHours()}`.padStart(2, '0')}:${`${now.getMinutes()}`.padStart(2, '0')}`;
@@ -1135,7 +1207,12 @@ struct Index {
           trigger: '等待你补充触发条件',
           action: prompt,
           source: 'agent',
-          enabled: true
+          enabled: true,
+          triggerSpec: {
+            type: 'draft',
+            label: '等待你补充触发条件'
+          },
+          actions: this.createDraftActions(prompt)
         },
         ...this.automations
       ];
@@ -1174,7 +1251,9 @@ struct Index {
         trigger: trigger,
         action: action,
         source: 'manual',
-        enabled: true
+        enabled: true,
+        triggerSpec: this.createManualTriggerSpec(trigger),
+        actions: this.createDraftActions(action)
       },
       ...this.automations
     ];
@@ -1198,7 +1277,9 @@ struct Index {
           trigger: item.trigger,
           action: item.action,
           source: item.source,
-          enabled: !item.enabled
+          enabled: !item.enabled,
+          triggerSpec: item.triggerSpec,
+          actions: item.actions
         });
       } else {
         nextAutomations.push(item);
