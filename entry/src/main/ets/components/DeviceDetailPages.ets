@@ -952,15 +952,14 @@ export struct DeviceDetailPages {
         .padding({ bottom: 8 })
       }
       .width('100%')
-      .height(426)
+      .layoutWeight(1)
       .scrollBar(BarState.Off)
     }
     .width('100%')
-    .height(520)
-    .padding({ left: 14, right: 14, top: 14, bottom: 12 })
+    .height('88%')
+    .padding({ left: 14, right: 14, top: 16, bottom: 16 })
     .backgroundColor(this.bg())
     .border({ width: 1, color: this.isNight ? '#20FFFFFF' : '#73FFFFFF' })
-    .borderRadius(22)
-    .margin({ top: 8 })
+    .borderRadius(24)
   }
 }

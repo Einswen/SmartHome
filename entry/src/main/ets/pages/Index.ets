@@ -1301,7 +1301,7 @@ struct Index {
 
   private overlayVisible(): boolean {
     // selectedPointId 只保留地图点高亮，不再触发快捷气泡弹层。
-    return this.addRoomPanelVisible || this.devicePanelMode.length > 0 || this.detailPointId.length > 0;
+    return this.addRoomPanelVisible || this.addScenePanelVisible || this.devicePanelMode.length > 0 || this.detailPointId.length > 0;
   }
 
   private availablePresetRooms(): RoomSpec[] {
@@ -3117,28 +3117,23 @@ struct Index {
           .backgroundColor('#00000000')
         } else {
           Column() {
-            if (this.addRoomPanelVisible) {
+            if (this.detailPointId.length > 0) {
+              this.DetailPanel(this.pointById(this.detailPointId))
+            } else if (this.addRoomPanelVisible) {
               this.AddRoomPanel()
             } else if (this.devicePanelMode.length > 0) {
               this.DeviceManagePanel()
             } else {
-              Scroll() {
-                Column() {
-                  if (this.detailPointId.length > 0) {
-                    this.DetailPanel(this.pointById(this.detailPointId))
-                  } else if (this.selectedPointId.length > 0) {
-                    this.Bubble(this.pointById(this.selectedPointId))
-                  }
-                }
+              Column()
                 .width('100%')
-              }
-              .width('100%')
-              .height(this.panelViewportHeight() + 16)
-              .scrollBar(BarState.Off)
             }
           }
           .width('100%')
-          .padding({ left: 18, right: 18, bottom: 118 })
+          .padding({
+            left: 18,
+            right: 18,
+            bottom: this.detailPointId.length > 0 ? 18 : 118
+          })
           .alignItems(HorizontalAlign.Center)
           .justifyContent(FlexAlign.End)
           .backgroundColor('#00000000')
