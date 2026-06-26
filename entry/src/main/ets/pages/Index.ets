@@ -2,16 +2,18 @@ import { DeviceDetailPages } from '../components/DeviceDetailPages';
 import {
   AgentMessageSpec,
   AgentRecordSpec,
+  AgentSuggestionSpec,
   AutomationSpec,
   DEFAULT_AGENT_MESSAGES,
   DEFAULT_AGENT_RECORDS,
-  DEFAULT_AUTOMATIONS
+  DEFAULT_AUTOMATIONS,
+  SMART_SUGGESTIONS
 } from '../smart/SmartModels';
 import {
   createDraftActions,
-  createManualTriggerSpec
+  createManualTriggerSpec,
+  parseSmartPrompt
 } from '../smart/SmartPromptParser';
-import { resolveSmartAssistantPrompt } from '../smart/SmartAssistantService';
 
 interface RoomImageSet {
   dayLightOff: Resource;
@@ -85,69 +87,7 @@ const SCENE_TEMPLATES: SceneSpec[] = [
 
 const INITIAL_SCENES: SceneSpec[] = SCENE_TEMPLATES;
 
-const SMART_SUGGESTIONS: AgentSuggestionSpec[] = [
-  { id: 'leave', label: '离家断电', prompt: '当我出门时，关闭客厅电视、空气净化器和主灯，并开启安防提醒' },
-  { id: 'night', label: '夜间入睡', prompt: '每天晚上十点半关闭客厅灯，拉上卧室窗帘并把卧室空调调到23度' },
-  { id: 'return', label: '回家模式', prompt: '我回家后打开客厅灯到70%，启动空气净化器并让电视进入待机' },
-  { id: 'clean', label: '周末清洁', prompt: '每周六上午十点启动客厅和卧室扫地机器人，清洁完成后提醒我' }
-];
-
-const DEFAULT_AGENT_RECORDS: AgentRecordSpec[] = [
-  {
-    id: 'record_seed_1',
-    title: '智能助手已整理晨间场景',
-    detail: '建议把窗帘、空调和照明联动成一个一键场景。',
-    time: '09:12',
-    status: '建议'
-  },
-  {
-    id: 'record_seed_2',
-    title: '离家脚本已同步',
-    detail: '关闭高功率设备，并保留必要的安防提醒。',
-    time: '08:46',
-    status: '已执行'
-  }
-];
-
-const DEFAULT_AUTOMATIONS: AutomationSpec[] = [
-  {
-    id: 'auto_leave',
-    title: '离家断电',
-    trigger: '离家定位或手动点击离家场景',
-    action: '关闭客厅电视、空气净化器和主灯',
-    source: 'agent',
-    enabled: true,
-    triggerSpec: {
-      type: 'presence',
-      label: '离家定位或手动点击离家场景'
-    },
-    actions: [
-      { pointId: 'living_tv', command: 'off', label: '关闭客厅电视' },
-      { pointId: 'living_purifier', command: 'off', label: '关闭空气净化器' },
-      { pointId: 'living_light', command: 'off', label: '关闭客厅主灯' }
-    ]
-  },
-  {
-    id: 'auto_sleep',
-    title: '睡眠安静模式',
-    trigger: '每天 22:30',
-    action: '拉上卧室窗帘，客厅灯关闭，卧室空调调至 23°C',
-    source: 'manual',
-    enabled: true,
-    triggerSpec: {
-      type: 'time',
-      label: '每天 22:30',
-      time: '22:30'
-    },
-    actions: [
-      { pointId: 'bedroom_curtain', command: 'set', label: '拉上卧室窗帘', value: 100 },
-      { pointId: 'living_light', command: 'off', label: '关闭客厅灯' },
-      { pointId: 'bedroom_air', command: 'set', label: '卧室空调调至 23°C', value: 23 }
-    ]
-  }
-];
-
-const DEFAULT_AGENT_MESSAGES: AgentMessageSpec[] = [];
+// 智能模块默认数据统一从 SmartModels 导入，避免 ArkTS 同名声明冲突。
 
 const ROOMS: RoomSpec[] = [
   {
@@ -453,7 +393,8 @@ struct Index {
   }
 
   private inverseBg(): string {
-    return this.isNight ? '#324763' : '#687BF6';
+    // 只调整白天主按钮高亮，夜间颜色保持组长已定的原样。
+    return this.isNight ? '#324763' : '#5F7DFF';
   }
 
   private translucentPanelColor(): string {
@@ -465,7 +406,8 @@ struct Index {
   }
 
   private translucentInverseBg(): string {
-    return this.isNight ? '#D9324763' : '#D9687BF6';
+    // 只调整白天浮层主按钮高亮，夜间颜色保持组长已定的原样。
+    return this.isNight ? '#D9324763' : '#E05F7DFF';
   }
 
   private glassShellColor(): string {
@@ -1415,35 +1357,26 @@ struct Index {
       return;
     }
     this.pushChatMessage('user', prompt, '刚刚');
-    this.agentPrompt = '';
-    this.agentThinking = true;
-    try {
-      const reply = await resolveSmartAssistantPrompt(prompt);
-      if (reply.draft !== undefined && reply.draft.shouldCreateAutomation) {
-        const draft = reply.draft;
-        this.automations = [
-          {
-            id: `auto_${new Date().getTime()}`,
-            title: draft.title,
-            trigger: draft.trigger,
-            action: draft.action,
-            source: 'agent',
-            enabled: true,
-            triggerSpec: draft.triggerSpec,
-            actions: draft.actions
-          },
-          ...this.automations
-        ];
-      }
-      const recordDetail = reply.draft !== undefined ? reply.draft.action : reply.detail;
-      this.appendAgentRecord(reply.title, recordDetail, reply.mode === 'llm' ? '回答' : '已执行');
-      this.pushChatMessage('agent', reply.detail, reply.title);
-    } catch (error) {
-      this.appendAgentRecord('助手请求失败', `${error}`, '错误');
-      this.pushChatMessage('agent', `请求失败：${error}`, '错误');
-    } finally {
-      this.agentThinking = false;
+    const draft = parseSmartPrompt(prompt);
+    const recordTitle = draft.shouldCreateAutomation ? '智能助手已生成自动化草稿' : '智能助手已生成执行方案';
+    this.appendAgentRecord(recordTitle, draft.action, '已执行');
+    if (draft.shouldCreateAutomation) {
+      this.automations = [
+        {
+          id: `auto_${new Date().getTime()}`,
+          title: draft.title,
+          trigger: draft.trigger,
+          action: draft.action,
+          source: 'agent',
+          enabled: true,
+          triggerSpec: draft.triggerSpec,
+          actions: draft.actions
+        },
+        ...this.automations
+      ];
     }
+    this.pushChatMessage('agent', draft.response, recordTitle);
+    this.agentPrompt = '';
   }
 
   private openAutomationComposer(): void {
@@ -3543,6 +3476,140 @@ struct Index {
   ChatSurface() {
     Scroll() {
       Column() {
+        if (this.chatMessages.length === 0) {
+          Column() {
+            Column() {
+              Row() {
+                Column()
+                  .width(8)
+                  .height(8)
+                  .borderRadius(4)
+                  .backgroundColor(this.primaryText())
+
+                Text('智能助手待命')
+                  .fontSize(12)
+                  .fontWeight(FontWeight.Bold)
+                  .fontColor(this.secondaryText())
+                  .margin({ left: 8 })
+              }
+              .width('100%')
+              .alignItems(VerticalAlign.Center)
+
+              Text('描述你的生活场景')
+                .fontSize(25)
+                .fontWeight(FontWeight.Bold)
+                .fontColor(this.primaryText())
+                .margin({ top: 16 })
+
+              Text('我会把自然语言整理成可执行的设备动作和自动化脚本。')
+                .fontSize(13)
+                .lineHeight(20)
+                .fontColor(this.secondaryText())
+                .margin({ top: 8 })
+
+              Row() {
+                Column() {
+                  Text(`${this.enabledAutomationCount()}`)
+                    .fontSize(18)
+                    .fontWeight(FontWeight.Bold)
+                    .fontColor(this.primaryText())
+
+                  Text('正在运行')
+                    .fontSize(10)
+                    .fontColor(this.secondaryText())
+                    .margin({ top: 3 })
+                }
+                .layoutWeight(1)
+                .height(58)
+                .justifyContent(FlexAlign.Center)
+                .alignItems(HorizontalAlign.Start)
+                .padding({ left: 12, right: 10 })
+                .backgroundColor(this.glassShellColor())
+                .border({
+                  width: 1,
+                  color: this.lineColor()
+                })
+                .borderRadius(16)
+
+                Column() {
+                  Text(`${SMART_SUGGESTIONS.length}`)
+                    .fontSize(18)
+                    .fontWeight(FontWeight.Bold)
+                    .fontColor(this.primaryText())
+
+                  Text('快捷指令')
+                    .fontSize(10)
+                    .fontColor(this.secondaryText())
+                    .margin({ top: 3 })
+                }
+                .layoutWeight(1)
+                .height(58)
+                .justifyContent(FlexAlign.Center)
+                .alignItems(HorizontalAlign.Start)
+                .padding({ left: 12, right: 10 })
+                .backgroundColor(this.glassShellColor())
+                .border({
+                  width: 1,
+                  color: this.lineColor()
+                })
+                .borderRadius(16)
+                .margin({ left: 10 })
+              }
+              .width('100%')
+              .margin({ top: 18 })
+            }
+            .width('100%')
+            .padding({ left: 18, right: 18, top: 18, bottom: 18 })
+            .backgroundColor(this.glassStrongColor())
+            .border({
+              width: 1,
+              color: this.glassBorderColor()
+            })
+            .borderRadius(24)
+
+            Column() {
+              ForEach(SMART_SUGGESTIONS, (item: AgentSuggestionSpec) => {
+                Row() {
+                  Text(item.label)
+                    .fontSize(14)
+                    .fontWeight(FontWeight.Bold)
+                    .fontColor(this.primaryText())
+                    .layoutWeight(1)
+                    .maxLines(1)
+
+                  Text('+')
+                    .fontSize(16)
+                    .fontWeight(FontWeight.Bold)
+                    .fontColor(this.primaryText())
+                }
+                .width('100%')
+                .height(50)
+                .padding({ left: 14, right: 14 })
+                .backgroundColor(this.glassShellColor())
+                .border({
+                  width: 1,
+                  color: this.lineColor()
+                })
+                .borderRadius(17)
+                .margin({ top: 8 })
+                .scale(this.buttonScale(`chat_suggestion_${item.id}`))
+                .opacity(this.buttonOpacity(`chat_suggestion_${item.id}`))
+                .animation({ duration: 120, curve: Curve.EaseOut })
+                .onTouch((event: TouchEvent) => {
+                  this.handlePressState(`chat_suggestion_${item.id}`, event);
+                })
+                .onClick(() => {
+                  this.applyAgentSuggestion(item.prompt);
+                })
+              }, (item: AgentSuggestionSpec) => item.id)
+            }
+            .width('100%')
+          }
+          .width('100%')
+          .alignItems(HorizontalAlign.Start)
+          .margin({ top: 18, bottom: 12 })
+        }
+
         ForEach(this.chatMessages, (message: AgentMessageSpec) => {
           Row() {
             Column() {
