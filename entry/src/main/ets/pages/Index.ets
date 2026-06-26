@@ -1687,6 +1687,30 @@ struct Index {
     this.automations = nextAutomations;
   }
 
+  private enabledAutomationCount(): number {
+    let count = 0;
+    for (let i = 0; i < this.automations.length; i++) {
+      if (this.automations[i].enabled) {
+        count++;
+      }
+    }
+    return count;
+  }
+
+  private automationActionCount(item: AutomationSpec): number {
+    if (item.actions.length === 1 && item.actions[0].command === 'draft') {
+      return 0;
+    }
+    return item.actions.length;
+  }
+
+  private smartHeaderStatus(): string {
+    if (this.agentRecords.length > 0) {
+      return this.agentRecords[0].title;
+    }
+    return '智能助手待命中';
+  }
+
   @Builder
   TopBar() {
     Row() {
@@ -3284,88 +3308,33 @@ struct Index {
   ScriptHeaderCard() {
     Column() {
       Row() {
-        Text('脚本')
-          .fontSize(15)
-          .fontWeight(FontWeight.Bold)
-          .fontColor(this.primaryText())
-          .margin({ right: 10 })
+        Column() {
+          Text('智能中枢')
+            .fontSize(24)
+            .fontWeight(FontWeight.Bold)
+            .fontColor(this.primaryText())
 
-        Scroll() {
-          Row() {
-            if (this.automations.length === 0) {
-              Text('暂无脚本')
-                .fontSize(11)
-                .fontColor(this.secondaryText())
-                .padding({ left: 14, right: 14, top: 10, bottom: 10 })
-                .backgroundColor(this.glassShellColor())
-                .border({
-                  width: 1,
-                  color: this.lineColor()
-                })
-                .borderRadius(16)
-            } else {
-              ForEach(this.automations.slice(0, 5), (item: AutomationSpec) => {
-                Row() {
-                  Column()
-                    .width(6)
-                    .height(6)
-                    .borderRadius(3)
-                    .backgroundColor(item.enabled ? this.primaryText() : this.secondaryText())
-
-                  Text(item.title)
-                    .fontSize(12)
-                    .fontWeight(FontWeight.Medium)
-                    .fontColor(this.primaryText())
-                    .maxLines(1)
-                    .margin({ left: 8 })
-
-                  Text('+')
-                    .fontSize(14)
-                    .fontWeight(FontWeight.Bold)
-                    .fontColor(this.primaryText())
-                    .width(18)
-                    .textAlign(TextAlign.Center)
-                    .margin({ left: 8 })
-                }
-                .padding({ left: 12, right: 12, top: 10, bottom: 10 })
-                .backgroundColor(this.expandedAutomationId === item.id ? this.translucentCardColor() : this.glassShellColor())
-                .border({
-                  width: 1,
-                  color: this.expandedAutomationId === item.id ? this.glassBorderColor() : this.lineColor()
-                })
-                .borderRadius(16)
-                .margin({ right: 8 })
-                .scale(this.buttonScale(`script_detail_${item.id}`))
-                .opacity(this.buttonOpacity(`script_detail_${item.id}`))
-                .animation({ duration: 120, curve: Curve.EaseOut })
-                .onTouch((event: TouchEvent) => {
-                  this.handlePressState(`script_detail_${item.id}`, event);
-                })
-                .onClick(() => {
-                  this.toggleAutomationDetail(item.id);
-                })
-              }, (item: AutomationSpec) => item.id)
-            }
-          }
-          .alignItems(VerticalAlign.Center)
-          .padding({ right: 4 })
+          Text(this.smartHeaderStatus())
+            .fontSize(12)
+            .fontColor(this.secondaryText())
+            .maxLines(1)
+            .margin({ top: 4 })
         }
         .layoutWeight(1)
-        .scrollBar(BarState.Off)
-        .scrollable(ScrollDirection.Horizontal)
+        .alignItems(HorizontalAlign.Start)
 
         Button('新建')
-          .height(34)
+          .height(38)
           .fontSize(12)
           .fontWeight(FontWeight.Bold)
-          .fontColor(this.primaryText())
-          .backgroundColor(this.glassShellColor())
+          .fontColor(this.inverseText())
+          .backgroundColor(this.translucentInverseBg())
           .border({
             width: 1,
             color: this.glassBorderColor()
           })
-          .borderRadius(17)
-          .padding({ left: 14, right: 14 })
+          .borderRadius(19)
+          .padding({ left: 16, right: 16 })
           .margin({ left: 10 })
           .scale(this.buttonScale('script_add_top'))
           .opacity(this.buttonOpacity('script_add_top'))
@@ -3378,8 +3347,150 @@ struct Index {
           })
       }
       .width('100%')
-      .height(54)
       .alignItems(VerticalAlign.Center)
+
+      Row() {
+        Column() {
+          Text(`${this.enabledAutomationCount()}`)
+            .fontSize(22)
+            .fontWeight(FontWeight.Bold)
+            .fontColor(this.primaryText())
+
+          Text('运行脚本')
+            .fontSize(11)
+            .fontColor(this.secondaryText())
+            .margin({ top: 3 })
+        }
+        .layoutWeight(1)
+        .height(70)
+        .justifyContent(FlexAlign.Center)
+        .alignItems(HorizontalAlign.Start)
+        .padding({ left: 14, right: 12 })
+        .backgroundColor(this.glassShellColor())
+        .border({
+          width: 1,
+          color: this.lineColor()
+        })
+        .borderRadius(18)
+
+        Column() {
+          Text(`${this.automations.length}`)
+            .fontSize(22)
+            .fontWeight(FontWeight.Bold)
+            .fontColor(this.primaryText())
+
+          Text('全部脚本')
+            .fontSize(11)
+            .fontColor(this.secondaryText())
+            .margin({ top: 3 })
+        }
+        .layoutWeight(1)
+        .height(70)
+        .justifyContent(FlexAlign.Center)
+        .alignItems(HorizontalAlign.Start)
+        .padding({ left: 14, right: 12 })
+        .backgroundColor(this.glassShellColor())
+        .border({
+          width: 1,
+          color: this.lineColor()
+        })
+        .borderRadius(18)
+        .margin({ left: 10 })
+
+        Column() {
+          Text(`${this.chatMessages.length}`)
+            .fontSize(22)
+            .fontWeight(FontWeight.Bold)
+            .fontColor(this.primaryText())
+
+          Text('对话记录')
+            .fontSize(11)
+            .fontColor(this.secondaryText())
+            .margin({ top: 3 })
+        }
+        .layoutWeight(1)
+        .height(70)
+        .justifyContent(FlexAlign.Center)
+        .alignItems(HorizontalAlign.Start)
+        .padding({ left: 14, right: 12 })
+        .backgroundColor(this.glassShellColor())
+        .border({
+          width: 1,
+          color: this.lineColor()
+        })
+        .borderRadius(18)
+        .margin({ left: 10 })
+      }
+      .width('100%')
+      .margin({ top: 16 })
+
+      Scroll() {
+        Row() {
+          if (this.automations.length === 0) {
+            Text('暂无脚本')
+              .fontSize(12)
+              .fontColor(this.secondaryText())
+              .padding({ left: 14, right: 14, top: 10, bottom: 10 })
+              .backgroundColor(this.glassShellColor())
+              .border({
+                width: 1,
+                color: this.lineColor()
+              })
+              .borderRadius(16)
+          } else {
+            ForEach(this.automations.slice(0, 5), (item: AutomationSpec) => {
+              Row() {
+                Column()
+                  .width(7)
+                  .height(7)
+                  .borderRadius(4)
+                  .backgroundColor(item.enabled ? this.primaryText() : this.secondaryText())
+
+                Column() {
+                  Text(item.title)
+                    .fontSize(13)
+                    .fontWeight(FontWeight.Bold)
+                    .fontColor(this.primaryText())
+                    .maxLines(1)
+
+                  Text(`${item.trigger} · ${this.automationActionCount(item)} 个动作`)
+                    .fontSize(10)
+                    .fontColor(this.secondaryText())
+                    .maxLines(1)
+                    .margin({ top: 3 })
+                }
+                .width(132)
+                .alignItems(HorizontalAlign.Start)
+                .margin({ left: 9 })
+              }
+              .height(52)
+              .padding({ left: 12, right: 12 })
+              .backgroundColor(this.expandedAutomationId === item.id ? this.translucentCardColor() : this.glassShellColor())
+              .border({
+                width: 1,
+                color: this.expandedAutomationId === item.id ? this.glassBorderColor() : this.lineColor()
+              })
+              .borderRadius(18)
+              .margin({ right: 8 })
+              .scale(this.buttonScale(`script_detail_${item.id}`))
+              .opacity(this.buttonOpacity(`script_detail_${item.id}`))
+              .animation({ duration: 120, curve: Curve.EaseOut })
+              .onTouch((event: TouchEvent) => {
+                this.handlePressState(`script_detail_${item.id}`, event);
+              })
+              .onClick(() => {
+                this.toggleAutomationDetail(item.id);
+              })
+            }, (item: AutomationSpec) => item.id)
+          }
+        }
+        .alignItems(VerticalAlign.Center)
+        .padding({ right: 4 })
+      }
+      .width('100%')
+      .margin({ top: 12 })
+      .scrollBar(BarState.Off)
+      .scrollable(ScrollDirection.Horizontal)
 
       if (this.expandedAutomationId.length > 0) {
         ForEach(this.automations, (item: AutomationSpec) => {
