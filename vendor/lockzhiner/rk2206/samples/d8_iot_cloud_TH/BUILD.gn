@@ -1,0 +1,20 @@
+static_library("iot_cloud_TH_example") {
+  sources = [
+    "iot_cloud_TH_example.c",
+  ]
+
+  include_dirs = [
+        "//utils/native/lite/include",
+        "//third_party/cJSON",
+        "//third_party/musl/porting/liteos_m/kernel/include",
+        "//third_party/paho_mqtt/MQTTPacket/src",
+        "//third_party/paho_mqtt/MQTTClient-C/src",
+        "//device/rockchip/rk2206/adapter/include",
+        "//device/rockchip/rk2206/sdk_liteos/board/include",
+        "include",
+  ]
+
+  deps = [
+    "//device/rockchip/hardware:hardware",
+  ]
+}

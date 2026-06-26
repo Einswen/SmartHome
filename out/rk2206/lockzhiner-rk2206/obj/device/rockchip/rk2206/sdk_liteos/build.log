@@ -1,0 +1,48 @@
+arm-none-eabi-gcc -I/home/jackey/openharmony/lockzhiner-rk2206-openharmony3.0lts/device/rockchip/rk2206/sdk_liteos/include -E /home/jackey/openharmony/lockzhiner-rk2206-openharmony3.0lts/device/rockchip/rk2206/sdk_liteos/build/link/board.ld.S -o /home/jackey/openharmony/lockzhiner-rk2206-openharmony3.0lts/device/rockchip/rk2206/sdk_liteos/board.ld -P
+arm-none-eabi-gcc -mcpu=cortex-m4 -mthumb  --specs=nosys.specs -Tboard.ld -L/home/jackey/openharmony/lockzhiner-rk2206-openharmony3.0lts/out/rk2206/lockzhiner-rk2206/libs -Wl,--start-group -Wl,--start-group -Wl,--whole-archive -lbootstrap -lbroadcast -lhal_iothardware -lhardware -lshellcmd -lhdf_config -lhdf_core -lhdf_osal_lite -lhdf_platform_lite   -Wl,--no-whole-archive -larch         -lcjson_static  -ldump_static       -lhal_wifiaware  -lhuks_3.0_sdk     -lnative_file    -lsec_static      -lwifiaware -lauthmanager  -lcmsis         -lexchook                            -lkernel           -lpm             -lsysparam        -lwifiservice -lbacktrace    -lcppsupport    -lhal_file_static   -lhichainsdk     -lposix          -ltoken_static -lboard        -lcpup          -lhievent_lite   -lmbedtls          -lsamgr          -ltrans_service -ldiscovery     -lhal_sysparam      -lhilog_lite     -lmusl-c           -lsamgr_adapter  -lutils -llwip          -lhal_token_static  -lhiview_lite    -lmusl-m           -lsamgr_source   -lutils_kv_store -lfs_operations -lfatfs -lshell -lpahomqtt_static -llzlittlefs -Wl,--end-group -Wl,--end-group -Wl,-Map=/home/jackey/openharmony/lockzhiner-rk2206-openharmony3.0lts/out/rk2206/lockzhiner-rk2206/liteos.map,--cref -Wl,--gc-sections -o /home/jackey/openharmony/lockzhiner-rk2206-openharmony3.0lts/out/rk2206/lockzhiner-rk2206/liteos.elf
+/usr/lib/gcc/arm-none-eabi/13.2.1/../../../arm-none-eabi/bin/ld: /usr/lib/gcc/arm-none-eabi/13.2.1/../../../arm-none-eabi/lib/thumb/v7e-m/nofp/libc.a(libc_a-closer.o): in function `_close_r':
+/build/newlib-38V0JC/newlib-4.4.0.20231231/build/arm-none-eabi/thumb/v7e-m/nofp/newlib/../../../../../../newlib/libc/reent/closer.c:47:(.text+0xc): warning: _close is not implemented and will always fail
+/usr/lib/gcc/arm-none-eabi/13.2.1/../../../arm-none-eabi/bin/ld: /usr/lib/gcc/arm-none-eabi/13.2.1/../../../arm-none-eabi/lib/thumb/v7e-m/nofp/libc.a(libc_a-closer.o): note: the message above does not take linker garbage collection into account
+/usr/lib/gcc/arm-none-eabi/13.2.1/../../../arm-none-eabi/bin/ld: /usr/lib/gcc/arm-none-eabi/13.2.1/../../../arm-none-eabi/lib/thumb/v7e-m/nofp/libc.a(libc_a-fstatr.o): in function `_fstat_r':
+/build/newlib-38V0JC/newlib-4.4.0.20231231/build/arm-none-eabi/thumb/v7e-m/nofp/newlib/../../../../../../newlib/libc/reent/fstatr.c:55:(.text+0x12): warning: _fstat is not implemented and will always fail
+/usr/lib/gcc/arm-none-eabi/13.2.1/../../../arm-none-eabi/bin/ld: /usr/lib/gcc/arm-none-eabi/13.2.1/../../../arm-none-eabi/lib/thumb/v7e-m/nofp/libc.a(libc_a-fstatr.o): note: the message above does not take linker garbage collection into account
+/usr/lib/gcc/arm-none-eabi/13.2.1/../../../arm-none-eabi/bin/ld: /usr/lib/gcc/arm-none-eabi/13.2.1/../../../arm-none-eabi/lib/thumb/v7e-m/nofp/libc.a(libc_a-signalr.o): in function `_getpid_r':
+/build/newlib-38V0JC/newlib-4.4.0.20231231/build/arm-none-eabi/thumb/v7e-m/nofp/newlib/../../../../../../newlib/libc/reent/signalr.c:83:(.text+0x2c): warning: _getpid is not implemented and will always fail
+/usr/lib/gcc/arm-none-eabi/13.2.1/../../../arm-none-eabi/bin/ld: /usr/lib/gcc/arm-none-eabi/13.2.1/../../../arm-none-eabi/lib/thumb/v7e-m/nofp/libc.a(libc_a-signalr.o): note: the message above does not take linker garbage collection into account
+/usr/lib/gcc/arm-none-eabi/13.2.1/../../../arm-none-eabi/bin/ld: /usr/lib/gcc/arm-none-eabi/13.2.1/../../../arm-none-eabi/lib/thumb/v7e-m/nofp/libc.a(libc_a-isattyr.o): in function `_isatty_r':
+/build/newlib-38V0JC/newlib-4.4.0.20231231/build/arm-none-eabi/thumb/v7e-m/nofp/newlib/../../../../../../newlib/libc/reent/isattyr.c:52:(.text+0xc): warning: _isatty is not implemented and will always fail
+/usr/lib/gcc/arm-none-eabi/13.2.1/../../../arm-none-eabi/bin/ld: /usr/lib/gcc/arm-none-eabi/13.2.1/../../../arm-none-eabi/lib/thumb/v7e-m/nofp/libc.a(libc_a-isattyr.o): note: the message above does not take linker garbage collection into account
+/usr/lib/gcc/arm-none-eabi/13.2.1/../../../arm-none-eabi/bin/ld: /usr/lib/gcc/arm-none-eabi/13.2.1/../../../arm-none-eabi/lib/thumb/v7e-m/nofp/libc.a(libc_a-signalr.o): in function `_kill_r':
+/build/newlib-38V0JC/newlib-4.4.0.20231231/build/arm-none-eabi/thumb/v7e-m/nofp/newlib/../../../../../../newlib/libc/reent/signalr.c:53:(.text+0x12): warning: _kill is not implemented and will always fail
+/usr/lib/gcc/arm-none-eabi/13.2.1/../../../arm-none-eabi/bin/ld: /usr/lib/gcc/arm-none-eabi/13.2.1/../../../arm-none-eabi/lib/thumb/v7e-m/nofp/libc.a(libc_a-signalr.o): note: the message above does not take linker garbage collection into account
+/usr/lib/gcc/arm-none-eabi/13.2.1/../../../arm-none-eabi/bin/ld: /usr/lib/gcc/arm-none-eabi/13.2.1/../../../arm-none-eabi/lib/thumb/v7e-m/nofp/libc.a(libc_a-lseekr.o): in function `_lseek_r':
+/build/newlib-38V0JC/newlib-4.4.0.20231231/build/arm-none-eabi/thumb/v7e-m/nofp/newlib/../../../../../../newlib/libc/reent/lseekr.c:49:(.text+0x14): warning: _lseek is not implemented and will always fail
+/usr/lib/gcc/arm-none-eabi/13.2.1/../../../arm-none-eabi/bin/ld: /usr/lib/gcc/arm-none-eabi/13.2.1/../../../arm-none-eabi/lib/thumb/v7e-m/nofp/libc.a(libc_a-lseekr.o): note: the message above does not take linker garbage collection into account
+/usr/lib/gcc/arm-none-eabi/13.2.1/../../../arm-none-eabi/bin/ld: /usr/lib/gcc/arm-none-eabi/13.2.1/../../../arm-none-eabi/lib/thumb/v7e-m/nofp/libc.a(libc_a-readr.o): in function `_read_r':
+/build/newlib-38V0JC/newlib-4.4.0.20231231/build/arm-none-eabi/thumb/v7e-m/nofp/newlib/../../../../../../newlib/libc/reent/readr.c:49:(.text+0x14): warning: _read is not implemented and will always fail
+/usr/lib/gcc/arm-none-eabi/13.2.1/../../../arm-none-eabi/bin/ld: /usr/lib/gcc/arm-none-eabi/13.2.1/../../../arm-none-eabi/lib/thumb/v7e-m/nofp/libc.a(libc_a-readr.o): note: the message above does not take linker garbage collection into account
+/usr/lib/gcc/arm-none-eabi/13.2.1/../../../arm-none-eabi/bin/ld: /usr/lib/gcc/arm-none-eabi/13.2.1/../../../arm-none-eabi/lib/thumb/v7e-m/nofp/libc.a(libc_a-unlinkr.o): in function `_unlink_r':
+/build/newlib-38V0JC/newlib-4.4.0.20231231/build/arm-none-eabi/thumb/v7e-m/nofp/newlib/../../../../../../newlib/libc/reent/unlinkr.c:47:(.text+0xc): warning: _unlink is not implemented and will always fail
+/usr/lib/gcc/arm-none-eabi/13.2.1/../../../arm-none-eabi/bin/ld: /usr/lib/gcc/arm-none-eabi/13.2.1/../../../arm-none-eabi/lib/thumb/v7e-m/nofp/libc.a(libc_a-unlinkr.o): note: the message above does not take linker garbage collection into account
+/usr/lib/gcc/arm-none-eabi/13.2.1/../../../arm-none-eabi/bin/ld: /usr/lib/gcc/arm-none-eabi/13.2.1/../../../arm-none-eabi/lib/thumb/v7e-m/nofp/libc.a(libc_a-writer.o): in function `_write_r':
+/build/newlib-38V0JC/newlib-4.4.0.20231231/build/arm-none-eabi/thumb/v7e-m/nofp/newlib/../../../../../../newlib/libc/reent/writer.c:49:(.text+0x14): warning: _write is not implemented and will always fail
+/usr/lib/gcc/arm-none-eabi/13.2.1/../../../arm-none-eabi/bin/ld: /usr/lib/gcc/arm-none-eabi/13.2.1/../../../arm-none-eabi/lib/thumb/v7e-m/nofp/libc.a(libc_a-writer.o): note: the message above does not take linker garbage collection into account
+arm-none-eabi-size /home/jackey/openharmony/lockzhiner-rk2206-openharmony3.0lts/out/rk2206/lockzhiner-rk2206/liteos.elf
+   text	   data	    bss	    dec	    hex	filename
+ 262936	 213904	1083384	1560224	 17cea0	/home/jackey/openharmony/lockzhiner-rk2206-openharmony3.0lts/out/rk2206/lockzhiner-rk2206/liteos.elf
+arm-none-eabi-objcopy -O ihex /home/jackey/openharmony/lockzhiner-rk2206-openharmony3.0lts/out/rk2206/lockzhiner-rk2206/liteos.elf /home/jackey/openharmony/lockzhiner-rk2206-openharmony3.0lts/out/rk2206/lockzhiner-rk2206/liteos.hex
+arm-none-eabi-objcopy -O binary -S /home/jackey/openharmony/lockzhiner-rk2206-openharmony3.0lts/out/rk2206/lockzhiner-rk2206/liteos.elf /home/jackey/openharmony/lockzhiner-rk2206-openharmony3.0lts/out/rk2206/lockzhiner-rk2206/liteos.bin
+arch is x86_64 and packet for x86_64
+file=/home/jackey/openharmony/lockzhiner-rk2206-openharmony3.0lts/out/rk2206/lockzhiner-rk2206/liteos.bin,json=/home/jackey/openharmony/lockzhiner-rk2206-openharmony3.0lts/out/rk2206/lockzhiner-rk2206/config.json
+Packing liteos.bin done
+name=IDBlock, offset=80, size=80, type=2, flag=0
+name=liteos, offset=100, size=f00, type=8, flag=0
+name=rootfs, offset=1000, size=2000, type=0, flag=1
+name=userfs, offset=3000, size=1000, type=0, flag=1
+Writing vendor...
+Writing idblock...
+Adding /home/jackey/openharmony/lockzhiner-rk2206-openharmony3.0lts/out/rk2206/lockzhiner-rk2206/liteos ...
+Generating hash file...
+Generating firmware OK.
+cmd:bash ./build.sh /home/jackey/openharmony/lockzhiner-rk2206-openharmony3.0lts/out/rk2206/lockzhiner-rk2206
+cost time:0:00:02

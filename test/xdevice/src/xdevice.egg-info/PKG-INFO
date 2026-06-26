@@ -1,0 +1,8 @@
+Metadata-Version: 2.4
+Name: xdevice
+Version: 0.0.0
+Summary: xdevice test framework
+Home-page: 
+License-File: LICENSE
+Dynamic: license-file
+Dynamic: summary

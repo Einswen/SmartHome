@@ -1,0 +1,3 @@
+/home/jackey/openharmony/lockzhiner-rk2206-openharmony3.0lts/kernel/liteos_m/components/net/lwip-2.1/porting/include/lwip/
+cmd:bash ./build.sh /home/jackey/openharmony/lockzhiner-rk2206-openharmony3.0lts/kernel/liteos_m/components/net/lwip-2.1/porting/include/lwip/
+cost time:0:00:00

@@ -1,0 +1,13 @@
+ohos_build_compiler_specified = "gcc"
+product_path = "/home/jackey/openharmony/lockzhiner-rk2206-openharmony3.0lts/vendor/lockzhiner/rk2206"
+device_path = "/home/jackey/openharmony/lockzhiner-rk2206-openharmony3.0lts/device/rockchip/rk2206/sdk_liteos"
+ohos_kernel_type = "liteos_m"
+disable_huks_binary = false
+disable_authenticate = false
+huks_use_lite_storage = true
+huks_use_hardware_root_key = true
+huks_config_file = "hks_config_lite.h"
+ohos_build_type = "debug"
+ohos_build_time = "1782411222224"
+ohos_build_datetime = "2026-06-26 10:13:42"
+ohos_full_compile = true
