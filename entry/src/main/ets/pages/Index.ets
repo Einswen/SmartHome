@@ -2,18 +2,16 @@ import { DeviceDetailPages } from '../components/DeviceDetailPages';
 import {
   AgentMessageSpec,
   AgentRecordSpec,
-  AgentSuggestionSpec,
   AutomationSpec,
   DEFAULT_AGENT_MESSAGES,
   DEFAULT_AGENT_RECORDS,
-  DEFAULT_AUTOMATIONS,
-  SMART_SUGGESTIONS
+  DEFAULT_AUTOMATIONS
 } from '../smart/SmartModels';
 import {
   createDraftActions,
-  createManualTriggerSpec,
-  parseSmartPrompt
+  createManualTriggerSpec
 } from '../smart/SmartPromptParser';
+import { resolveSmartAssistantPrompt } from '../smart/SmartAssistantService';
 
 interface RoomImageSet {
   dayLightOff: Resource;
@@ -177,6 +175,7 @@ struct Index {
   @State activeSceneId: string = 'morning';
   @State agentPrompt: string = '';
   @State agentListening: boolean = false;
+  @State agentThinking: boolean = false;
   @State automationComposerVisible: boolean = false;
   @State automationTitle: string = '';
   @State automationTrigger: string = '';
@@ -1261,7 +1260,7 @@ struct Index {
     );
   }
 
-  private runAgentPrompt(): void {
+  private async runAgentPrompt(): Promise<void> {
     const prompt = this.agentPrompt.trim();
     if (prompt.length === 0) {
       this.appendAgentRecord('请输入指令', '智能助手需要明确的文字或语音指令才能生成执行方案。', '建议');
@@ -1269,26 +1268,35 @@ struct Index {
       return;
     }
     this.pushChatMessage('user', prompt, '刚刚');
-    const draft = parseSmartPrompt(prompt);
-    const recordTitle = draft.shouldCreateAutomation ? '智能助手已生成自动化草稿' : '智能助手已生成执行方案';
-    this.appendAgentRecord(recordTitle, draft.action, '已执行');
-    if (draft.shouldCreateAutomation) {
-      this.automations = [
-        {
-          id: `auto_${new Date().getTime()}`,
-          title: draft.title,
-          trigger: draft.trigger,
-          action: draft.action,
-          source: 'agent',
-          enabled: true,
-          triggerSpec: draft.triggerSpec,
-          actions: draft.actions
-        },
-        ...this.automations
-      ];
-    }
-    this.pushChatMessage('agent', draft.response, recordTitle);
     this.agentPrompt = '';
+    this.agentThinking = true;
+    try {
+      const reply = await resolveSmartAssistantPrompt(prompt);
+      if (reply.draft !== undefined && reply.draft.shouldCreateAutomation) {
+        const draft = reply.draft;
+        this.automations = [
+          {
+            id: `auto_${new Date().getTime()}`,
+            title: draft.title,
+            trigger: draft.trigger,
+            action: draft.action,
+            source: 'agent',
+            enabled: true,
+            triggerSpec: draft.triggerSpec,
+            actions: draft.actions
+          },
+          ...this.automations
+        ];
+      }
+      const recordDetail = reply.draft !== undefined ? reply.draft.action : reply.detail;
+      this.appendAgentRecord(reply.title, recordDetail, reply.mode === 'llm' ? '回答' : '已执行');
+      this.pushChatMessage('agent', reply.detail, reply.title);
+    } catch (error) {
+      this.appendAgentRecord('助手请求失败', `${error}`, '错误');
+      this.pushChatMessage('agent', `请求失败：${error}`, '错误');
+    } finally {
+      this.agentThinking = false;
+    }
   }
 
   private openAutomationComposer(): void {
@@ -3153,16 +3161,16 @@ struct Index {
 
       Text(message.text)
         .fontSize(14)
-        .lineHeight(21)
+        .lineHeight(22)
         .fontColor(message.role === 'user' ? this.inverseText() : this.primaryText())
     }
-    .padding({ left: 15, right: 15, top: 13, bottom: 13 })
+    .padding({ left: 16, right: 16, top: 14, bottom: 14 })
     .backgroundColor(message.role === 'user' ? this.translucentInverseBg() : this.translucentCardColor())
     .border({
       width: 1,
       color: message.role === 'user' ? this.glassBorderColor() : this.lineColor()
     })
-    .borderRadius(20)
+    .borderRadius(18)
     .width('100%')
     .alignItems(HorizontalAlign.Start)
   }
@@ -3171,150 +3179,16 @@ struct Index {
   ChatSurface() {
     Scroll() {
       Column() {
-        if (this.chatMessages.length === 0) {
-          Column() {
-            Column() {
-              Row() {
-                Column()
-                  .width(8)
-                  .height(8)
-                  .borderRadius(4)
-                  .backgroundColor(this.primaryText())
-
-                Text('智能助手待命')
-                  .fontSize(12)
-                  .fontWeight(FontWeight.Bold)
-                  .fontColor(this.secondaryText())
-                  .margin({ left: 8 })
-              }
-              .width('100%')
-              .alignItems(VerticalAlign.Center)
-
-              Text('描述你的生活场景')
-                .fontSize(25)
-                .fontWeight(FontWeight.Bold)
-                .fontColor(this.primaryText())
-                .margin({ top: 16 })
-
-              Text('我会把自然语言整理成可执行的设备动作和自动化脚本。')
-                .fontSize(13)
-                .lineHeight(20)
-                .fontColor(this.secondaryText())
-                .margin({ top: 8 })
-
-              Row() {
-                Column() {
-                  Text(`${this.enabledAutomationCount()}`)
-                    .fontSize(18)
-                    .fontWeight(FontWeight.Bold)
-                    .fontColor(this.primaryText())
-
-                  Text('正在运行')
-                    .fontSize(10)
-                    .fontColor(this.secondaryText())
-                    .margin({ top: 3 })
-                }
-                .layoutWeight(1)
-                .height(58)
-                .justifyContent(FlexAlign.Center)
-                .alignItems(HorizontalAlign.Start)
-                .padding({ left: 12, right: 10 })
-                .backgroundColor(this.glassShellColor())
-                .border({
-                  width: 1,
-                  color: this.lineColor()
-                })
-                .borderRadius(16)
-
-                Column() {
-                  Text(`${SMART_SUGGESTIONS.length}`)
-                    .fontSize(18)
-                    .fontWeight(FontWeight.Bold)
-                    .fontColor(this.primaryText())
-
-                  Text('快捷指令')
-                    .fontSize(10)
-                    .fontColor(this.secondaryText())
-                    .margin({ top: 3 })
-                }
-                .layoutWeight(1)
-                .height(58)
-                .justifyContent(FlexAlign.Center)
-                .alignItems(HorizontalAlign.Start)
-                .padding({ left: 12, right: 10 })
-                .backgroundColor(this.glassShellColor())
-                .border({
-                  width: 1,
-                  color: this.lineColor()
-                })
-                .borderRadius(16)
-                .margin({ left: 10 })
-              }
-              .width('100%')
-              .margin({ top: 18 })
-            }
-            .width('100%')
-            .padding({ left: 18, right: 18, top: 18, bottom: 18 })
-            .backgroundColor(this.glassStrongColor())
-            .border({
-              width: 1,
-              color: this.glassBorderColor()
-            })
-            .borderRadius(24)
-
-            Column() {
-              ForEach(SMART_SUGGESTIONS, (item: AgentSuggestionSpec) => {
-                Row() {
-                  Text(item.label)
-                    .fontSize(14)
-                    .fontWeight(FontWeight.Bold)
-                    .fontColor(this.primaryText())
-                    .layoutWeight(1)
-                    .maxLines(1)
-
-                  Text('+')
-                    .fontSize(16)
-                    .fontWeight(FontWeight.Bold)
-                    .fontColor(this.primaryText())
-                }
-                .width('100%')
-                .height(50)
-                .padding({ left: 14, right: 14 })
-                .backgroundColor(this.glassShellColor())
-                .border({
-                  width: 1,
-                  color: this.lineColor()
-                })
-                .borderRadius(17)
-                .margin({ top: 8 })
-                .scale(this.buttonScale(`chat_suggestion_${item.id}`))
-                .opacity(this.buttonOpacity(`chat_suggestion_${item.id}`))
-                .animation({ duration: 120, curve: Curve.EaseOut })
-                .onTouch((event: TouchEvent) => {
-                  this.handlePressState(`chat_suggestion_${item.id}`, event);
-                })
-                .onClick(() => {
-                  this.applyAgentSuggestion(item.prompt);
-                })
-              }, (item: AgentSuggestionSpec) => item.id)
-            }
-            .width('100%')
-          }
-          .width('100%')
-          .alignItems(HorizontalAlign.Start)
-          .margin({ top: 18, bottom: 12 })
-        }
-
         ForEach(this.chatMessages, (message: AgentMessageSpec) => {
           Row() {
             Column() {
               this.ChatMessageBubble(message)
             }
-            .width(message.role === 'user' ? '78%' : '88%')
+            .width(message.role === 'user' ? '76%' : '90%')
           }
           .width('100%')
           .justifyContent(message.role === 'user' ? FlexAlign.End : FlexAlign.Start)
-          .margin({ top: 12 })
+          .margin({ top: 14 })
         }, (message: AgentMessageSpec) => message.id)
       }
       .width('100%')
@@ -3333,6 +3207,24 @@ struct Index {
   @Builder
   ChatComposer() {
     Column() {
+      if (this.agentThinking) {
+        Text('助手正在思考...')
+          .fontSize(11)
+          .fontColor(this.secondaryText())
+          .maxLines(1)
+          .width('100%')
+          .margin({ bottom: 8, left: 4 })
+      }
+
+      if (this.chatMessages.length === 0 && this.agentPrompt.trim().length === 0) {
+        Text('可以直接输入设备控制指令，或描述一个想自动化的生活场景')
+          .fontSize(11)
+          .fontColor(this.secondaryText())
+          .maxLines(1)
+          .width('100%')
+          .margin({ bottom: 8, left: 4 })
+      }
+
       if (this.agentPrompt.trim().length > 0) {
         Row() {
           Text('草稿')
@@ -3361,17 +3253,17 @@ struct Index {
 
       Row() {
         Button(this.agentListening ? '停止语音' : '语音')
-          .height(40)
-          .fontSize(12)
+          .height(38)
+          .fontSize(11)
           .fontWeight(FontWeight.Bold)
           .fontColor(this.primaryText())
-          .backgroundColor(this.glassShellColor())
+          .backgroundColor(this.translucentCardColor())
           .border({
             width: 1,
-            color: this.glassBorderColor()
+            color: this.lineColor()
           })
           .borderRadius(19)
-          .padding({ left: 14, right: 14 })
+          .padding({ left: 12, right: 12 })
           .scale(this.buttonScale('agent_voice'))
           .opacity(this.buttonOpacity('agent_voice'))
           .animation({ duration: 120, curve: Curve.EaseOut })
@@ -3384,31 +3276,26 @@ struct Index {
 
         TextInput({ placeholder: '输入设备控制指令或自动化需求', text: this.agentPrompt })
           .layoutWeight(1)
-          .height(50)
+          .height(42)
           .fontSize(14)
           .fontColor(this.primaryText())
           .placeholderColor(this.secondaryText())
-          .backgroundColor(this.glassShellColor())
-          .border({
-            width: 1,
-            color: this.glassBorderColor()
-          })
-          .borderRadius(20)
-          .padding({ left: 16, right: 16 })
-          .margin({ left: 10 })
+          .backgroundColor('#00000000')
+          .padding({ left: 12, right: 12 })
+          .margin({ left: 6 })
           .onChange((value: string) => {
             this.agentPrompt = value;
           })
 
         Button('发送')
-          .height(40)
-          .fontSize(12)
+          .height(38)
+          .fontSize(11)
           .fontWeight(FontWeight.Bold)
           .fontColor(this.inverseText())
           .backgroundColor(this.translucentInverseBg())
           .borderRadius(19)
-          .padding({ left: 16, right: 16 })
-          .margin({ left: 10 })
+          .padding({ left: 15, right: 15 })
+          .margin({ left: 6 })
           .scale(this.buttonScale('agent_run'))
           .opacity(this.buttonOpacity('agent_run'))
           .animation({ duration: 120, curve: Curve.EaseOut })
@@ -3420,16 +3307,20 @@ struct Index {
           })
       }
       .width('100%')
+      .height(54)
+      .padding({ left: 8, right: 8 })
+      .backgroundColor(this.glassShellColor())
+      .border({
+        width: 1,
+        color: this.lineColor()
+      })
+      .borderRadius(24)
       .alignItems(VerticalAlign.Center)
     }
     .width('100%')
-    .padding({ left: 14, right: 14, top: 14, bottom: 14 })
+    .padding({ left: 12, right: 12, top: 10, bottom: 10 })
     .backgroundColor(this.glassStrongColor())
-    .border({
-      width: 1,
-      color: this.glassBorderColor()
-    })
-    .borderRadius(24)
+    .borderRadius(26)
   }
 
   @Builder
