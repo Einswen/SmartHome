@@ -1,4 +1,19 @@
 import { DeviceDetailPages } from '../components/DeviceDetailPages';
+import {
+  AgentMessageSpec,
+  AgentRecordSpec,
+  AgentSuggestionSpec,
+  AutomationSpec,
+  DEFAULT_AGENT_MESSAGES,
+  DEFAULT_AGENT_RECORDS,
+  DEFAULT_AUTOMATIONS,
+  SMART_SUGGESTIONS
+} from '../smart/SmartModels';
+import {
+  createDraftActions,
+  createManualTriggerSpec,
+  parseSmartPrompt
+} from '../smart/SmartPromptParser';
 
 interface RoomImageSet {
   dayLightOff: Resource;
@@ -46,64 +61,6 @@ interface SceneSpec {
   badge: string;
 }
 
-interface AgentSuggestionSpec {
-  id: string;
-  label: string;
-  prompt: string;
-}
-
-interface AgentRecordSpec {
-  id: string;
-  title: string;
-  detail: string;
-  time: string;
-  status: string;
-}
-
-interface SmartTriggerSpec {
-  type: string;
-  label: string;
-  time?: string;
-  weekday?: string;
-  sceneId?: string;
-  roomId?: string;
-}
-
-interface SmartActionSpec {
-  pointId: string;
-  command: string;
-  label: string;
-  value?: number;
-}
-
-interface SmartPromptDraft {
-  title: string;
-  trigger: string;
-  action: string;
-  shouldCreateAutomation: boolean;
-  triggerSpec: SmartTriggerSpec;
-  actions: SmartActionSpec[];
-  response: string;
-}
-
-interface AutomationSpec {
-  id: string;
-  title: string;
-  trigger: string;
-  action: string;
-  source: string;
-  enabled: boolean;
-  triggerSpec: SmartTriggerSpec;
-  actions: SmartActionSpec[];
-}
-
-interface AgentMessageSpec {
-  id: string;
-  role: string;
-  text: string;
-  meta: string;
-}
-
 interface RoomDeviceState {
   roomId: string;
   pointIds: string[];
@@ -126,70 +83,6 @@ const SCENES: SceneSpec[] = [
   { id: 'movie', label: '观影', detail: '客厅联动', badge: '影' },
   { id: 'sleep', label: '睡眠', detail: '夜间静音', badge: '夜' }
 ];
-
-const SMART_SUGGESTIONS: AgentSuggestionSpec[] = [
-  { id: 'leave', label: '离家断电', prompt: '当我出门时，关闭客厅电视、空气净化器和主灯，并开启安防提醒' },
-  { id: 'night', label: '夜间入睡', prompt: '每天晚上十点半关闭客厅灯，拉上卧室窗帘并把卧室空调调到23度' },
-  { id: 'return', label: '回家模式', prompt: '我回家后打开客厅灯到70%，启动空气净化器并让电视进入待机' },
-  { id: 'clean', label: '周末清洁', prompt: '每周六上午十点启动客厅和卧室扫地机器人，清洁完成后提醒我' }
-];
-
-const DEFAULT_AGENT_RECORDS: AgentRecordSpec[] = [
-  {
-    id: 'record_seed_1',
-    title: '智能助手已整理晨间场景',
-    detail: '建议把窗帘、空调和照明联动成一个一键场景。',
-    time: '09:12',
-    status: '建议'
-  },
-  {
-    id: 'record_seed_2',
-    title: '离家脚本已同步',
-    detail: '关闭高功率设备，并保留必要的安防提醒。',
-    time: '08:46',
-    status: '已执行'
-  }
-];
-
-const DEFAULT_AUTOMATIONS: AutomationSpec[] = [
-  {
-    id: 'auto_leave',
-    title: '离家断电',
-    trigger: '离家定位或手动点击离家场景',
-    action: '关闭客厅电视、空气净化器和主灯',
-    source: 'agent',
-    enabled: true,
-    triggerSpec: {
-      type: 'presence',
-      label: '离家定位或手动点击离家场景'
-    },
-    actions: [
-      { pointId: 'living_tv', command: 'off', label: '关闭客厅电视' },
-      { pointId: 'living_purifier', command: 'off', label: '关闭空气净化器' },
-      { pointId: 'living_light', command: 'off', label: '关闭客厅主灯' }
-    ]
-  },
-  {
-    id: 'auto_sleep',
-    title: '睡眠安静模式',
-    trigger: '每天 22:30',
-    action: '拉上卧室窗帘，客厅灯关闭，卧室空调调至 23°C',
-    source: 'manual',
-    enabled: true,
-    triggerSpec: {
-      type: 'time',
-      label: '每天 22:30',
-      time: '22:30'
-    },
-    actions: [
-      { pointId: 'bedroom_curtain', command: 'set', label: '拉上卧室窗帘', value: 100 },
-      { pointId: 'living_light', command: 'off', label: '关闭客厅灯' },
-      { pointId: 'bedroom_air', command: 'set', label: '卧室空调调至 23°C', value: 23 }
-    ]
-  }
-];
-
-const DEFAULT_AGENT_MESSAGES: AgentMessageSpec[] = [];
 
 const ROOMS: RoomSpec[] = [
   {
@@ -1333,233 +1226,6 @@ struct Index {
     ];
   }
 
-  private buildAgentResponse(prompt: string): string {
-    if (prompt.indexOf('自动') >= 0 || prompt.indexOf('脚本') >= 0 || prompt.indexOf('每天') >= 0 || prompt.indexOf('每周') >= 0) {
-      return `我已经把你的需求整理成自动化草稿，并放到上方脚本板块。接下来你可以继续补充触发条件，或者直接启用它。`;
-    }
-    return `我已经理解你的控制需求。当前可以先按这个方案执行，并且如果你愿意，我也可以进一步把它沉淀成一个自动化脚本。`;
-  }
-
-  private includesAny(text: string, keywords: string[]): boolean {
-    for (let i = 0; i < keywords.length; i++) {
-      if (text.indexOf(keywords[i]) >= 0) {
-        return true;
-      }
-    }
-    return false;
-  }
-
-  private extractNumberAfter(text: string, keyword: string): number {
-    const index = text.indexOf(keyword);
-    if (index < 0) {
-      return -1;
-    }
-    const suffix = text.substring(index + keyword.length);
-    const match = suffix.match(/\d+/);
-    if (match === null) {
-      return -1;
-    }
-    return Number(match[0]);
-  }
-
-  private parsePromptTrigger(prompt: string): SmartTriggerSpec {
-    if (this.includesAny(prompt, ['每周', '周六', '周日', '周一', '周二', '周三', '周四', '周五'])) {
-      const weekday = this.includesAny(prompt, ['周六', '星期六']) ? '周六' :
-        this.includesAny(prompt, ['周日', '星期日']) ? '周日' :
-          this.includesAny(prompt, ['周一', '星期一']) ? '周一' :
-            this.includesAny(prompt, ['周二', '星期二']) ? '周二' :
-              this.includesAny(prompt, ['周三', '星期三']) ? '周三' :
-                this.includesAny(prompt, ['周四', '星期四']) ? '周四' :
-                  this.includesAny(prompt, ['周五', '星期五']) ? '周五' : '每周';
-      return {
-        type: 'weekly',
-        label: prompt.indexOf('上午十点') >= 0 ? `${weekday} 10:00` : weekday,
-        weekday: weekday,
-        time: prompt.indexOf('上午十点') >= 0 ? '10:00' : undefined
-      };
-    }
-    if (this.includesAny(prompt, ['每天', '晚上', '早上', '上午', '下午', '点'])) {
-      let time = '';
-      if (this.includesAny(prompt, ['十点半', '10点半', '22:30'])) {
-        time = '22:30';
-      } else if (this.includesAny(prompt, ['十点', '10点'])) {
-        time = this.includesAny(prompt, ['晚上', '晚间']) ? '22:00' : '10:00';
-      }
-      return {
-        type: 'time',
-        label: time.length > 0 ? `每天 ${time}` : '按时间触发',
-        time: time.length > 0 ? time : undefined
-      };
-    }
-    if (this.includesAny(prompt, ['离家', '出门'])) {
-      return {
-        type: 'presence',
-        label: '离家时'
-      };
-    }
-    if (this.includesAny(prompt, ['回家', '到家'])) {
-      return {
-        type: 'presence',
-        label: '回家时'
-      };
-    }
-    return {
-      type: 'manual',
-      label: '手动执行'
-    };
-  }
-
-  private appendPromptAction(actions: SmartActionSpec[], pointId: string, command: string, label: string, value?: number): void {
-    actions.push({
-      pointId: pointId,
-      command: command,
-      label: label,
-      value: value
-    });
-  }
-
-  private parsePromptActions(prompt: string): SmartActionSpec[] {
-    const actions: SmartActionSpec[] = [];
-    const isOff = this.includesAny(prompt, ['关闭', '关掉', '关上', '断电', '待机']);
-
-    if (prompt.indexOf('客厅灯') >= 0 || prompt.indexOf('主灯') >= 0) {
-      const lightLevel = this.extractNumberAfter(prompt, '客厅灯到');
-      if (lightLevel > 0) {
-        this.appendPromptAction(actions, 'living_light', 'set', `客厅灯调到 ${lightLevel}%`, lightLevel);
-      } else {
-        this.appendPromptAction(actions, 'living_light', isOff ? 'off' : 'on', isOff ? '关闭客厅灯' : '打开客厅灯');
-      }
-    }
-    if (prompt.indexOf('卧室灯') >= 0 || prompt.indexOf('床头灯') >= 0) {
-      this.appendPromptAction(actions, 'bedroom_left_light', isOff ? 'off' : 'on', isOff ? '关闭卧室灯' : '打开卧室灯');
-    }
-    if (prompt.indexOf('电视') >= 0) {
-      this.appendPromptAction(actions, 'living_tv', isOff ? 'off' : 'on', isOff ? '关闭客厅电视' : '打开客厅电视');
-    }
-    if (prompt.indexOf('空气净化器') >= 0 || prompt.indexOf('净化器') >= 0) {
-      this.appendPromptAction(actions, 'living_purifier', isOff ? 'off' : 'on', isOff ? '关闭空气净化器' : '启动空气净化器');
-    }
-    if (prompt.indexOf('扫地机器人') >= 0) {
-      let robotMatched = false;
-      if (prompt.indexOf('客厅') >= 0 || prompt.indexOf('客厅和卧室') >= 0) {
-        this.appendPromptAction(actions, 'living_robot', isOff ? 'off' : 'on', isOff ? '暂停客厅扫地机器人' : '启动客厅扫地机器人');
-        robotMatched = true;
-      }
-      if (prompt.indexOf('卧室') >= 0 || prompt.indexOf('客厅和卧室') >= 0) {
-        this.appendPromptAction(actions, 'bedroom_robot', isOff ? 'off' : 'on', isOff ? '暂停卧室扫地机器人' : '启动卧室扫地机器人');
-        robotMatched = true;
-      }
-      if (!robotMatched) {
-        this.appendPromptAction(actions, 'living_robot', isOff ? 'off' : 'on', isOff ? '暂停扫地机器人' : '启动扫地机器人');
-      }
-    }
-    if (prompt.indexOf('卧室窗帘') >= 0 || prompt.indexOf('窗帘') >= 0) {
-      const curtainValue = this.extractNumberAfter(prompt, '窗帘到');
-      if (prompt.indexOf('卧室') >= 0 || prompt.indexOf('拉上') >= 0) {
-        this.appendPromptAction(actions, 'bedroom_curtain', 'set', curtainValue >= 0 ? `卧室窗帘调到 ${curtainValue}%` : '拉上卧室窗帘', curtainValue >= 0 ? curtainValue : 100);
-      } else {
-        this.appendPromptAction(actions, 'living_curtain', 'set', curtainValue >= 0 ? `客厅窗帘调到 ${curtainValue}%` : '调整客厅窗帘', curtainValue >= 0 ? curtainValue : 100);
-      }
-    }
-    if (prompt.indexOf('卧室空调') >= 0) {
-      const temperature = this.extractNumberAfter(prompt, '调到');
-      this.appendPromptAction(actions, 'bedroom_air', 'set', temperature > 0 ? `卧室空调调到 ${temperature}°C` : '调整卧室空调', temperature > 0 ? temperature : undefined);
-    }
-    if (prompt.indexOf('客厅空调') >= 0) {
-      const temperature = this.extractNumberAfter(prompt, '调到');
-      this.appendPromptAction(actions, 'living_air', 'set', temperature > 0 ? `客厅空调调到 ${temperature}°C` : '调整客厅空调', temperature > 0 ? temperature : undefined);
-    }
-    if (prompt.indexOf('门') >= 0 || prompt.indexOf('安防') >= 0) {
-      this.appendPromptAction(actions, 'bedroom_door', prompt.indexOf('解锁') >= 0 ? 'off' : 'on', prompt.indexOf('解锁') >= 0 ? '解除卧室门锁' : '开启安防提醒');
-    }
-    if (actions.length === 0) {
-      return this.createDraftActions(prompt);
-    }
-    return actions;
-  }
-
-  private actionSummary(actions: SmartActionSpec[]): string {
-    const labels: string[] = [];
-    for (let i = 0; i < actions.length; i++) {
-      labels.push(actions[i].label);
-    }
-    return labels.join('，');
-  }
-
-  private promptShouldCreateAutomation(prompt: string, triggerSpec: SmartTriggerSpec): boolean {
-    return triggerSpec.type !== 'manual' || this.includesAny(prompt, ['自动', '脚本', '每天', '每周', '离家', '出门', '回家']);
-  }
-
-  private buildPromptTitle(prompt: string, triggerSpec: SmartTriggerSpec): string {
-    if (this.includesAny(prompt, ['离家', '出门'])) {
-      return '离家智能脚本';
-    }
-    if (this.includesAny(prompt, ['睡眠', '入睡', '晚上'])) {
-      return '夜间入睡脚本';
-    }
-    if (this.includesAny(prompt, ['回家', '到家'])) {
-      return '回家智能脚本';
-    }
-    if (this.includesAny(prompt, ['清洁', '扫地'])) {
-      return '清洁自动化脚本';
-    }
-    return triggerSpec.type === 'manual' ? '智能执行方案' : '智能自动化脚本';
-  }
-
-  private parseSmartPrompt(prompt: string): SmartPromptDraft {
-    const triggerSpec = this.parsePromptTrigger(prompt);
-    const actions = this.parsePromptActions(prompt);
-    const actionText = this.actionSummary(actions);
-    const shouldCreateAutomation = this.promptShouldCreateAutomation(prompt, triggerSpec);
-    const title = this.buildPromptTitle(prompt, triggerSpec);
-    return {
-      title: title,
-      trigger: triggerSpec.label,
-      action: actionText.length > 0 ? actionText : prompt,
-      shouldCreateAutomation: shouldCreateAutomation,
-      triggerSpec: triggerSpec,
-      actions: actions,
-      response: shouldCreateAutomation ?
-        `我已解析出触发条件“${triggerSpec.label}”，并整理了 ${actions.length} 个设备动作，脚本已放到上方。` :
-        `我已解析出 ${actions.length} 个设备动作：${actionText}。`
-    };
-  }
-
-  private createManualTriggerSpec(trigger: string): SmartTriggerSpec {
-    if (trigger.indexOf('每天') >= 0 || trigger.indexOf(':') >= 0 || trigger.indexOf('点') >= 0) {
-      return {
-        type: 'time',
-        label: trigger
-      };
-    }
-    if (trigger.indexOf('每周') >= 0 || trigger.indexOf('周') >= 0) {
-      return {
-        type: 'weekly',
-        label: trigger
-      };
-    }
-    if (trigger.indexOf('离家') >= 0 || trigger.indexOf('回家') >= 0) {
-      return {
-        type: 'presence',
-        label: trigger
-      };
-    }
-    return {
-      type: 'manual',
-      label: trigger
-    };
-  }
-
-  private createDraftActions(action: string): SmartActionSpec[] {
-    return [
-      {
-        pointId: '',
-        command: 'draft',
-        label: action
-      }
-    ];
-  }
-
   private appendAgentRecord(title: string, detail: string, status: string): void {
     const now = new Date();
     const time = `${`${now.getHours()}`.padStart(2, '0')}:${`${now.getMinutes()}`.padStart(2, '0')}`;
@@ -1603,7 +1269,7 @@ struct Index {
       return;
     }
     this.pushChatMessage('user', prompt, '刚刚');
-    const draft = this.parseSmartPrompt(prompt);
+    const draft = parseSmartPrompt(prompt);
     const recordTitle = draft.shouldCreateAutomation ? '智能助手已生成自动化草稿' : '智能助手已生成执行方案';
     this.appendAgentRecord(recordTitle, draft.action, '已执行');
     if (draft.shouldCreateAutomation) {
@@ -1656,8 +1322,8 @@ struct Index {
         action: action,
         source: 'manual',
         enabled: true,
-        triggerSpec: this.createManualTriggerSpec(trigger),
-        actions: this.createDraftActions(action)
+        triggerSpec: createManualTriggerSpec(trigger),
+        actions: createDraftActions(action)
       },
       ...this.automations
     ];
@@ -1803,7 +1469,6 @@ struct Index {
   }
 
   @Builder
-  RoomMap() {
   Bubble(point: PointSpec) {
     Column() {
       Row() {
@@ -3063,9 +2728,6 @@ struct Index {
             .height(this.panelViewportHeight() + 16)
             .scrollBar(BarState.Off)
           }
-          .width('100%')
-          .height(this.overlayPanelHeight() + 16)
-          .scrollBar(BarState.Off)
         }
         .width('100%')
         .padding({ left: 18, right: 18, bottom: 118 })
@@ -3464,12 +3126,30 @@ struct Index {
   @Builder
   ChatMessageBubble(message: AgentMessageSpec) {
     Column() {
-      Text(message.role === 'user' ? `你 · ${message.meta}` : message.meta)
-        .fontSize(10)
-        .fontWeight(FontWeight.Medium)
-        .fontColor(this.secondaryText())
-        .margin({ bottom: 6 })
-        .maxLines(1)
+      Row() {
+        Text(message.role === 'user' ? '你' : '助手')
+          .fontSize(10)
+          .fontWeight(FontWeight.Bold)
+          .fontColor(message.role === 'user' ? this.inverseText() : this.primaryText())
+          .padding({ left: 8, right: 8, top: 4, bottom: 4 })
+          .backgroundColor(message.role === 'user' ? '#1AFFFFFF' : this.glassShellColor())
+          .border({
+            width: 1,
+            color: message.role === 'user' ? '#24FFFFFF' : this.lineColor()
+          })
+          .borderRadius(10)
+
+        Text(message.meta)
+          .fontSize(10)
+          .fontWeight(FontWeight.Medium)
+          .fontColor(message.role === 'user' ? '#CCFFFFFF' : this.secondaryText())
+          .maxLines(1)
+          .margin({ left: 8 })
+          .layoutWeight(1)
+      }
+      .width('100%')
+      .alignItems(VerticalAlign.Center)
+      .margin({ bottom: 8 })
 
       Text(message.text)
         .fontSize(14)
@@ -3493,46 +3173,136 @@ struct Index {
       Column() {
         if (this.chatMessages.length === 0) {
           Column() {
-            Text('智能助手')
-              .fontSize(28)
-              .fontWeight(FontWeight.Bold)
-              .fontColor(this.primaryText())
-
-            Scroll() {
+            Column() {
               Row() {
-                ForEach(SMART_SUGGESTIONS, (item: AgentSuggestionSpec) => {
-                  Text(item.label)
-                    .fontSize(12)
-                    .fontWeight(FontWeight.Medium)
-                    .fontColor(this.primaryText())
-                    .padding({ left: 14, right: 14, top: 10, bottom: 10 })
-                    .backgroundColor(this.glassShellColor())
-                    .border({
-                      width: 1,
-                      color: this.glassBorderColor()
-                    })
-                    .borderRadius(17)
-                    .margin({ right: 8, top: 16 })
-                    .scale(this.buttonScale(`chat_suggestion_${item.id}`))
-                    .opacity(this.buttonOpacity(`chat_suggestion_${item.id}`))
-                    .animation({ duration: 120, curve: Curve.EaseOut })
-                    .onTouch((event: TouchEvent) => {
-                      this.handlePressState(`chat_suggestion_${item.id}`, event);
-                    })
-                    .onClick(() => {
-                      this.applyAgentSuggestion(item.prompt);
-                    })
-                }, (item: AgentSuggestionSpec) => item.id)
+                Column()
+                  .width(8)
+                  .height(8)
+                  .borderRadius(4)
+                  .backgroundColor(this.primaryText())
+
+                Text('智能助手待命')
+                  .fontSize(12)
+                  .fontWeight(FontWeight.Bold)
+                  .fontColor(this.secondaryText())
+                  .margin({ left: 8 })
               }
-              .padding({ right: 6 })
+              .width('100%')
+              .alignItems(VerticalAlign.Center)
+
+              Text('描述你的生活场景')
+                .fontSize(25)
+                .fontWeight(FontWeight.Bold)
+                .fontColor(this.primaryText())
+                .margin({ top: 16 })
+
+              Text('我会把自然语言整理成可执行的设备动作和自动化脚本。')
+                .fontSize(13)
+                .lineHeight(20)
+                .fontColor(this.secondaryText())
+                .margin({ top: 8 })
+
+              Row() {
+                Column() {
+                  Text(`${this.enabledAutomationCount()}`)
+                    .fontSize(18)
+                    .fontWeight(FontWeight.Bold)
+                    .fontColor(this.primaryText())
+
+                  Text('正在运行')
+                    .fontSize(10)
+                    .fontColor(this.secondaryText())
+                    .margin({ top: 3 })
+                }
+                .layoutWeight(1)
+                .height(58)
+                .justifyContent(FlexAlign.Center)
+                .alignItems(HorizontalAlign.Start)
+                .padding({ left: 12, right: 10 })
+                .backgroundColor(this.glassShellColor())
+                .border({
+                  width: 1,
+                  color: this.lineColor()
+                })
+                .borderRadius(16)
+
+                Column() {
+                  Text(`${SMART_SUGGESTIONS.length}`)
+                    .fontSize(18)
+                    .fontWeight(FontWeight.Bold)
+                    .fontColor(this.primaryText())
+
+                  Text('快捷指令')
+                    .fontSize(10)
+                    .fontColor(this.secondaryText())
+                    .margin({ top: 3 })
+                }
+                .layoutWeight(1)
+                .height(58)
+                .justifyContent(FlexAlign.Center)
+                .alignItems(HorizontalAlign.Start)
+                .padding({ left: 12, right: 10 })
+                .backgroundColor(this.glassShellColor())
+                .border({
+                  width: 1,
+                  color: this.lineColor()
+                })
+                .borderRadius(16)
+                .margin({ left: 10 })
+              }
+              .width('100%')
+              .margin({ top: 18 })
             }
             .width('100%')
-            .scrollBar(BarState.Off)
-            .scrollable(ScrollDirection.Horizontal)
+            .padding({ left: 18, right: 18, top: 18, bottom: 18 })
+            .backgroundColor(this.glassStrongColor())
+            .border({
+              width: 1,
+              color: this.glassBorderColor()
+            })
+            .borderRadius(24)
+
+            Column() {
+              ForEach(SMART_SUGGESTIONS, (item: AgentSuggestionSpec) => {
+                Row() {
+                  Text(item.label)
+                    .fontSize(14)
+                    .fontWeight(FontWeight.Bold)
+                    .fontColor(this.primaryText())
+                    .layoutWeight(1)
+                    .maxLines(1)
+
+                  Text('+')
+                    .fontSize(16)
+                    .fontWeight(FontWeight.Bold)
+                    .fontColor(this.primaryText())
+                }
+                .width('100%')
+                .height(50)
+                .padding({ left: 14, right: 14 })
+                .backgroundColor(this.glassShellColor())
+                .border({
+                  width: 1,
+                  color: this.lineColor()
+                })
+                .borderRadius(17)
+                .margin({ top: 8 })
+                .scale(this.buttonScale(`chat_suggestion_${item.id}`))
+                .opacity(this.buttonOpacity(`chat_suggestion_${item.id}`))
+                .animation({ duration: 120, curve: Curve.EaseOut })
+                .onTouch((event: TouchEvent) => {
+                  this.handlePressState(`chat_suggestion_${item.id}`, event);
+                })
+                .onClick(() => {
+                  this.applyAgentSuggestion(item.prompt);
+                })
+              }, (item: AgentSuggestionSpec) => item.id)
+            }
+            .width('100%')
           }
           .width('100%')
-          .alignItems(HorizontalAlign.Center)
-          .margin({ top: 96, bottom: 12 })
+          .alignItems(HorizontalAlign.Start)
+          .margin({ top: 18, bottom: 12 })
         }
 
         ForEach(this.chatMessages, (message: AgentMessageSpec) => {
