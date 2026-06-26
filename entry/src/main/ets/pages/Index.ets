@@ -74,6 +74,16 @@ interface SmartActionSpec {
   value?: number;
 }
 
+interface SmartPromptDraft {
+  title: string;
+  trigger: string;
+  action: string;
+  shouldCreateAutomation: boolean;
+  triggerSpec: SmartTriggerSpec;
+  actions: SmartActionSpec[];
+  response: string;
+}
+
 interface AutomationSpec {
   id: string;
   title: string;
@@ -1325,6 +1335,191 @@ struct Index {
     return `我已经理解你的控制需求。当前可以先按这个方案执行，并且如果你愿意，我也可以进一步把它沉淀成一个自动化脚本。`;
   }
 
+  private includesAny(text: string, keywords: string[]): boolean {
+    for (let i = 0; i < keywords.length; i++) {
+      if (text.indexOf(keywords[i]) >= 0) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  private extractNumberAfter(text: string, keyword: string): number {
+    const index = text.indexOf(keyword);
+    if (index < 0) {
+      return -1;
+    }
+    const suffix = text.substring(index + keyword.length);
+    const match = suffix.match(/\d+/);
+    if (match === null) {
+      return -1;
+    }
+    return Number(match[0]);
+  }
+
+  private parsePromptTrigger(prompt: string): SmartTriggerSpec {
+    if (this.includesAny(prompt, ['每周', '周六', '周日', '周一', '周二', '周三', '周四', '周五'])) {
+      const weekday = this.includesAny(prompt, ['周六', '星期六']) ? '周六' :
+        this.includesAny(prompt, ['周日', '星期日']) ? '周日' :
+          this.includesAny(prompt, ['周一', '星期一']) ? '周一' :
+            this.includesAny(prompt, ['周二', '星期二']) ? '周二' :
+              this.includesAny(prompt, ['周三', '星期三']) ? '周三' :
+                this.includesAny(prompt, ['周四', '星期四']) ? '周四' :
+                  this.includesAny(prompt, ['周五', '星期五']) ? '周五' : '每周';
+      return {
+        type: 'weekly',
+        label: prompt.indexOf('上午十点') >= 0 ? `${weekday} 10:00` : weekday,
+        weekday: weekday,
+        time: prompt.indexOf('上午十点') >= 0 ? '10:00' : undefined
+      };
+    }
+    if (this.includesAny(prompt, ['每天', '晚上', '早上', '上午', '下午', '点'])) {
+      let time = '';
+      if (this.includesAny(prompt, ['十点半', '10点半', '22:30'])) {
+        time = '22:30';
+      } else if (this.includesAny(prompt, ['十点', '10点'])) {
+        time = this.includesAny(prompt, ['晚上', '晚间']) ? '22:00' : '10:00';
+      }
+      return {
+        type: 'time',
+        label: time.length > 0 ? `每天 ${time}` : '按时间触发',
+        time: time.length > 0 ? time : undefined
+      };
+    }
+    if (this.includesAny(prompt, ['离家', '出门'])) {
+      return {
+        type: 'presence',
+        label: '离家时'
+      };
+    }
+    if (this.includesAny(prompt, ['回家', '到家'])) {
+      return {
+        type: 'presence',
+        label: '回家时'
+      };
+    }
+    return {
+      type: 'manual',
+      label: '手动执行'
+    };
+  }
+
+  private appendPromptAction(actions: SmartActionSpec[], pointId: string, command: string, label: string, value?: number): void {
+    actions.push({
+      pointId: pointId,
+      command: command,
+      label: label,
+      value: value
+    });
+  }
+
+  private parsePromptActions(prompt: string): SmartActionSpec[] {
+    const actions: SmartActionSpec[] = [];
+    const isOff = this.includesAny(prompt, ['关闭', '关掉', '关上', '断电', '待机']);
+
+    if (prompt.indexOf('客厅灯') >= 0 || prompt.indexOf('主灯') >= 0) {
+      const lightLevel = this.extractNumberAfter(prompt, '客厅灯到');
+      if (lightLevel > 0) {
+        this.appendPromptAction(actions, 'living_light', 'set', `客厅灯调到 ${lightLevel}%`, lightLevel);
+      } else {
+        this.appendPromptAction(actions, 'living_light', isOff ? 'off' : 'on', isOff ? '关闭客厅灯' : '打开客厅灯');
+      }
+    }
+    if (prompt.indexOf('卧室灯') >= 0 || prompt.indexOf('床头灯') >= 0) {
+      this.appendPromptAction(actions, 'bedroom_left_light', isOff ? 'off' : 'on', isOff ? '关闭卧室灯' : '打开卧室灯');
+    }
+    if (prompt.indexOf('电视') >= 0) {
+      this.appendPromptAction(actions, 'living_tv', isOff ? 'off' : 'on', isOff ? '关闭客厅电视' : '打开客厅电视');
+    }
+    if (prompt.indexOf('空气净化器') >= 0 || prompt.indexOf('净化器') >= 0) {
+      this.appendPromptAction(actions, 'living_purifier', isOff ? 'off' : 'on', isOff ? '关闭空气净化器' : '启动空气净化器');
+    }
+    if (prompt.indexOf('扫地机器人') >= 0) {
+      let robotMatched = false;
+      if (prompt.indexOf('客厅') >= 0 || prompt.indexOf('客厅和卧室') >= 0) {
+        this.appendPromptAction(actions, 'living_robot', isOff ? 'off' : 'on', isOff ? '暂停客厅扫地机器人' : '启动客厅扫地机器人');
+        robotMatched = true;
+      }
+      if (prompt.indexOf('卧室') >= 0 || prompt.indexOf('客厅和卧室') >= 0) {
+        this.appendPromptAction(actions, 'bedroom_robot', isOff ? 'off' : 'on', isOff ? '暂停卧室扫地机器人' : '启动卧室扫地机器人');
+        robotMatched = true;
+      }
+      if (!robotMatched) {
+        this.appendPromptAction(actions, 'living_robot', isOff ? 'off' : 'on', isOff ? '暂停扫地机器人' : '启动扫地机器人');
+      }
+    }
+    if (prompt.indexOf('卧室窗帘') >= 0 || prompt.indexOf('窗帘') >= 0) {
+      const curtainValue = this.extractNumberAfter(prompt, '窗帘到');
+      if (prompt.indexOf('卧室') >= 0 || prompt.indexOf('拉上') >= 0) {
+        this.appendPromptAction(actions, 'bedroom_curtain', 'set', curtainValue >= 0 ? `卧室窗帘调到 ${curtainValue}%` : '拉上卧室窗帘', curtainValue >= 0 ? curtainValue : 100);
+      } else {
+        this.appendPromptAction(actions, 'living_curtain', 'set', curtainValue >= 0 ? `客厅窗帘调到 ${curtainValue}%` : '调整客厅窗帘', curtainValue >= 0 ? curtainValue : 100);
+      }
+    }
+    if (prompt.indexOf('卧室空调') >= 0) {
+      const temperature = this.extractNumberAfter(prompt, '调到');
+      this.appendPromptAction(actions, 'bedroom_air', 'set', temperature > 0 ? `卧室空调调到 ${temperature}°C` : '调整卧室空调', temperature > 0 ? temperature : undefined);
+    }
+    if (prompt.indexOf('客厅空调') >= 0) {
+      const temperature = this.extractNumberAfter(prompt, '调到');
+      this.appendPromptAction(actions, 'living_air', 'set', temperature > 0 ? `客厅空调调到 ${temperature}°C` : '调整客厅空调', temperature > 0 ? temperature : undefined);
+    }
+    if (prompt.indexOf('门') >= 0 || prompt.indexOf('安防') >= 0) {
+      this.appendPromptAction(actions, 'bedroom_door', prompt.indexOf('解锁') >= 0 ? 'off' : 'on', prompt.indexOf('解锁') >= 0 ? '解除卧室门锁' : '开启安防提醒');
+    }
+    if (actions.length === 0) {
+      return this.createDraftActions(prompt);
+    }
+    return actions;
+  }
+
+  private actionSummary(actions: SmartActionSpec[]): string {
+    const labels: string[] = [];
+    for (let i = 0; i < actions.length; i++) {
+      labels.push(actions[i].label);
+    }
+    return labels.join('，');
+  }
+
+  private promptShouldCreateAutomation(prompt: string, triggerSpec: SmartTriggerSpec): boolean {
+    return triggerSpec.type !== 'manual' || this.includesAny(prompt, ['自动', '脚本', '每天', '每周', '离家', '出门', '回家']);
+  }
+
+  private buildPromptTitle(prompt: string, triggerSpec: SmartTriggerSpec): string {
+    if (this.includesAny(prompt, ['离家', '出门'])) {
+      return '离家智能脚本';
+    }
+    if (this.includesAny(prompt, ['睡眠', '入睡', '晚上'])) {
+      return '夜间入睡脚本';
+    }
+    if (this.includesAny(prompt, ['回家', '到家'])) {
+      return '回家智能脚本';
+    }
+    if (this.includesAny(prompt, ['清洁', '扫地'])) {
+      return '清洁自动化脚本';
+    }
+    return triggerSpec.type === 'manual' ? '智能执行方案' : '智能自动化脚本';
+  }
+
+  private parseSmartPrompt(prompt: string): SmartPromptDraft {
+    const triggerSpec = this.parsePromptTrigger(prompt);
+    const actions = this.parsePromptActions(prompt);
+    const actionText = this.actionSummary(actions);
+    const shouldCreateAutomation = this.promptShouldCreateAutomation(prompt, triggerSpec);
+    const title = this.buildPromptTitle(prompt, triggerSpec);
+    return {
+      title: title,
+      trigger: triggerSpec.label,
+      action: actionText.length > 0 ? actionText : prompt,
+      shouldCreateAutomation: shouldCreateAutomation,
+      triggerSpec: triggerSpec,
+      actions: actions,
+      response: shouldCreateAutomation ?
+        `我已解析出触发条件“${triggerSpec.label}”，并整理了 ${actions.length} 个设备动作，脚本已放到上方。` :
+        `我已解析出 ${actions.length} 个设备动作：${actionText}。`
+    };
+  }
+
   private createManualTriggerSpec(trigger: string): SmartTriggerSpec {
     if (trigger.indexOf('每天') >= 0 || trigger.indexOf(':') >= 0 || trigger.indexOf('点') >= 0) {
       return {
@@ -1403,27 +1598,25 @@ struct Index {
       return;
     }
     this.pushChatMessage('user', prompt, '刚刚');
-    const title = prompt.indexOf('自动') >= 0 || prompt.indexOf('脚本') >= 0 ? '智能助手已生成自动化草稿' : '智能助手已生成执行方案';
-    this.appendAgentRecord(title, prompt, '已执行');
-    if (prompt.indexOf('自动') >= 0 || prompt.indexOf('脚本') >= 0 || prompt.indexOf('每天') >= 0 || prompt.indexOf('每周') >= 0) {
+    const draft = this.parseSmartPrompt(prompt);
+    const recordTitle = draft.shouldCreateAutomation ? '智能助手已生成自动化草稿' : '智能助手已生成执行方案';
+    this.appendAgentRecord(recordTitle, draft.action, '已执行');
+    if (draft.shouldCreateAutomation) {
       this.automations = [
         {
           id: `auto_${new Date().getTime()}`,
-          title: '智能助手新建自动化',
-          trigger: '等待你补充触发条件',
-          action: prompt,
+          title: draft.title,
+          trigger: draft.trigger,
+          action: draft.action,
           source: 'agent',
           enabled: true,
-          triggerSpec: {
-            type: 'draft',
-            label: '等待你补充触发条件'
-          },
-          actions: this.createDraftActions(prompt)
+          triggerSpec: draft.triggerSpec,
+          actions: draft.actions
         },
         ...this.automations
       ];
     }
-    this.pushChatMessage('agent', this.buildAgentResponse(prompt), title);
+    this.pushChatMessage('agent', draft.response, recordTitle);
     this.agentPrompt = '';
   }
 
