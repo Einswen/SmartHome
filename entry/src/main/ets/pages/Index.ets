@@ -183,6 +183,7 @@ struct Index {
   @State activeSceneId: string = 'morning';
   @State agentPrompt: string = '';
   @State agentListening: boolean = false;
+  @State agentThinking: boolean = false;
   @State automationComposerVisible: boolean = false;
   @State automationTitle: string = '';
   @State automationTrigger: string = '';
@@ -1348,7 +1349,7 @@ struct Index {
     );
   }
 
-  private runAgentPrompt(): void {
+  private async runAgentPrompt(): Promise<void> {
     const prompt = this.agentPrompt.trim();
     if (prompt.length === 0) {
       this.appendAgentRecord('请输入指令', '智能助手需要明确的文字或语音指令才能生成执行方案。', '建议');
@@ -3457,16 +3458,16 @@ struct Index {
 
       Text(message.text)
         .fontSize(14)
-        .lineHeight(21)
+        .lineHeight(22)
         .fontColor(message.role === 'user' ? this.inverseText() : this.primaryText())
     }
-    .padding({ left: 15, right: 15, top: 13, bottom: 13 })
+    .padding({ left: 16, right: 16, top: 14, bottom: 14 })
     .backgroundColor(message.role === 'user' ? this.translucentInverseBg() : this.translucentCardColor())
     .border({
       width: 1,
       color: message.role === 'user' ? this.glassBorderColor() : this.lineColor()
     })
-    .borderRadius(20)
+    .borderRadius(18)
     .width('100%')
     .alignItems(HorizontalAlign.Start)
   }
@@ -3614,11 +3615,11 @@ struct Index {
             Column() {
               this.ChatMessageBubble(message)
             }
-            .width(message.role === 'user' ? '78%' : '88%')
+            .width(message.role === 'user' ? '76%' : '90%')
           }
           .width('100%')
           .justifyContent(message.role === 'user' ? FlexAlign.End : FlexAlign.Start)
-          .margin({ top: 12 })
+          .margin({ top: 14 })
         }, (message: AgentMessageSpec) => message.id)
       }
       .width('100%')
@@ -3637,6 +3638,24 @@ struct Index {
   @Builder
   ChatComposer() {
     Column() {
+      if (this.agentThinking) {
+        Text('助手正在思考...')
+          .fontSize(11)
+          .fontColor(this.secondaryText())
+          .maxLines(1)
+          .width('100%')
+          .margin({ bottom: 8, left: 4 })
+      }
+
+      if (this.chatMessages.length === 0 && this.agentPrompt.trim().length === 0) {
+        Text('可以直接输入设备控制指令，或描述一个想自动化的生活场景')
+          .fontSize(11)
+          .fontColor(this.secondaryText())
+          .maxLines(1)
+          .width('100%')
+          .margin({ bottom: 8, left: 4 })
+      }
+
       if (this.agentPrompt.trim().length > 0) {
         Row() {
           Text('草稿')
@@ -3665,17 +3684,17 @@ struct Index {
 
       Row() {
         Button(this.agentListening ? '停止语音' : '语音')
-          .height(40)
-          .fontSize(12)
+          .height(38)
+          .fontSize(11)
           .fontWeight(FontWeight.Bold)
           .fontColor(this.primaryText())
-          .backgroundColor(this.glassShellColor())
+          .backgroundColor(this.translucentCardColor())
           .border({
             width: 1,
-            color: this.glassBorderColor()
+            color: this.lineColor()
           })
           .borderRadius(19)
-          .padding({ left: 14, right: 14 })
+          .padding({ left: 12, right: 12 })
           .scale(this.buttonScale('agent_voice'))
           .opacity(this.buttonOpacity('agent_voice'))
           .animation({ duration: 120, curve: Curve.EaseOut })
@@ -3688,31 +3707,26 @@ struct Index {
 
         TextInput({ placeholder: '输入设备控制指令或自动化需求', text: this.agentPrompt })
           .layoutWeight(1)
-          .height(50)
+          .height(42)
           .fontSize(14)
           .fontColor(this.primaryText())
           .placeholderColor(this.secondaryText())
-          .backgroundColor(this.glassShellColor())
-          .border({
-            width: 1,
-            color: this.glassBorderColor()
-          })
-          .borderRadius(20)
-          .padding({ left: 16, right: 16 })
-          .margin({ left: 10 })
+          .backgroundColor('#00000000')
+          .padding({ left: 12, right: 12 })
+          .margin({ left: 6 })
           .onChange((value: string) => {
             this.agentPrompt = value;
           })
 
         Button('发送')
-          .height(40)
-          .fontSize(12)
+          .height(38)
+          .fontSize(11)
           .fontWeight(FontWeight.Bold)
           .fontColor(this.inverseText())
           .backgroundColor(this.translucentInverseBg())
           .borderRadius(19)
-          .padding({ left: 16, right: 16 })
-          .margin({ left: 10 })
+          .padding({ left: 15, right: 15 })
+          .margin({ left: 6 })
           .scale(this.buttonScale('agent_run'))
           .opacity(this.buttonOpacity('agent_run'))
           .animation({ duration: 120, curve: Curve.EaseOut })
@@ -3724,16 +3738,20 @@ struct Index {
           })
       }
       .width('100%')
+      .height(54)
+      .padding({ left: 8, right: 8 })
+      .backgroundColor(this.glassShellColor())
+      .border({
+        width: 1,
+        color: this.lineColor()
+      })
+      .borderRadius(24)
       .alignItems(VerticalAlign.Center)
     }
     .width('100%')
-    .padding({ left: 14, right: 14, top: 14, bottom: 14 })
+    .padding({ left: 12, right: 12, top: 10, bottom: 10 })
     .backgroundColor(this.glassStrongColor())
-    .border({
-      width: 1,
-      color: this.glassBorderColor()
-    })
-    .borderRadius(24)
+    .borderRadius(26)
   }
 
   @Builder

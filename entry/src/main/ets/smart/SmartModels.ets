@@ -38,6 +38,13 @@ export interface SmartPromptDraft {
   response: string;
 }
 
+export interface SmartAssistantReply {
+  mode: string;
+  title: string;
+  detail: string;
+  draft?: SmartPromptDraft;
+}
+
 export interface AutomationSpec {
   id: string;
   title: string;
