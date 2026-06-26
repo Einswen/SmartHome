@@ -309,16 +309,23 @@ struct Index {
 
   aboutToAppear(): void {
     this.applyAutoPeriod();
-    this.clockTimer = setInterval(() => {
-      if (!this.manualPeriod) {
-        this.applyAutoPeriod();
-      }
-    }, 60000);
+    try {
+      this.clockTimer = setInterval(() => {
+        if (!this.manualPeriod) {
+          this.applyAutoPeriod();
+        }
+      }, 60000);
+    } catch (error) {
+      this.clockTimer = -1;
+    }
   }
 
   aboutToDisappear(): void {
     if (this.clockTimer >= 0) {
-      clearInterval(this.clockTimer);
+      try {
+        clearInterval(this.clockTimer);
+      } catch (error) {
+      }
       this.clockTimer = -1;
     }
   }
@@ -1586,7 +1593,6 @@ struct Index {
   }
 
   @Builder
-  RoomMap() {
   Bubble(point: PointSpec) {
     Column() {
       Row() {
@@ -2846,9 +2852,6 @@ struct Index {
             .height(this.panelViewportHeight() + 16)
             .scrollBar(BarState.Off)
           }
-          .width('100%')
-          .height(this.overlayPanelHeight() + 16)
-          .scrollBar(BarState.Off)
         }
         .width('100%')
         .padding({ left: 18, right: 18, bottom: 118 })
@@ -2864,16 +2867,29 @@ struct Index {
 
   @Builder
   HomePage() {
-    Scroll() {
-      Column() {
-        this.TopBar()
-        this.RoomMap()
-        if (!this.onAddRoomSwiperPage()) {
-          this.DeviceControls()
+    List() {
+      ListItem() {
+        Column() {
+          this.TopBar()
+          this.RoomMap()
         }
+        .width('100%')
+        .padding({ left: 18, right: 18, top: 28 })
       }
-      .width('100%')
-      .padding({ left: 18, right: 18, top: 28, bottom: 132 })
+
+      ListItem() {
+        Column() {
+          if (!this.onAddRoomSwiperPage()) {
+            this.DeviceControls()
+          } else {
+            Column()
+              .width('100%')
+              .height(132)
+          }
+        }
+        .width('100%')
+        .padding({ left: 18, right: 18, top: 16, bottom: 132 })
+      }
     }
     .width('100%')
     .height('100%')
