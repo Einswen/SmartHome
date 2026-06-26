@@ -87,6 +87,8 @@ const SCENE_TEMPLATES: SceneSpec[] = [
 
 const INITIAL_SCENES: SceneSpec[] = SCENE_TEMPLATES;
 
+// 智能模块默认数据统一从 SmartModels 导入，避免 ArkTS 同名声明冲突。
+
 const ROOMS: RoomSpec[] = [
   {
     id: 'living',
@@ -390,7 +392,8 @@ struct Index {
   }
 
   private inverseBg(): string {
-    return this.isNight ? '#324763' : '#687BF6';
+    // 只调整白天主按钮高亮，夜间颜色保持组长已定的原样。
+    return this.isNight ? '#324763' : '#5F7DFF';
   }
 
   private translucentPanelColor(): string {
@@ -402,7 +405,8 @@ struct Index {
   }
 
   private translucentInverseBg(): string {
-    return this.isNight ? '#D9324763' : '#D9687BF6';
+    // 只调整白天浮层主按钮高亮，夜间颜色保持组长已定的原样。
+    return this.isNight ? '#D9324763' : '#E05F7DFF';
   }
 
   private glassShellColor(): string {
