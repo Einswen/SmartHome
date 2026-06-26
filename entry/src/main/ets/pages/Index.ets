@@ -1,3 +1,5 @@
+import { DeviceDetailPages } from '../components/DeviceDetailPages';
+
 interface RoomImageSet {
   dayLightOff: Resource;
   dayLightOn: Resource;
@@ -604,6 +606,13 @@ struct Index {
       .animation({ duration: 220, curve: Curve.EaseOut });
   }
 
+  private overlayPanelHeight(): number {
+    if (this.detailPointId.length > 0) {
+      return 536;
+    }
+    return this.panelViewportHeight();
+  }
+
   private percent(value: number): string {
     return `${value}%`;
   }
@@ -678,12 +687,8 @@ struct Index {
   }
 
   private selectPoint(pointId: string): void {
-    if (this.selectedPointId === pointId && this.detailPointId.length === 0) {
-      this.selectedPointId = '';
-    } else {
-      this.selectedPointId = pointId;
-    }
-    this.detailPointId = '';
+    this.selectedPointId = pointId;
+    this.detailPointId = pointId;
     this.addRoomPanelVisible = false;
     this.devicePanelMode = '';
     this.selectionVersion++;
@@ -1581,6 +1586,7 @@ struct Index {
   }
 
   @Builder
+  RoomMap() {
   Bubble(point: PointSpec) {
     Column() {
       Row() {
@@ -2546,6 +2552,7 @@ struct Index {
     .width('100%')
   }
 
+
   @Builder
   DeviceManagePanel() {
     Column() {
@@ -2676,232 +2683,15 @@ struct Index {
 
   @Builder
   DetailPanel(point: PointSpec) {
-    Column() {
-      Row() {
-        Column() {
-          Text(point.name)
-            .fontSize(22)
-            .fontColor(this.primaryText())
-            .fontWeight(FontWeight.Bold)
-          Text(`${point.type} · ${this.pointStatus(point)}`)
-            .fontSize(12)
-            .fontColor(this.secondaryText())
-            .margin({ top: 5 })
-        }
-        .alignItems(HorizontalAlign.Start)
-        .layoutWeight(1)
-
-        Button('收起')
-          .height(34)
-          .fontSize(12)
-          .fontColor(this.primaryText())
-          .backgroundColor(this.translucentCardColor())
-          .borderRadius(17)
-          .scale(this.buttonScale(`detail_collapse_${point.id}`))
-          .opacity(this.buttonOpacity(`detail_collapse_${point.id}`))
-          .animation({ duration: 120, curve: Curve.EaseOut })
-          .onTouch((event: TouchEvent) => {
-            this.handlePressState(`detail_collapse_${point.id}`, event);
-          })
-          .onClick(() => {
-            this.detailPointId = '';
-          })
-      }
-      .width('100%')
-      .alignItems(VerticalAlign.Top)
-
-      Text(point.detail)
-        .fontSize(14)
-        .fontColor(this.secondaryText())
-        .lineHeight(21)
-        .margin({ top: 14 })
-
-      if (point.action === 'light') {
-        Column() {
-          Row() {
-            Text('亮度')
-              .fontSize(13)
-              .fontColor(this.secondaryText())
-            Text(`${this.detailValue(point)}${this.detailUnit(point)}`)
-              .fontSize(13)
-              .fontColor(this.primaryText())
-              .fontWeight(FontWeight.Bold)
-          }
-          .width('100%')
-          .justifyContent(FlexAlign.SpaceBetween)
-
-          Slider({
-            value: this.detailValue(point),
-            min: this.detailMin(point),
-            max: this.detailMax(point),
-            step: 1,
-            style: SliderStyle.OutSet
-          })
-            .blockColor(this.inverseBg())
-            .trackColor(this.lineColor())
-            .selectedColor(this.primaryText())
-            .margin({ top: 8 })
-            .onChange((value: number) => {
-              this.setDetailValue(point, value);
-            })
-        }
-        .width('100%')
-        .margin({ top: 18 })
-
-        Row() {
-          Button(this.activeLightOn() ? '关闭灯光' : '打开灯光')
-            .layoutWeight(1)
-            .height(46)
-            .fontSize(14)
-            .fontWeight(FontWeight.Bold)
-            .fontColor(this.inverseText())
-            .backgroundColor(this.translucentInverseBg())
-            .borderRadius(23)
-            .scale(this.buttonScale(`detail_light_toggle_${point.id}`))
-            .opacity(this.buttonOpacity(`detail_light_toggle_${point.id}`))
-            .animation({ duration: 120, curve: Curve.EaseOut })
-            .onTouch((event: TouchEvent) => {
-              this.handlePressState(`detail_light_toggle_${point.id}`, event);
-            })
-            .onClick(() => {
-              this.togglePoint(point.id);
-            })
-          Button('-')
-            .width(54)
-            .height(46)
-            .fontSize(18)
-            .fontColor(this.primaryText())
-            .backgroundColor(this.translucentCardColor())
-            .borderRadius(23)
-            .margin({ left: 10 })
-            .scale(this.buttonScale(`detail_light_minus_${point.id}`))
-            .opacity(this.buttonOpacity(`detail_light_minus_${point.id}`))
-            .animation({ duration: 120, curve: Curve.EaseOut })
-            .onTouch((event: TouchEvent) => {
-              this.handlePressState(`detail_light_minus_${point.id}`, event);
-            })
-            .onClick(() => {
-              this.adjustPoint(point.id, -1);
-            })
-          Button('+')
-            .width(54)
-            .height(46)
-            .fontSize(18)
-            .fontColor(this.primaryText())
-            .backgroundColor(this.translucentCardColor())
-            .borderRadius(23)
-            .margin({ left: 8 })
-            .scale(this.buttonScale(`detail_light_plus_${point.id}`))
-            .opacity(this.buttonOpacity(`detail_light_plus_${point.id}`))
-            .animation({ duration: 120, curve: Curve.EaseOut })
-            .onTouch((event: TouchEvent) => {
-              this.handlePressState(`detail_light_plus_${point.id}`, event);
-            })
-            .onClick(() => {
-              this.adjustPoint(point.id, 1);
-            })
-        }
-        .width('100%')
-        .margin({ top: 18 })
-      } else if (point.action === 'temperature' || point.action === 'curtain') {
-        Column() {
-          Row() {
-            Text(point.action === 'temperature' ? '目标温度' : '开合比例')
-              .fontSize(13)
-              .fontColor(this.secondaryText())
-            Text(`${this.detailValue(point)}${this.detailUnit(point)}`)
-              .fontSize(13)
-              .fontColor(this.primaryText())
-              .fontWeight(FontWeight.Bold)
-          }
-          .width('100%')
-          .justifyContent(FlexAlign.SpaceBetween)
-
-          Slider({
-            value: this.detailValue(point),
-            min: this.detailMin(point),
-            max: this.detailMax(point),
-            step: 1,
-            style: SliderStyle.OutSet
-          })
-            .blockColor(this.inverseBg())
-            .trackColor(this.lineColor())
-            .selectedColor(this.primaryText())
-            .margin({ top: 8 })
-            .onChange((value: number) => {
-              this.setDetailValue(point, value);
-            })
-        }
-        .width('100%')
-        .margin({ top: 18 })
-
-        Row() {
-          Button('-')
-            .layoutWeight(1)
-            .height(46)
-            .fontSize(18)
-            .fontColor(this.primaryText())
-            .backgroundColor(this.translucentCardColor())
-            .borderRadius(23)
-            .scale(this.buttonScale(`detail_adjust_minus_${point.id}`))
-            .opacity(this.buttonOpacity(`detail_adjust_minus_${point.id}`))
-            .animation({ duration: 120, curve: Curve.EaseOut })
-            .onTouch((event: TouchEvent) => {
-              this.handlePressState(`detail_adjust_minus_${point.id}`, event);
-            })
-            .onClick(() => {
-              this.adjustPoint(point.id, -1);
-            })
-          Button('+')
-            .layoutWeight(1)
-            .height(46)
-            .fontSize(18)
-            .fontColor(this.inverseText())
-            .backgroundColor(this.translucentInverseBg())
-            .borderRadius(23)
-            .margin({ left: 10 })
-            .scale(this.buttonScale(`detail_adjust_plus_${point.id}`))
-            .opacity(this.buttonOpacity(`detail_adjust_plus_${point.id}`))
-            .animation({ duration: 120, curve: Curve.EaseOut })
-            .onTouch((event: TouchEvent) => {
-              this.handlePressState(`detail_adjust_plus_${point.id}`, event);
-            })
-            .onClick(() => {
-              this.adjustPoint(point.id, 1);
-            })
-        }
-        .width('100%')
-        .margin({ top: 18 })
-      } else if (point.action === 'toggle') {
-        Button(this.deviceActionLabel(point))
-          .width('100%')
-          .height(46)
-          .fontSize(14)
-          .fontWeight(FontWeight.Bold)
-          .fontColor(this.inverseText())
-          .backgroundColor(this.translucentInverseBg())
-          .borderRadius(23)
-          .margin({ top: 18 })
-          .scale(this.buttonScale(`detail_toggle_${point.id}`))
-          .opacity(this.buttonOpacity(`detail_toggle_${point.id}`))
-          .animation({ duration: 120, curve: Curve.EaseOut })
-          .onTouch((event: TouchEvent) => {
-            this.handlePressState(`detail_toggle_${point.id}`, event);
-          })
-          .onClick(() => {
-            this.togglePoint(point.id);
-          })
-      }
-    }
-    .width('100%')
-    .padding({ left: 16, right: 16, top: 16, bottom: 16 })
-    .backgroundColor(this.glassStrongColor())
-    .border({
-      width: 1,
-      color: this.glassBorderColor()
+    DeviceDetailPages({
+      detailPointId: $detailPointId,
+      pointId: point.id,
+      pointName: point.name,
+      pointType: point.type,
+      pointStatus: this.pointStatus(point),
+      pointDetail: point.detail,
+      isNight: this.isNight
     })
-    .borderRadius(20)
-    .margin({ top: 16 })
   }
 
   @Builder
@@ -3056,6 +2846,9 @@ struct Index {
             .height(this.panelViewportHeight() + 16)
             .scrollBar(BarState.Off)
           }
+          .width('100%')
+          .height(this.overlayPanelHeight() + 16)
+          .scrollBar(BarState.Off)
         }
         .width('100%')
         .padding({ left: 18, right: 18, bottom: 118 })
