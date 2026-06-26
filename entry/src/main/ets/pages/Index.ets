@@ -3427,51 +3427,113 @@ struct Index {
       Scroll() {
         Row() {
           if (this.automations.length === 0) {
-            Text('暂无脚本')
-              .fontSize(12)
-              .fontColor(this.secondaryText())
-              .padding({ left: 14, right: 14, top: 10, bottom: 10 })
+            Column() {
+              Text('暂无脚本')
+                .fontSize(15)
+                .fontWeight(FontWeight.Bold)
+                .fontColor(this.primaryText())
+
+              Text('可以通过新建或智能助手生成自动化')
+                .fontSize(11)
+                .fontColor(this.secondaryText())
+                .maxLines(1)
+                .margin({ top: 6 })
+            }
+            .width(214)
+            .height(112)
+            .justifyContent(FlexAlign.Center)
+            .alignItems(HorizontalAlign.Start)
+            .padding({ left: 16, right: 16 })
               .backgroundColor(this.glassShellColor())
               .border({
                 width: 1,
                 color: this.lineColor()
               })
-              .borderRadius(16)
+              .borderRadius(18)
           } else {
             ForEach(this.automations.slice(0, 5), (item: AutomationSpec) => {
-              Row() {
-                Column()
-                  .width(7)
-                  .height(7)
-                  .borderRadius(4)
-                  .backgroundColor(item.enabled ? this.primaryText() : this.secondaryText())
+              Column() {
+                Row() {
+                  Row() {
+                    Column()
+                      .width(7)
+                      .height(7)
+                      .borderRadius(4)
+                      .backgroundColor(item.enabled ? this.primaryText() : this.secondaryText())
 
-                Column() {
-                  Text(item.title)
-                    .fontSize(13)
+                    Text(item.enabled ? '运行中' : '已暂停')
+                      .fontSize(10)
+                      .fontWeight(FontWeight.Bold)
+                      .fontColor(this.primaryText())
+                      .margin({ left: 6 })
+                  }
+                  .height(24)
+                  .padding({ left: 9, right: 9 })
+                  .backgroundColor(this.translucentCardColor())
+                  .border({
+                    width: 1,
+                    color: this.lineColor()
+                  })
+                  .borderRadius(12)
+
+                  Text(item.source === 'agent' ? '助手' : '手动')
+                    .fontSize(10)
+                    .fontWeight(FontWeight.Medium)
+                    .fontColor(this.secondaryText())
+                    .layoutWeight(1)
+                    .textAlign(TextAlign.End)
+                    .maxLines(1)
+                }
+                .width('100%')
+                .alignItems(VerticalAlign.Center)
+
+                Text(item.title)
+                  .fontSize(16)
+                  .fontWeight(FontWeight.Bold)
+                  .fontColor(this.primaryText())
+                  .maxLines(1)
+                  .margin({ top: 14 })
+
+                Text(item.trigger)
+                  .fontSize(12)
+                  .fontColor(this.secondaryText())
+                  .maxLines(1)
+                  .margin({ top: 6 })
+
+                Row() {
+                  Text(`${this.automationActionCount(item)} 个动作`)
+                    .fontSize(11)
                     .fontWeight(FontWeight.Bold)
                     .fontColor(this.primaryText())
-                    .maxLines(1)
+                    .padding({ left: 9, right: 9, top: 5, bottom: 5 })
+                    .backgroundColor(this.glassShellColor())
+                    .border({
+                      width: 1,
+                      color: this.lineColor()
+                    })
+                    .borderRadius(12)
 
-                  Text(`${item.trigger} · ${this.automationActionCount(item)} 个动作`)
-                    .fontSize(10)
-                    .fontColor(this.secondaryText())
-                    .maxLines(1)
-                    .margin({ top: 3 })
+                  Text('+')
+                    .fontSize(16)
+                    .fontWeight(FontWeight.Bold)
+                    .fontColor(this.primaryText())
+                    .layoutWeight(1)
+                    .textAlign(TextAlign.End)
                 }
-                .width(132)
-                .alignItems(HorizontalAlign.Start)
-                .margin({ left: 9 })
+                .width('100%')
+                .alignItems(VerticalAlign.Center)
+                .margin({ top: 12 })
               }
-              .height(52)
-              .padding({ left: 12, right: 12 })
+              .width(214)
+              .height(134)
+              .padding({ left: 14, right: 14, top: 14, bottom: 14 })
               .backgroundColor(this.expandedAutomationId === item.id ? this.translucentCardColor() : this.glassShellColor())
               .border({
                 width: 1,
                 color: this.expandedAutomationId === item.id ? this.glassBorderColor() : this.lineColor()
               })
-              .borderRadius(18)
-              .margin({ right: 8 })
+              .borderRadius(20)
+              .margin({ right: 10 })
               .scale(this.buttonScale(`script_detail_${item.id}`))
               .opacity(this.buttonOpacity(`script_detail_${item.id}`))
               .animation({ duration: 120, curve: Curve.EaseOut })
