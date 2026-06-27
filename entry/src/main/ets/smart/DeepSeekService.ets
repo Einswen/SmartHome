@@ -125,12 +125,12 @@ export async function askDeepSeek(prompt: string): Promise<DeepSeekAnswer> {
       statusCode: statusCode,
       error: content.length > 0 ? undefined : raw
     };
-  } catch (error) {
+  } catch {
     return {
       ok: false,
-      content: `DeepSeek 请求失败：${error}`,
+      content: 'DeepSeek 请求失败，请检查网络连接或 API Key。',
       statusCode: 0,
-      error: `${error}`
+      error: 'request failed'
     };
   } finally {
     request.destroy();
