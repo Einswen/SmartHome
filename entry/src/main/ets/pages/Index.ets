@@ -1,5 +1,6 @@
 import { DeviceDetailPages } from '../components/DeviceDetailPages';
-
+import { P21_MyProfile } from './my/myprofile';
+import { P31_StoreHome } from './store/storehome';
 interface RoomImageSet {
   dayLightOff: Resource;
   dayLightOn: Resource;
@@ -4020,8 +4021,10 @@ struct Index {
         this.HomePage()
       } else if (this.activeTab === 'smart') {
         this.SmartPage()
+      } else if (this.activeTab === 'store') {
+        P31_StoreHome({ isNight: this.isNight })
       } else {
-        this.EmptyPage()
+        P21_MyProfile({ isNight: this.isNight })
       }
 
       this.BottomNav()
