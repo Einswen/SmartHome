@@ -1,5 +1,5 @@
 import http from '@ohos.net.http';
-import { DEEPSEEK_API_KEY, DEEPSEEK_API_URL, DEEPSEEK_MODEL } from './DeepSeekConfig';
+import { DEEPSEEK_API_KEY, DEEPSEEK_API_URL, DEEPSEEK_MODEL, DEEPSEEK_TIMEOUT_MS } from './DeepSeekConfig';
 
 interface DeepSeekMessage {
   role: string;
@@ -13,13 +13,70 @@ interface DeepSeekRequestBody {
   stream: boolean;
 }
 
+export interface DeepSeekAnswer {
+  ok: boolean;
+  content: string;
+  statusCode: number;
+  error?: string;
+}
+
 export function hasDeepSeekApiKey(): boolean {
   return DEEPSEEK_API_KEY.trim().length > 0;
 }
 
-export async function askDeepSeek(prompt: string): Promise<string> {
+function unescapeJsonString(value: string): string {
+  return value
+    .replace(/\\n/g, '\n')
+    .replace(/\\"/g, '"')
+    .replace(/\\\\/g, '\\')
+    .replace(/\\t/g, '  ')
+    .replace(/\\r/g, '')
+    .trim();
+}
+
+function parseDeepSeekContent(raw: string): string {
+  const contentKey = '"content"';
+  const keyIndex = raw.indexOf(contentKey);
+  if (keyIndex < 0) {
+    return '';
+  }
+  const colonIndex = raw.indexOf(':', keyIndex + contentKey.length);
+  if (colonIndex < 0) {
+    return '';
+  }
+  const startQuoteIndex = raw.indexOf('"', colonIndex + 1);
+  if (startQuoteIndex < 0) {
+    return '';
+  }
+
+  let endQuoteIndex = -1;
+  let slashCount = 0;
+  for (let i = startQuoteIndex + 1; i < raw.length; i++) {
+    const char = raw.charAt(i);
+    if (char === '\\') {
+      slashCount++;
+    } else {
+      if (char === '"' && slashCount % 2 === 0) {
+        endQuoteIndex = i;
+        break;
+      }
+      slashCount = 0;
+    }
+  }
+  if (endQuoteIndex < 0) {
+    return '';
+  }
+  return unescapeJsonString(raw.substring(startQuoteIndex + 1, endQuoteIndex));
+}
+
+export async function askDeepSeek(prompt: string): Promise<DeepSeekAnswer> {
   if (!hasDeepSeekApiKey()) {
-    return 'DeepSeek API Key 还没有配置。你可以先把 Key 放到 DeepSeekConfig.ets，之后我就能回答日常问题。';
+    return {
+      ok: false,
+      content: 'DeepSeek API Key 还没有配置。请打开 smart/DeepSeekConfig.ets，把 DEEPSEEK_API_KEY 填成你的 Key。',
+      statusCode: 0,
+      error: 'missing_api_key'
+    };
   }
 
   const request = http.createHttp();
@@ -48,20 +105,33 @@ export async function askDeepSeek(prompt: string): Promise<string> {
       },
       extraData: JSON.stringify(body),
       expectDataType: http.HttpDataType.STRING,
-      readTimeout: 20000,
-      connectTimeout: 20000
+      readTimeout: DEEPSEEK_TIMEOUT_MS,
+      connectTimeout: DEEPSEEK_TIMEOUT_MS
     });
-    const data = JSON.parse(`${response.result}`);
-    const choices = data['choices'];
-    if (choices !== undefined && choices.length > 0) {
-      const message = choices[0]['message'];
-      if (message !== undefined && message['content'] !== undefined) {
-        return `${message['content']}`;
-      }
+    const statusCode = Number(response.responseCode);
+    const raw = `${response.result}`;
+    if (statusCode < 200 || statusCode >= 300) {
+      return {
+        ok: false,
+        content: `DeepSeek 请求失败，HTTP 状态码 ${statusCode}。`,
+        statusCode: statusCode,
+        error: raw
+      };
     }
-    return 'DeepSeek 已返回结果，但我没有解析到有效内容。';
+    const content = parseDeepSeekContent(raw);
+    return {
+      ok: content.length > 0,
+      content: content.length > 0 ? content : 'DeepSeek 已返回结果，但没有解析到有效内容。',
+      statusCode: statusCode,
+      error: content.length > 0 ? undefined : raw
+    };
   } catch (error) {
-    return `DeepSeek 请求失败：${error}`;
+    return {
+      ok: false,
+      content: `DeepSeek 请求失败：${error}`,
+      statusCode: 0,
+      error: `${error}`
+    };
   } finally {
     request.destroy();
   }

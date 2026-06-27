@@ -85,70 +85,6 @@ const SCENE_TEMPLATES: SceneSpec[] = [
 
 const INITIAL_SCENES: SceneSpec[] = SCENE_TEMPLATES;
 
-const SMART_SUGGESTIONS: AgentSuggestionSpec[] = [
-  { id: 'leave', label: '离家断电', prompt: '当我出门时，关闭客厅电视、空气净化器和主灯，并开启安防提醒' },
-  { id: 'night', label: '夜间入睡', prompt: '每天晚上十点半关闭客厅灯，拉上卧室窗帘并把卧室空调调到23度' },
-  { id: 'return', label: '回家模式', prompt: '我回家后打开客厅灯到70%，启动空气净化器并让电视进入待机' },
-  { id: 'clean', label: '周末清洁', prompt: '每周六上午十点启动客厅和卧室扫地机器人，清洁完成后提醒我' }
-];
-
-const DEFAULT_AGENT_RECORDS: AgentRecordSpec[] = [
-  {
-    id: 'record_seed_1',
-    title: '智能助手已整理晨间场景',
-    detail: '建议把窗帘、空调和照明联动成一个一键场景。',
-    time: '09:12',
-    status: '建议'
-  },
-  {
-    id: 'record_seed_2',
-    title: '离家脚本已同步',
-    detail: '关闭高功率设备，并保留必要的安防提醒。',
-    time: '08:46',
-    status: '已执行'
-  }
-];
-
-const DEFAULT_AUTOMATIONS: AutomationSpec[] = [
-  {
-    id: 'auto_leave',
-    title: '离家断电',
-    trigger: '离家定位或手动点击离家场景',
-    action: '关闭客厅电视、空气净化器和主灯',
-    source: 'agent',
-    enabled: true,
-    triggerSpec: {
-      type: 'presence',
-      label: '离家定位或手动点击离家场景'
-    },
-    actions: [
-      { pointId: 'living_tv', command: 'off', label: '关闭客厅电视' },
-      { pointId: 'living_purifier', command: 'off', label: '关闭空气净化器' },
-      { pointId: 'living_light', command: 'off', label: '关闭客厅主灯' }
-    ]
-  },
-  {
-    id: 'auto_sleep',
-    title: '睡眠安静模式',
-    trigger: '每天 22:30',
-    action: '拉上卧室窗帘，客厅灯关闭，卧室空调调至 23°C',
-    source: 'manual',
-    enabled: true,
-    triggerSpec: {
-      type: 'time',
-      label: '每天 22:30',
-      time: '22:30'
-    },
-    actions: [
-      { pointId: 'bedroom_curtain', command: 'set', label: '拉上卧室窗帘', value: 100 },
-      { pointId: 'living_light', command: 'off', label: '关闭客厅灯' },
-      { pointId: 'bedroom_air', command: 'set', label: '卧室空调调至 23°C', value: 23 }
-    ]
-  }
-];
-
-const DEFAULT_AGENT_MESSAGES: AgentMessageSpec[] = [];
-
 const ROOMS: RoomSpec[] = [
   {
     id: 'living',
@@ -1352,14 +1288,6 @@ struct Index {
     return '详情';
   }
 
-  private previewPromptText(): string {
-    const value = this.agentPrompt.trim();
-    if (value.length > 0) {
-      return value;
-    }
-    return '例如：帮我创建一个出门后自动关闭高功率设备的脚本';
-  }
-
   private pushChatMessage(role: string, text: string, meta: string): void {
     this.chatMessages = [
       ...this.chatMessages,
@@ -1436,7 +1364,8 @@ struct Index {
         ];
       }
       const recordDetail = reply.draft !== undefined ? reply.draft.action : reply.detail;
-      this.appendAgentRecord(reply.title, recordDetail, reply.mode === 'llm' ? '回答' : '已执行');
+      const recordStatus = reply.ok ? (reply.mode === 'llm' ? '回答' : '已执行') : '未连接';
+      this.appendAgentRecord(reply.title, recordDetail, recordStatus);
       this.pushChatMessage('agent', reply.detail, reply.title);
     } catch (error) {
       this.appendAgentRecord('助手请求失败', `${error}`, '错误');
@@ -3589,32 +3518,6 @@ struct Index {
           .margin({ bottom: 8, left: 4 })
       }
 
-      if (this.agentPrompt.trim().length > 0) {
-        Row() {
-          Text('草稿')
-            .fontSize(10)
-            .fontWeight(FontWeight.Bold)
-            .fontColor(this.primaryText())
-            .padding({ left: 8, right: 8, top: 4, bottom: 4 })
-            .backgroundColor(this.glassShellColor())
-            .border({
-              width: 1,
-              color: this.glassBorderColor()
-            })
-            .borderRadius(10)
-
-          Text(this.previewPromptText())
-            .fontSize(11)
-            .fontColor(this.secondaryText())
-            .margin({ left: 8 })
-            .layoutWeight(1)
-            .maxLines(1)
-        }
-        .width('100%')
-        .alignItems(VerticalAlign.Center)
-        .margin({ bottom: 12 })
-      }
-
       Row() {
         Button(this.agentListening ? '停止语音' : '语音')
           .height(38)
@@ -3638,14 +3541,15 @@ struct Index {
             this.toggleListening();
           })
 
-        TextInput({ placeholder: '输入设备控制指令或自动化需求', text: this.agentPrompt })
+        TextArea({ placeholder: '输入设备控制指令或自动化需求', text: this.agentPrompt })
           .layoutWeight(1)
           .height(42)
           .fontSize(14)
           .fontColor(this.primaryText())
           .placeholderColor(this.secondaryText())
-          .backgroundColor('#00000000')
-          .padding({ left: 12, right: 12 })
+          .backgroundColor(this.panelColor())
+          .borderRadius(18)
+          .padding({ left: 14, right: 14 })
           .margin({ left: 6 })
           .onChange((value: string) => {
             this.agentPrompt = value;
