@@ -43,6 +43,7 @@ export interface SmartAssistantReply {
   title: string;
   detail: string;
   draft?: SmartPromptDraft;
+  ok: boolean;
 }
 
 export interface AutomationSpec {
