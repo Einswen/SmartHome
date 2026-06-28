@@ -1,4 +1,4 @@
-import router from '@ohos.router';
+﻿import router from '@ohos.router';
 
 interface CartRouteParams {
   isNight?: boolean;
@@ -40,7 +40,7 @@ struct StoreCartPage {
   @State networkFailed: boolean = false;
   @State selectedAll: boolean = true;
   @State checkoutDone: boolean = false;
-  @State isNight: boolean = false;
+  @StorageLink('homeNightMode') isNight: boolean = false;
   @State addedProductId: string = '';
   @State addedCount: number = 1;
   @StorageLink('cartAddedProductId') cartAddedProductId: string = '';
@@ -521,3 +521,4 @@ struct StoreCartPage {
     .alignItems(HorizontalAlign.Center)
   }
 }
+

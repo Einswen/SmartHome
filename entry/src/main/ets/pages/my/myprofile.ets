@@ -338,6 +338,13 @@ export struct P21_MyProfile {
         Text('刚刚同步')
           .fontSize(12)
           .fontColor(this.secondaryText())
+          .margin({ right: 8 })
+
+        Image($r('sys.media.ohos_ic_public_arrow_right'))
+          .width(15)
+          .height(15)
+          .fillColor(this.secondaryText())
+          .opacity(0.68)
       }
       .width('100%')
 
@@ -355,6 +362,9 @@ export struct P21_MyProfile {
     .border({ width: 1, color: this.lineColor() })
     .borderRadius(24)
     .margin({ top: 22 })
+    .onClick(() => {
+      router.pushUrl({ url: 'pages/my/myhomehealth', params: { isNight: this.isNight } });
+    })
   }
 
   @Builder

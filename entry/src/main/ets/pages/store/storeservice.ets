@@ -1,4 +1,4 @@
-import router from '@ohos.router';
+﻿import router from '@ohos.router';
 
 interface StoreServiceRouteParams {
   isNight?: boolean;
@@ -9,7 +9,7 @@ interface StoreServiceRouteParams {
 struct StoreServicePage {
   @State networkFailed: boolean = false;
   @State activeTicket: string = 'install';
-  @State isNight: boolean = false;
+  @StorageLink('homeNightMode') isNight: boolean = false;
   @State selectedService: string = '上门安装';
   @State serviceSubmitted: boolean = false;
 
@@ -317,3 +317,4 @@ struct StoreServicePage {
     .alignItems(HorizontalAlign.Center)
   }
 }
+

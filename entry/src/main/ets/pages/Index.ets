@@ -1,4 +1,6 @@
 import { DeviceDetailPages } from '../components/DeviceDetailPages';
+import { P21_MyProfile } from './my/myprofile';
+import { P31_StoreHome } from './store/storehome';
 import {
   AgentMessageSpec,
   AgentRecordSpec,
@@ -207,19 +209,25 @@ struct Index {
   @State customSceneDetail: string = '';
   @State selectedSceneTemplateId: string = 'morning';
   @State roomDevices: RoomDeviceState[] = INITIAL_ROOM_DEVICES;
-  @State isNight: boolean = false;
-  @State manualPeriod: boolean = false;
-  @State livingLightOn: boolean = false;
+  @StorageLink('homeLivingAirInstalled') livingAirInstalled: boolean = true;
+  @StorageLink('homeLivingCurtainInstalled') livingCurtainInstalled: boolean = true;
+  @StorageLink('homeLivingTvInstalled') livingTvInstalled: boolean = true;
+  @StorageLink('homeLivingPurifierInstalled') livingPurifierInstalled: boolean = true;
+  @StorageLink('homeLivingRobotInstalled') livingRobotInstalled: boolean = true;
+  @StorageLink('homeLivingLightInstalled') livingLightInstalled: boolean = true;
+  @StorageLink('homeNightMode') isNight: boolean = false;
+  @StorageLink('homeNightManual') manualPeriod: boolean = false;
+  @StorageLink('homeLivingLightOn') livingLightOn: boolean = false;
   @State bedroomLightOn: boolean = false;
-  @State livingTemperature: number = 24;
+  @StorageLink('homeLivingTemperature') livingTemperature: number = 24;
   @State bedroomTemperature: number = 23;
-  @State livingCurtain: number = 46;
+  @StorageLink('homeLivingCurtain') livingCurtain: number = 46;
   @State bedroomCurtain: number = 58;
   @State livingLightLevel: number = 68;
   @State bedroomLightLevel: number = 22;
-  @State livingTvOn: boolean = false;
-  @State livingPurifierOn: boolean = true;
-  @State livingRobotOn: boolean = false;
+  @StorageLink('homeLivingTvOn') livingTvOn: boolean = false;
+  @StorageLink('homeLivingPurifierOn') livingPurifierOn: boolean = true;
+  @StorageLink('homeLivingRobotOn') livingRobotOn: boolean = false;
   @State bedroomRobotOn: boolean = false;
   @State bedroomDoorLocked: boolean = true;
   private clockTimer: number = -1;
@@ -285,6 +293,28 @@ struct Index {
   }
 
   private installedPointIds(roomId: string): string[] {
+    if (roomId === 'living') {
+      const ids: string[] = [];
+      if (this.livingAirInstalled) {
+        ids.push('living_air');
+      }
+      if (this.livingCurtainInstalled) {
+        ids.push('living_curtain');
+      }
+      if (this.livingTvInstalled) {
+        ids.push('living_tv');
+      }
+      if (this.livingPurifierInstalled) {
+        ids.push('living_purifier');
+      }
+      if (this.livingRobotInstalled) {
+        ids.push('living_robot');
+      }
+      if (this.livingLightInstalled) {
+        ids.push('living_light');
+      }
+      return ids;
+    }
     for (let i = 0; i < this.roomDevices.length; i++) {
       if (this.roomDevices[i].roomId === roomId) {
         return this.roomDevices[i].pointIds;
@@ -294,6 +324,14 @@ struct Index {
   }
 
   private setInstalledPointIds(roomId: string, pointIds: string[]): void {
+    if (roomId === 'living') {
+      this.livingAirInstalled = pointIds.indexOf('living_air') >= 0;
+      this.livingCurtainInstalled = pointIds.indexOf('living_curtain') >= 0;
+      this.livingTvInstalled = pointIds.indexOf('living_tv') >= 0;
+      this.livingPurifierInstalled = pointIds.indexOf('living_purifier') >= 0;
+      this.livingRobotInstalled = pointIds.indexOf('living_robot') >= 0;
+      this.livingLightInstalled = pointIds.indexOf('living_light') >= 0;
+    }
     let matched = false;
     const nextRoomDevices: RoomDeviceState[] = this.roomDevices.map((item: RoomDeviceState) => {
       if (item.roomId === roomId) {
@@ -4048,12 +4086,12 @@ struct Index {
   @Builder
   EmptyPage() {
     Column() {
-      Text(this.activeTab === 'store' ? '商场页面建设中' : '我的页面建设中')
+      Text('页面暂不可用')
         .fontSize(22)
         .fontWeight(FontWeight.Bold)
         .fontColor(this.primaryText())
 
-      Text('当前先保留空白页，后续可以继续扩展完整功能。')
+      Text('请返回首页或重新选择底部导航。')
         .fontSize(13)
         .lineHeight(20)
         .fontColor(this.secondaryText())
@@ -4338,6 +4376,10 @@ struct Index {
         this.HomePage()
       } else if (this.activeTab === 'smart') {
         this.SmartPage()
+      } else if (this.activeTab === 'store') {
+        P31_StoreHome({ isNight: this.isNight })
+      } else if (this.activeTab === 'profile') {
+        P21_MyProfile({ isNight: this.isNight })
       } else {
         this.EmptyPage()
       }

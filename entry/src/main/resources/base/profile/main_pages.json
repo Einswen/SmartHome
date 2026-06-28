@@ -6,11 +6,13 @@
     "pages/my/myfamily",
     "pages/my/mysettings",
     "pages/my/mymessages",
+    "pages/my/myhomehealth",
     "pages/my/mylogin",
     "pages/store/storehome",
     "pages/store/storeproduct",
     "pages/store/storecategory",
     "pages/store/storeorders",
+    "pages/store/storetracking",
     "pages/store/storeservice",
     "pages/store/storecart"
   ]

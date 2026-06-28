@@ -1,4 +1,4 @@
-import router from '@ohos.router';
+﻿import router from '@ohos.router';
 
 interface StoreOrdersRouteParams {
   isNight?: boolean;
@@ -26,7 +26,7 @@ struct StoreOrdersPage {
   @State showEmpty: boolean = false;
   @State networkFailed: boolean = false;
   @State expandedOrderId: string = 'order_1';
-  @State isNight: boolean = false;
+  @StorageLink('homeNightMode') isNight: boolean = false;
 
   aboutToAppear(): void {
     const params = router.getParams() as StoreOrdersRouteParams;
@@ -53,6 +53,16 @@ struct StoreOrdersPage {
 
   private orders(): OrderSpec[] {
     return this.showEmpty ? [] : STORE_ORDERS;
+  }
+
+  private trackingMode(orderId: string): string {
+    if (orderId === 'order_2') {
+      return 'subscription';
+    }
+    if (orderId === 'order_3') {
+      return 'after_sale';
+    }
+    return 'logistics';
   }
 
   build() {
@@ -265,6 +275,9 @@ struct StoreOrdersPage {
           .backgroundColor(this.isNight ? '#F5F7FB' : '#11151D')
           .borderRadius(18)
           .margin({ right: 8 })
+          .onClick(() => {
+            router.pushUrl({ url: 'pages/store/storetracking', params: { orderId: item.id, mode: this.trackingMode(item.id), isNight: this.isNight } });
+          })
         Button('售后支持')
           .layoutWeight(1)
           .height(36)
@@ -358,3 +371,4 @@ struct StoreOrdersPage {
     .alignItems(HorizontalAlign.Center)
   }
 }
+

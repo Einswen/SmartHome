@@ -1,4 +1,4 @@
-import router from '@ohos.router';
+﻿import router from '@ohos.router';
 
 interface MyLoginRouteParams {
   isNight?: boolean;
@@ -13,7 +13,7 @@ struct MyLoginPage {
   @State networkFailed: boolean = false;
   @State loginSuccess: boolean = false;
   @State passwordFocused: boolean = false;
-  @State isNight: boolean = false;
+  @StorageLink('homeNightMode') isNight: boolean = false;
   @StorageLink('lumiUserSignedIn') signedIn: boolean = false;
 
   aboutToAppear(): void {
@@ -421,3 +421,4 @@ struct MyLoginPage {
     .height('100%')
   }
 }
+

@@ -1,4 +1,4 @@
-import router from '@ohos.router';
+﻿import router from '@ohos.router';
 
 interface MyMessagesRouteParams {
   isNight?: boolean;
@@ -24,7 +24,7 @@ const MESSAGE_LIST: MessageSpec[] = [
 struct MyMessagesPage {
   @State showEmpty: boolean = false;
   @State networkFailed: boolean = false;
-  @State isNight: boolean = false;
+  @StorageLink('homeNightMode') isNight: boolean = false;
 
   aboutToAppear(): void {
     const params = router.getParams() as MyMessagesRouteParams;
@@ -295,3 +295,4 @@ struct MyMessagesPage {
     .alignItems(HorizontalAlign.Center)
   }
 }
+

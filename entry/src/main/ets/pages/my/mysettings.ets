@@ -38,7 +38,8 @@ struct MySettingsPage {
   @StorageLink('myPrefAutoUpgrade') autoUpgrade: boolean = false;
   @StorageLink('myPrefDarkFollowHome') darkFollowHome: boolean = true;
   @StorageLink('myPrefMallNotify') mallNotify: boolean = true;
-  @State isNight: boolean = false;
+  @StorageLink('homeNightMode') isNight: boolean = false;
+  @StorageLink('homeNightManual') nightManual: boolean = false;
 
   aboutToAppear(): void {
     const params = router.getParams() as MySettingsRouteParams;
@@ -82,6 +83,15 @@ struct MySettingsPage {
       this.pushEnabled = !this.pushEnabled;
     } else if (key === 'upgrade') {
       this.autoUpgrade = !this.autoUpgrade;
+    } else if (key === 'night') {
+      this.nightManual = true;
+      this.isNight = !this.isNight;
+    } else if (key === 'auto_night') {
+      this.nightManual = !this.nightManual;
+      if (!this.nightManual) {
+        const hour = new Date().getHours();
+        this.isNight = hour >= 18 || hour < 6;
+      }
     } else if (key === 'dark') {
       this.darkFollowHome = !this.darkFollowHome;
     } else {
@@ -95,6 +105,12 @@ struct MySettingsPage {
     }
     if (key === 'upgrade') {
       return this.autoUpgrade;
+    }
+    if (key === 'night') {
+      return this.isNight;
+    }
+    if (key === 'auto_night') {
+      return !this.nightManual;
     }
     if (key === 'dark') {
       return this.darkFollowHome;
@@ -282,7 +298,9 @@ struct MySettingsPage {
 
       this.SwitchRow('重要告警推送', '断网、漏水、门锁异常立即提醒', 'push')
       this.SwitchRow('夜间自动升级', '低峰时段静默升级设备固件', 'upgrade')
-      this.SwitchRow('跟随家庭关灯', '夜间模式同步商城和我的页面深色视觉', 'dark')
+      this.SwitchRow('全局夜间模式', '立即切换首页、商城和我的页面深色视觉', 'night')
+      this.SwitchRow('跟随时间自动切换', '18:00 后进入夜间，06:00 后恢复日间', 'auto_night')
+      this.SwitchRow('跨页面视觉同步', '商城、我的和设备详情沿用同一套夜间状态', 'dark')
       this.SwitchRow('商城服务提醒', '订单、耗材和售后工单低频提醒', 'mall')
     }
     .width('100%')

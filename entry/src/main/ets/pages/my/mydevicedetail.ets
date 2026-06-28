@@ -1,4 +1,4 @@
-import router from '@ohos.router';
+﻿import router from '@ohos.router';
 
 interface DeviceDetailRouteParams {
   deviceId?: string;
@@ -34,7 +34,7 @@ struct MyDeviceDetailPage {
   @State networkFailed: boolean = false;
   @State deviceEnabled: boolean = true;
   @State level: number = 62;
-  @State isNight: boolean = false;
+  @StorageLink('homeNightMode') isNight: boolean = false;
 
   aboutToAppear(): void {
     const params = router.getParams() as DeviceDetailRouteParams;
@@ -321,3 +321,4 @@ struct MyDeviceDetailPage {
     .alignItems(HorizontalAlign.Center)
   }
 }
+

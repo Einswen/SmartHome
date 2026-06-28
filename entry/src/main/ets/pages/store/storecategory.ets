@@ -1,4 +1,4 @@
-import router from '@ohos.router';
+﻿import router from '@ohos.router';
 
 interface StoreCategoryRouteParams {
   isNight?: boolean;
@@ -7,7 +7,7 @@ interface StoreCategoryRouteParams {
 @Entry
 @Component
 struct StoreCategoryPage {
-  @State isNight: boolean = false;
+  @StorageLink('homeNightMode') isNight: boolean = false;
   @State networkFailed: boolean = false;
   @State showEmpty: boolean = false;
 
@@ -241,3 +241,4 @@ struct StoreCategoryPage {
     .alignItems(HorizontalAlign.Center)
   }
 }
+
