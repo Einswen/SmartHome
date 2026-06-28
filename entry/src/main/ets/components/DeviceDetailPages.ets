@@ -459,7 +459,8 @@ export struct DeviceDetailPages {
   }
 
   private inverseBg(): string {
-    return this.isNight ? '#D9F5F7FB' : '#D9111317';
+    // 只调整白天详情页主按钮，夜间颜色保持组长已定的原样。
+    return this.isNight ? '#D9F5F7FB' : '#E05F7DFF';
   }
 
   private press(key: string, event: TouchEvent): void {
