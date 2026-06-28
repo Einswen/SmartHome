@@ -4031,6 +4031,7 @@ struct Index {
 
       if (this.activeTab === 'home') {
         this.OverlayPanel()
+
       }
     }
     .width('100%')
