@@ -682,6 +682,7 @@ export struct DeviceDetailPages {
         .maxLines(1)
     }
     .height(76)
+    .width('100%')
     .alignItems(HorizontalAlign.Center)
     .justifyContent(FlexAlign.Center)
     .padding({ left: 8, right: 8 })
@@ -692,14 +693,13 @@ export struct DeviceDetailPages {
 
   @Builder
   Metrics(page: DevicePageSpec) {
-    Row() {
+    Row({ space: 8 }) {
       ForEach(page.metrics, (metric: DetailMetricSpec) => {
         Column() {
           this.MetricTile(metric, page.accent)
         }
         .height(76)
         .layoutWeight(1)
-        .margin({ right: metric.id === page.metrics[page.metrics.length - 1].id ? 0 : 8 })
       }, (metric: DetailMetricSpec) => metric.id)
     }
     .width('100%')
