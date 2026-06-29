@@ -1,3 +1,4 @@
+import router from '@ohos.router';
 import { DeviceDetailPages } from '../components/DeviceDetailPages';
 import {
   AgentMessageSpec,
@@ -63,6 +64,11 @@ interface SceneSpec {
 interface RoomDeviceState {
   roomId: string;
   pointIds: string[];
+}
+
+interface IndexRouteParams {
+  activeTab?: string;
+  isNight?: boolean;
 }
 
 const ROOM_ASPECT: number = 1402 / 1122;
@@ -224,7 +230,16 @@ struct Index {
   private clockTimer: number = -1;
 
   aboutToAppear(): void {
-    this.applyAutoPeriod();
+    const params = router.getParams() as IndexRouteParams;
+    if (params.activeTab !== undefined) {
+      this.activeTab = params.activeTab;
+    }
+    if (params.isNight !== undefined) {
+      this.isNight = params.isNight;
+      this.manualPeriod = true;
+    } else {
+      this.applyAutoPeriod();
+    }
     try {
       this.clockTimer = setInterval(() => {
         if (!this.manualPeriod) {
