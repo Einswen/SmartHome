@@ -1,4 +1,6 @@
 import { DeviceDetailPages } from '../components/DeviceDetailPages';
+import { P31_StoreHome } from './store/storehome';
+import { P21_MyProfile } from './my/myprofile';
 import {
   AgentMessageSpec,
   AgentRecordSpec,
@@ -4317,6 +4319,10 @@ struct Index {
         this.HomePage()
       } else if (this.activeTab === 'smart') {
         this.SmartPage()
+      } else if (this.activeTab === 'store') {
+        P31_StoreHome({ isNight: this.isNight })
+      } else if (this.activeTab === 'profile') {
+        P21_MyProfile({ isNight: this.isNight })
       } else {
         this.EmptyPage()
       }
