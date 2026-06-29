@@ -2194,6 +2194,18 @@ struct Index {
     return '智能中枢运行中';
   }
 
+  private goSmartDetail(mode: string): void {
+    router.pushUrl({
+      url: 'pages/smart/smartdetails',
+      params: {
+        mode: mode,
+        isNight: this.isNight,
+        automations: this.automations,
+        chatMessages: this.chatMessages
+      }
+    });
+  }
+
   @Builder
   TopBar() {
     Row() {
@@ -4160,6 +4172,9 @@ struct Index {
           color: this.lineColor()
         })
         .borderRadius(18)
+        .onClick(() => {
+          this.goSmartDetail('running');
+        })
 
         Column() {
           Text(`${this.automations.length}`)
@@ -4184,6 +4199,9 @@ struct Index {
         })
         .borderRadius(18)
         .margin({ left: 10 })
+        .onClick(() => {
+          this.goSmartDetail('all');
+        })
 
         Column() {
           Text(`${this.chatMessages.length}`)
@@ -4208,6 +4226,9 @@ struct Index {
         })
         .borderRadius(18)
         .margin({ left: 10 })
+        .onClick(() => {
+          this.goSmartDetail('chat');
+        })
       }
       .width('100%')
       .margin({ top: 16 })
