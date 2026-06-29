@@ -11,34 +11,70 @@ interface NoticeSpec {
   time: string;
   badge: string;
   color: string;
-  route?: string;
+  category: string;
+  content: string;
 }
 
 const NOTICE_LIST: NoticeSpec[] = [
   {
-    id: 'assistant',
-    title: '智能助手',
-    desc: '点击进入智能助手对话',
+    id: 'order',
+    title: '商城订单',
+    desc: '智能门锁 Pro 订单已确认',
+    time: '21:05',
+    badge: '订',
+    color: '#F3A33A',
+    category: '商城订单',
+    content: '你购买的智能门锁 Pro 套装订单已确认，商品库存已锁定。后续物流、安装预约和发票状态会继续在消息中心同步。'
+  },
+  {
+    id: 'system',
+    title: '系统通知',
+    desc: '家庭安防策略已更新',
     time: '现在',
-    badge: 'AI',
-    color: '#6C86FF',
-    route: 'pages/Index'
+    badge: '系',
+    color: '#5E79FF',
+    category: '系统通知',
+    content: '系统已同步新的家庭安防策略。夜间模式下门锁、玄关传感器与客厅摄像头会保持联动，如发现异常开门或长时间未关门，会在消息中心继续提醒。'
+  },
+  {
+    id: 'service',
+    title: '售后工单',
+    desc: '上门安装已匹配明天 14:00',
+    time: '19:30',
+    badge: '售',
+    color: '#7F72F2',
+    category: '售后服务',
+    content: '售后服务已为智能照明模块匹配明天 14:00 的上门安装时段。安装前可在售后服务中继续修改地址和联系人。'
   },
   {
     id: 'scene',
-    title: '场景执行',
-    desc: '智能场景执行记录已同步',
+    title: '家庭事件',
+    desc: '玄关门锁已完成夜间布防',
     time: '20:15',
-    badge: '场',
-    color: '#FF9F1C'
+    badge: '家',
+    color: '#12C995',
+    category: '家庭事件',
+    content: '玄关门锁已完成夜间布防，家庭事件记录已保存。当前门锁状态正常，客厅与卧室设备保持原有运行状态。'
   },
   {
     id: 'device',
-    title: '设备提醒',
-    desc: '客厅设备状态保持正常',
+    title: '设备消息',
+    desc: '客厅空调滤网建议本周清洁',
     time: '18:45',
     badge: '设',
-    color: '#FF9F1C'
+    color: '#FF9F1C',
+    category: '设备消息',
+    content: '客厅空调滤网已接近建议清洁周期。设备仍可正常运行，建议本周完成滤网清洁，保持送风效率和室内空气质量。'
+  },
+  {
+    id: 'automation',
+    title: '场景执行',
+    desc: '离家模式已关闭灯光和窗帘',
+    time: '17:20',
+    badge: '场',
+    color: '#2F80ED',
+    category: '场景执行',
+    content: '离家模式已完成执行：客厅主灯关闭，卧室窗帘调整至 0%，扫地机器人保持待机。你可以回到首页查看各房间当前状态。'
   }
 ];
 
@@ -46,6 +82,7 @@ const NOTICE_LIST: NoticeSpec[] = [
 @Component
 struct MyMessagesPage {
   @State isNight: boolean = false;
+  @State selectedNoticeId: string = '';
 
   aboutToAppear(): void {
     const params = router.getParams() as MyMessagesRouteParams | undefined;
@@ -82,19 +119,30 @@ struct MyMessagesPage {
     return this.isNight ? '#223A5E8C' : '#DCEAFF';
   }
 
+  private selectedNotice(): NoticeSpec {
+    for (let index = 0; index < NOTICE_LIST.length; index++) {
+      if (NOTICE_LIST[index].id === this.selectedNoticeId) {
+        return NOTICE_LIST[index];
+      }
+    }
+    return NOTICE_LIST[0];
+  }
+
   build() {
-    Stack({ alignContent: Alignment.Bottom }) {
+    Stack() {
       this.PageAtmosphere()
 
       Column() {
         this.PageTitle()
-        this.NoticePanel()
+        if (this.selectedNoticeId === '') {
+          this.NoticePanel()
+        } else {
+          this.NoticeDetailPanel(this.selectedNotice())
+        }
       }
       .width('100%')
       .height('100%')
-      .padding({ left: 28, right: 28, top: 50, bottom: 118 })
-
-      this.BottomNav()
+      .padding({ left: 28, right: 28, top: 50, bottom: 38 })
     }
     .width('100%')
     .height('100%')
@@ -130,13 +178,35 @@ struct MyMessagesPage {
   @Builder
   PageTitle() {
     Row() {
+      Button('<')
+        .width(40)
+        .height(40)
+        .fontSize(20)
+        .fontWeight(FontWeight.Bold)
+        .fontColor(this.primaryText())
+        .backgroundColor(this.cardColor())
+        .border({
+          width: 1,
+          color: this.lineColor()
+        })
+        .borderRadius(20)
+        .padding({ left: 0, right: 0 })
+        .margin({ right: 12 })
+        .onClick(() => {
+          if (this.selectedNoticeId !== '') {
+            this.selectedNoticeId = '';
+          } else {
+            router.back();
+          }
+        })
+
       Column() {
-        Text('消息中心')
+        Text(this.selectedNoticeId === '' ? '消息中心' : this.selectedNotice().title)
           .fontSize(31)
           .fontWeight(FontWeight.Bold)
           .fontColor(this.primaryText())
 
-        Text('智能消息与助手入口')
+        Text(this.selectedNoticeId === '' ? '家庭通知、设备与商城服务' : `${this.selectedNotice().category} · ${this.selectedNotice().time}`)
           .fontSize(12)
           .fontColor(this.secondaryText())
           .margin({ top: 4 })
@@ -166,10 +236,10 @@ struct MyMessagesPage {
           .fontColor(this.primaryText())
           .layoutWeight(1)
 
-        Text('全部')
+        Text(`${NOTICE_LIST.length}条`)
           .fontSize(13)
           .fontWeight(FontWeight.Bold)
-          .fontColor('#5E79FF')
+          .fontColor(this.secondaryText())
       }
       .width('100%')
       .alignItems(VerticalAlign.Center)
@@ -187,6 +257,7 @@ struct MyMessagesPage {
       color: this.lineColor()
     })
     .borderRadius(24)
+    .margin({ bottom: 14 })
   }
 
   @Builder
@@ -194,30 +265,36 @@ struct MyMessagesPage {
     Row() {
       Column() {
         Text(notice.badge)
-          .fontSize(notice.badge === 'AI' ? 18 : 17)
+          .fontSize(17)
           .fontWeight(FontWeight.Bold)
           .fontColor('#FFFFFF')
-
-        if (notice.id === 'assistant') {
-          Text('2/2')
-            .fontSize(9)
-            .fontColor('#EAF0FF')
-            .margin({ top: 2 })
-        }
       }
-      .width(notice.id === 'assistant' ? 50 : 44)
-      .height(notice.id === 'assistant' ? 50 : 44)
+      .width(44)
+      .height(44)
       .justifyContent(FlexAlign.Center)
       .alignItems(HorizontalAlign.Center)
       .backgroundColor(notice.color)
-      .borderRadius(25)
+      .borderRadius(22)
 
       Column() {
-        Text(notice.title)
-          .fontSize(16)
-          .fontWeight(FontWeight.Bold)
-          .fontColor(this.primaryText())
-          .maxLines(1)
+        Row() {
+          Text(notice.title)
+            .fontSize(16)
+            .fontWeight(FontWeight.Bold)
+            .fontColor(this.primaryText())
+            .maxLines(1)
+            .layoutWeight(1)
+
+          Text(notice.category)
+            .fontSize(10)
+            .fontWeight(FontWeight.Bold)
+            .fontColor(notice.color)
+            .padding({ left: 8, right: 8, top: 3, bottom: 3 })
+            .backgroundColor(this.isNight ? '#18232C36' : '#F7F8FB')
+            .borderRadius(10)
+        }
+        .width('100%')
+        .alignItems(VerticalAlign.Center)
 
         Text(notice.desc)
           .fontSize(12)
@@ -233,6 +310,12 @@ struct MyMessagesPage {
         .fontSize(11)
         .fontColor(this.secondaryText())
         .margin({ left: 8 })
+
+      Text('>')
+        .fontSize(15)
+        .fontWeight(FontWeight.Bold)
+        .fontColor(this.secondaryText())
+        .margin({ left: 8 })
     }
     .width('100%')
     .height(66)
@@ -240,61 +323,100 @@ struct MyMessagesPage {
     .backgroundColor(this.cardColor())
     .border({
       width: 1,
-      color: notice.id === 'assistant' ? '#335E79FF' : this.lineColor()
+      color: this.lineColor()
     })
     .borderRadius(20)
     .margin({ top: 10 })
     .onClick(() => {
-      if (notice.route !== undefined) {
-        router.pushUrl({ url: notice.route, params: { isNight: this.isNight, activeTab: 'smart' } });
-      }
+      this.selectedNoticeId = notice.id;
     })
   }
 
   @Builder
-  BottomNav() {
-    Row() {
-      this.NavItem('家', '家', false)
-      this.NavItem('智', '智能', true)
-      this.NavItem('商', '商场', false)
-      this.NavItem('我', '我的', false)
+  NoticeDetailPanel(notice: NoticeSpec) {
+    Column() {
+      Row() {
+        Text('消息详情')
+          .fontSize(20)
+          .fontWeight(FontWeight.Bold)
+          .fontColor(this.primaryText())
+          .layoutWeight(1)
+
+        Text(notice.category)
+          .fontSize(12)
+          .fontWeight(FontWeight.Bold)
+          .fontColor(notice.color)
+      }
+      .width('100%')
+      .alignItems(VerticalAlign.Center)
+      .margin({ bottom: 14 })
+
+      Row() {
+        Column() {
+          Text(notice.badge)
+            .fontSize(18)
+            .fontWeight(FontWeight.Bold)
+            .fontColor('#FFFFFF')
+        }
+        .width(44)
+        .height(44)
+        .justifyContent(FlexAlign.Center)
+        .alignItems(HorizontalAlign.Center)
+        .backgroundColor(notice.color)
+        .borderRadius(22)
+
+        Column() {
+          Text(notice.title)
+            .fontSize(19)
+            .fontWeight(FontWeight.Bold)
+            .fontColor(this.primaryText())
+
+          Text(`${notice.time} · ${notice.desc}`)
+            .fontSize(12)
+            .fontColor(this.secondaryText())
+            .maxLines(1)
+            .margin({ top: 5 })
+        }
+        .layoutWeight(1)
+        .alignItems(HorizontalAlign.Start)
+        .margin({ left: 12 })
+      }
+      .width('100%')
+      .alignItems(VerticalAlign.Center)
+
+      Text(notice.content)
+        .fontSize(14)
+        .fontColor(this.secondaryText())
+        .lineHeight(23)
+        .margin({ top: 18 })
+
+      Row() {
+        Text('已读')
+          .fontSize(12)
+          .fontWeight(FontWeight.Bold)
+          .fontColor(notice.color)
+          .padding({ left: 10, right: 10, top: 5, bottom: 5 })
+          .backgroundColor(this.isNight ? '#18232C36' : '#F7F8FB')
+          .borderRadius(12)
+
+        Blank()
+
+        Text('已同步')
+          .fontSize(12)
+          .fontWeight(FontWeight.Bold)
+          .fontColor(this.secondaryText())
+      }
+      .width('100%')
+      .alignItems(VerticalAlign.Center)
+      .margin({ top: 20 })
     }
     .width('100%')
-    .height(86)
-    .padding({ left: 18, right: 18, top: 10, bottom: 10 })
-    .backgroundColor(this.cardColor())
-    .borderRadius(30)
-    .margin({ left: 28, right: 28, bottom: 28 })
-  }
-
-  @Builder
-  NavItem(icon: string, label: string, active: boolean) {
-    Column() {
-      Text(icon)
-        .fontSize(22)
-        .fontWeight(FontWeight.Medium)
-        .fontColor(active ? this.primaryText() : this.secondaryText())
-
-      Text(label)
-        .fontSize(13)
-        .fontWeight(active ? FontWeight.Bold : FontWeight.Medium)
-        .fontColor(active ? this.primaryText() : this.secondaryText())
-        .margin({ top: 3 })
-    }
-    .layoutWeight(1)
-    .height(62)
-    .justifyContent(FlexAlign.Center)
-    .alignItems(HorizontalAlign.Center)
-    .backgroundColor(active ? (this.isNight ? '#33262D36' : '#F7F8FB') : '#00000000')
-    .borderRadius(22)
-    .onClick(() => {
-      if (label === '我的') {
-        router.back();
-      } else if (label === '智能') {
-        router.pushUrl({ url: 'pages/Index', params: { isNight: this.isNight, activeTab: 'smart' } });
-      } else if (label === '家') {
-        router.pushUrl({ url: 'pages/Index', params: { isNight: this.isNight, activeTab: 'home' } });
-      }
+    .padding({ left: 18, right: 18, top: 18, bottom: 18 })
+    .backgroundColor(this.panelColor())
+    .border({
+      width: 1,
+      color: this.lineColor()
     })
+    .borderRadius(24)
   }
 }
