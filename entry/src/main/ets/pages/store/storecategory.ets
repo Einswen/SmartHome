@@ -12,8 +12,8 @@ struct StoreCategoryPage {
   @State showEmpty: boolean = false;
 
   aboutToAppear(): void {
-    const params = router.getParams() as StoreCategoryRouteParams;
-    if (params.isNight !== undefined) {
+    const params = router.getParams() as StoreCategoryRouteParams | undefined;
+    if (params && params.isNight !== undefined) {
       this.isNight = params.isNight;
     }
   }

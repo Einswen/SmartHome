@@ -48,8 +48,8 @@ struct MyDevicesPage {
   @StorageLink('homeLivingRobotOn') livingRobotOn: boolean = false;
 
   aboutToAppear(): void {
-    const params = router.getParams() as MyDevicesRouteParams;
-    if (params.isNight !== undefined) {
+    const params = router.getParams() as MyDevicesRouteParams | undefined;
+    if (params && params.isNight !== undefined) {
       this.isNight = params.isNight;
     }
   }

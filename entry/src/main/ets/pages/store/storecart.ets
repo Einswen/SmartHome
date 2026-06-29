@@ -48,14 +48,14 @@ struct StoreCartPage {
   @StorageLink('cartLinePayload') cartLinePayload: string = '';
 
   aboutToAppear(): void {
-    const params = router.getParams() as CartRouteParams;
-    if (params.isNight !== undefined) {
+    const params = router.getParams() as CartRouteParams | undefined;
+    if (params && params.isNight !== undefined) {
       this.isNight = params.isNight;
     }
-    if (params.addedProductId !== undefined) {
+    if (params && params.addedProductId !== undefined) {
       this.addedProductId = params.addedProductId;
     }
-    if (params.addedCount !== undefined) {
+    if (params && params.addedCount !== undefined) {
       this.addedCount = params.addedCount;
     }
   }

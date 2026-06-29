@@ -29,8 +29,8 @@ struct StoreOrdersPage {
   @State isNight: boolean = false;
 
   aboutToAppear(): void {
-    const params = router.getParams() as StoreOrdersRouteParams;
-    if (params.isNight !== undefined) {
+    const params = router.getParams() as StoreOrdersRouteParams | undefined;
+    if (params && params.isNight !== undefined) {
       this.isNight = params.isNight;
     }
   }

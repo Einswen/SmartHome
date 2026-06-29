@@ -35,8 +35,8 @@ struct MyFamilyPage {
   @State selectedMemberRole: string = '普通成员';
 
   aboutToAppear(): void {
-    const params = router.getParams() as MyFamilyRouteParams;
-    if (params.isNight !== undefined) {
+    const params = router.getParams() as MyFamilyRouteParams | undefined;
+    if (params && params.isNight !== undefined) {
       this.isNight = params.isNight;
     }
   }

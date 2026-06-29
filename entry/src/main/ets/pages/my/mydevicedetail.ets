@@ -37,11 +37,11 @@ struct MyDeviceDetailPage {
   @State isNight: boolean = false;
 
   aboutToAppear(): void {
-    const params = router.getParams() as DeviceDetailRouteParams;
-    if (params.deviceId !== undefined) {
+    const params = router.getParams() as DeviceDetailRouteParams | undefined;
+    if (params && params.deviceId !== undefined) {
       this.deviceId = params.deviceId;
     }
-    if (params.isNight !== undefined) {
+    if (params && params.isNight !== undefined) {
       this.isNight = params.isNight;
     }
   }
@@ -250,6 +250,7 @@ struct MyDeviceDetailPage {
 
       Row() {
         this.HealthMetric('关键指标', page.metricA)
+        Blank().width(8)
         this.HealthMetric('状态补充', page.metricB)
       }
       .width('100%')
@@ -286,7 +287,6 @@ struct MyDeviceDetailPage {
     .justifyContent(FlexAlign.Center)
     .backgroundColor(this.softColor())
     .borderRadius(18)
-    .margin({ right: 8 })
   }
 
   @Builder
