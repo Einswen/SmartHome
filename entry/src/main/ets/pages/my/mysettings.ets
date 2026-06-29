@@ -41,8 +41,8 @@ struct MySettingsPage {
   @State isNight: boolean = false;
 
   aboutToAppear(): void {
-    const params = router.getParams() as MySettingsRouteParams;
-    if (params.isNight !== undefined) {
+    const params = router.getParams() as MySettingsRouteParams | undefined;
+    if (params && params.isNight !== undefined) {
       this.isNight = params.isNight;
     }
   }

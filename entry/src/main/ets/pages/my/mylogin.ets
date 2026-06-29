@@ -17,8 +17,8 @@ struct MyLoginPage {
   @StorageLink('lumiUserSignedIn') signedIn: boolean = false;
 
   aboutToAppear(): void {
-    const params = router.getParams() as MyLoginRouteParams;
-    if (params.isNight !== undefined) {
+    const params = router.getParams() as MyLoginRouteParams | undefined;
+    if (params && params.isNight !== undefined) {
       this.isNight = params.isNight;
     }
   }
