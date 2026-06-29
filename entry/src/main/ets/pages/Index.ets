@@ -320,12 +320,19 @@ struct Index {
   private pointBaseId(pointId: string): string {
     const markerIndex = pointId.indexOf('@');
     if (markerIndex >= 0) {
+      const nextMarkerIndex = pointId.indexOf('@', markerIndex + 1);
+      if (nextMarkerIndex >= 0) {
+        return pointId.substring(markerIndex + 1, nextMarkerIndex);
+      }
       return pointId.substring(markerIndex + 1);
     }
     return pointId;
   }
 
-  private roomPointId(roomId: string, pointId: string): string {
+  private roomPointId(roomId: string, pointId: string, instanceIndex?: number): string {
+    if (instanceIndex !== undefined) {
+      return `${roomId}@${pointId}@${instanceIndex}`;
+    }
     return `${roomId}@${pointId}`;
   }
 
@@ -379,6 +386,32 @@ struct Index {
 
   private usesScopedPointIds(roomId: string): boolean {
     return this.usesGenericRoomLibrary(roomId) || roomId !== this.roomTemplateId(roomId);
+  }
+
+  private nextScopedPointId(roomId: string, pointId: string): string {
+    const installedIds = this.installedPointIds(roomId);
+    let nextIndex = 1;
+    for (let i = 0; i < installedIds.length; i++) {
+      const installedId = installedIds[i];
+      if (this.pointBaseId(installedId) !== pointId) {
+        continue;
+      }
+      const roomScopedPrefix = `${roomId}@${pointId}`;
+      if (installedId === roomScopedPrefix) {
+        if (nextIndex < 2) {
+          nextIndex = 2;
+        }
+        continue;
+      }
+      if (installedId.indexOf(`${roomScopedPrefix}@`) === 0) {
+        const suffix = installedId.substring(roomScopedPrefix.length + 1);
+        const parsedIndex = Number(suffix);
+        if (!Number.isNaN(parsedIndex) && nextIndex <= parsedIndex) {
+          nextIndex = parsedIndex + 1;
+        }
+      }
+    }
+    return this.roomPointId(roomId, pointId, nextIndex);
   }
 
   private usesSharedTemplateState(roomId: string): boolean {
@@ -1575,6 +1608,10 @@ struct Index {
     return this.controllablePoints().slice(3);
   }
 
+  private overflowPoints(): PointSpec[] {
+    return this.controllablePoints().slice(6);
+  }
+
   private dotLeft(point: PointSpec): string {
     return this.percent(Math.min(Math.max(point.x - 3.1, 0), 92));
   }
@@ -1897,9 +1934,7 @@ struct Index {
   }
 
   private availableDevicesForActiveRoom(): PointSpec[] {
-    const installedIds = this.installedPointIds(this.activeRoomId);
-    const installedBaseIds = installedIds.map((pointId: string) => this.pointBaseId(pointId));
-    return this.templateControllablePoints(this.activeRoomId).filter((point: PointSpec) => installedBaseIds.indexOf(point.id) < 0);
+    return this.templateControllablePoints(this.activeRoomId);
   }
 
   private canAddDeviceInActiveRoom(): boolean {
@@ -1912,11 +1947,9 @@ struct Index {
 
   private addDeviceToActiveRoom(pointId: string): void {
     const installedIds = this.installedPointIds(this.activeRoomId);
-    const nextPointId = this.usesScopedPointIds(this.activeRoomId) ? this.roomPointId(this.activeRoomId, pointId) : pointId;
     const installedBaseIds = installedIds.map((item: string) => this.pointBaseId(item));
-    if (installedBaseIds.indexOf(this.pointBaseId(nextPointId)) >= 0) {
-      return;
-    }
+    const shouldCreateScopedInstance = this.usesScopedPointIds(this.activeRoomId) || installedBaseIds.indexOf(pointId) >= 0;
+    const nextPointId = shouldCreateScopedInstance ? this.nextScopedPointId(this.activeRoomId, pointId) : pointId;
     this.setInstalledPointIds(this.activeRoomId, [...installedIds, nextPointId]);
     if (nextPointId.indexOf('@') >= 0) {
       this.setDynamicState(this.dynamicStateDefault(this.pointSpecForRoom(this.activeRoomId, nextPointId)));
@@ -3102,6 +3135,16 @@ struct Index {
           }
           .margin({ top: 10 })
         }
+
+        if (this.overflowPoints().length > 0) {
+          Column() {
+            ForEach(this.overflowPoints(), (point: PointSpec) => {
+              this.WideDeviceCard(point)
+            }, (point: PointSpec) => point.id)
+          }
+          .width('100%')
+          .margin({ top: 10 })
+        }
       } else {
         Column() {
           Text('当前房间还没有可控制设备')
@@ -3223,85 +3266,90 @@ struct Index {
       .width('100%')
       .alignItems(VerticalAlign.Top)
 
-      if (this.devicePanelPoints().length > 0) {
-        Column() {
-          ForEach(this.devicePanelPoints(), (point: PointSpec) => {
-            Row() {
-              Column() {
-                Text(point.name)
-                  .fontSize(15)
+      Scroll() {
+        if (this.devicePanelPoints().length > 0) {
+          Column() {
+            ForEach(this.devicePanelPoints(), (point: PointSpec) => {
+              Row() {
+                Column() {
+                  Text(point.name)
+                    .fontSize(15)
+                    .fontWeight(FontWeight.Bold)
+                    .fontColor(this.primaryText())
+
+                  Text(point.type)
+                    .fontSize(11)
+                    .fontColor(this.secondaryText())
+                    .margin({ top: 3 })
+                }
+                .layoutWeight(1)
+                .alignItems(HorizontalAlign.Start)
+
+                Button(this.devicePanelActionLabel())
+                  .height(36)
+                  .fontSize(12)
                   .fontWeight(FontWeight.Bold)
-                  .fontColor(this.primaryText())
-
-                Text(point.type)
-                  .fontSize(11)
-                  .fontColor(this.secondaryText())
-                  .margin({ top: 3 })
+                  .fontColor(this.devicePanelMode === 'add' ? this.inverseText() : this.primaryText())
+                  .backgroundColor(this.devicePanelMode === 'add' ? this.translucentInverseBg() : this.translucentCardColor())
+                  .border({
+                    width: 1,
+                    color: this.devicePanelMode === 'add' ? this.glassBorderColor() : this.lineColor()
+                  })
+                  .borderRadius(18)
+                  .padding({ left: 16, right: 16 })
+                  .scale(this.buttonScale(`${this.devicePanelMode}_${point.id}`))
+                  .opacity(this.buttonOpacity(`${this.devicePanelMode}_${point.id}`))
+                  .animation({ duration: 120, curve: Curve.EaseOut })
+                  .onTouch((event: TouchEvent) => {
+                    this.handlePressState(`${this.devicePanelMode}_${point.id}`, event);
+                  })
+                  .onClick(() => {
+                    if (this.devicePanelMode === 'add') {
+                      this.addDeviceToActiveRoom(point.id);
+                    } else {
+                      this.removeDeviceFromActiveRoom(point.id);
+                    }
+                  })
               }
-              .layoutWeight(1)
-              .alignItems(HorizontalAlign.Start)
+              .width('100%')
+              .padding({ left: 14, right: 14, top: 14, bottom: 14 })
+              .backgroundColor(this.glassShellColor())
+              .border({
+                width: 1,
+                color: this.glassBorderColor()
+              })
+              .borderRadius(18)
+              .margin({ top: 10 })
+            }, (point: PointSpec) => point.id)
+          }
+          .width('100%')
+          .margin({ top: 10 })
+        } else {
+          Column() {
+            Text(this.devicePanelEmptyText())
+              .fontSize(14)
+              .fontWeight(FontWeight.Bold)
+              .fontColor(this.primaryText())
 
-              Button(this.devicePanelActionLabel())
-                .height(36)
-                .fontSize(12)
-                .fontWeight(FontWeight.Bold)
-                .fontColor(this.devicePanelMode === 'add' ? this.inverseText() : this.primaryText())
-                .backgroundColor(this.devicePanelMode === 'add' ? this.translucentInverseBg() : this.translucentCardColor())
-                .border({
-                  width: 1,
-                  color: this.devicePanelMode === 'add' ? this.glassBorderColor() : this.lineColor()
-                })
-                .borderRadius(18)
-                .padding({ left: 16, right: 16 })
-                .scale(this.buttonScale(`${this.devicePanelMode}_${point.id}`))
-                .opacity(this.buttonOpacity(`${this.devicePanelMode}_${point.id}`))
-                .animation({ duration: 120, curve: Curve.EaseOut })
-                .onTouch((event: TouchEvent) => {
-                  this.handlePressState(`${this.devicePanelMode}_${point.id}`, event);
-                })
-                .onClick(() => {
-                  if (this.devicePanelMode === 'add') {
-                    this.addDeviceToActiveRoom(point.id);
-                  } else {
-                    this.removeDeviceFromActiveRoom(point.id);
-                  }
-                })
-            }
-            .width('100%')
-            .padding({ left: 14, right: 14, top: 14, bottom: 14 })
-            .backgroundColor(this.glassShellColor())
-            .border({
-              width: 1,
-              color: this.glassBorderColor()
-            })
-            .borderRadius(18)
-            .margin({ top: 10 })
-          }, (point: PointSpec) => point.id)
+            Text('切换房间后可以继续管理当前空间里的设备。')
+              .fontSize(12)
+              .fontColor(this.secondaryText())
+              .margin({ top: 8 })
+          }
+          .width('100%')
+          .padding({ left: 14, right: 14, top: 18, bottom: 18 })
+          .backgroundColor(this.glassShellColor())
+          .border({
+            width: 1,
+            color: this.glassBorderColor()
+          })
+          .borderRadius(18)
+          .margin({ top: 14 })
         }
-        .width('100%')
-        .margin({ top: 10 })
-      } else {
-        Column() {
-          Text(this.devicePanelEmptyText())
-            .fontSize(14)
-            .fontWeight(FontWeight.Bold)
-            .fontColor(this.primaryText())
-
-          Text('切换房间后可以继续管理当前空间里的设备。')
-            .fontSize(12)
-            .fontColor(this.secondaryText())
-            .margin({ top: 8 })
-        }
-        .width('100%')
-        .padding({ left: 14, right: 14, top: 18, bottom: 18 })
-        .backgroundColor(this.glassShellColor())
-        .border({
-          width: 1,
-          color: this.glassBorderColor()
-        })
-        .borderRadius(18)
-        .margin({ top: 14 })
       }
+      .width('100%')
+      .height(Math.min(this.panelViewportHeight() * 0.58, 420))
+      .scrollBar(BarState.Off)
     }
     .width('100%')
     .padding({ left: 16, right: 16, top: 16, bottom: 16 })
