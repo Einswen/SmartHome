@@ -119,7 +119,9 @@ struct StoreServicePage {
         .width('100%')
       Row() {
         this.Metric('响应', '2 小时')
+        Blank().width(8)
         this.Metric('保内', '5 台')
+        Blank().width(8)
         this.Metric('工单', '1 个')
       }
       .width('100%')
@@ -148,7 +150,6 @@ struct StoreServicePage {
     .justifyContent(FlexAlign.Center)
     .backgroundColor('#CCFFFFFF')
     .borderRadius(18)
-    .margin({ right: 8 })
   }
 
   @Builder

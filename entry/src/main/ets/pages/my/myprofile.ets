@@ -343,7 +343,9 @@ export struct P21_MyProfile {
 
       Row() {
         this.HealthMetric('在线率', this.activeHome().health, '#35D27A')
+        Blank().width(8)
         this.HealthMetric('异常设备', this.activeHomeIndex === 0 ? '0' : '1', '#F3A33A')
+        Blank().width(8)
         this.HealthMetric('自动化', this.activeHomeIndex === 0 ? '26' : '12', '#5E8CFF')
       }
       .width('100%')
@@ -374,7 +376,6 @@ export struct P21_MyProfile {
     .justifyContent(FlexAlign.Center)
     .backgroundColor(this.softPanelColor())
     .borderRadius(18)
-    .margin({ right: 8 })
   }
 
   @Builder

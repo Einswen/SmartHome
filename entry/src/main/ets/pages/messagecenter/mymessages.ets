@@ -142,7 +142,9 @@ struct MyMessagesPage {
         .margin({ top: 8 })
       Row() {
         this.Metric('设备', '1')
+        Blank().width(8)
         this.Metric('自动化', '1')
+        Blank().width(8)
         this.Metric('服务', '1')
       }
       .width('100%')
@@ -165,7 +167,6 @@ struct MyMessagesPage {
     .justifyContent(FlexAlign.Center)
     .backgroundColor(this.isNight ? '#331E2530' : '#CCFFFFFF')
     .borderRadius(18)
-    .margin({ right: 8 })
   }
 
   @Builder
