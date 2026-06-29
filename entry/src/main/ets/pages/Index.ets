@@ -182,7 +182,6 @@ struct Index {
   @State agentPrompt: string = '';
   @State agentListening: boolean = false;
   @State agentThinking: boolean = false;
-  @State smartPageMode: string = 'center';
   @State smartHubExpanded: boolean = false;
   @State smartFloatX: number = 232;
   @State smartFloatY: number = 128;
@@ -1413,6 +1412,9 @@ struct Index {
 
   private openAutomationComposer(): void {
     this.expandedAutomationId = '';
+    this.automationTitle = '';
+    this.automationTrigger = '';
+    this.automationAction = '';
     this.automationComposerVisible = true;
   }
 
@@ -3519,7 +3521,7 @@ struct Index {
     })
     .onClick(() => {
       if (actionKey === 'assistant') {
-        this.smartPageMode = 'assistant';
+        this.activeTab = 'smart';
       }
     })
   }
@@ -3781,7 +3783,7 @@ struct Index {
         .borderRadius(18)
         .padding({ left: 0, right: 0 })
         .onClick(() => {
-          this.smartPageMode = 'center';
+          this.activeTab = 'home';
         })
 
       Column() {
@@ -3998,53 +4000,30 @@ struct Index {
 
   @Builder
   SmartPage() {
-    Stack({ alignContent: Alignment.TopEnd }) {
-      if (this.smartPageMode === 'assistant') {
-        Column() {
-          Column() {
-            this.AssistantPageTitle()
-          }
-          .width('100%')
-          .margin({ bottom: 8 })
+    Column() {
+      Column() {
+        this.AssistantPageTitle()
+      }
+      .width('100%')
+      .margin({ bottom: 8 })
 
-          this.ChatSurface()
+      Column() {
+        this.ScriptHeaderCard()
+      }
+      .width('100%')
+      .margin({ bottom: 10 })
 
-          this.ChatComposer()
-        }
-        .width('100%')
-        .height('100%')
-        .padding({ left: 14, right: 14, top: 14, bottom: 102 })
-      } else {
-        Column() {
-          Column() {
-            this.SmartPageTitle()
-          }
-          .width('100%')
-          .margin({ bottom: 8 })
-
-          Column() {
-            this.SmartNoticeCenter()
-          }
-          .width('100%')
-          .margin({ bottom: 10 })
-
-          if (this.automationComposerVisible) {
-            this.AutomationComposerCard()
-          }
-        }
-        .width('100%')
-        .height('100%')
-        .padding({ left: 14, right: 14, top: 14, bottom: 102 })
+      if (this.automationComposerVisible) {
+        this.AutomationComposerCard()
       }
 
-      if (this.smartHubExpanded) {
-        this.SmartHubPanel()
-      }
+      this.ChatSurface()
 
-      this.SmartHubFloat()
+      this.ChatComposer()
     }
     .width('100%')
     .height('100%')
+    .padding({ left: 14, right: 14, top: 14, bottom: 102 })
   }
 
   @Builder
