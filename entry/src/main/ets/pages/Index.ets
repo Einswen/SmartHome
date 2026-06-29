@@ -68,6 +68,11 @@ interface RoomDeviceState {
   pointIds: string[];
 }
 
+interface IndexRouteParams {
+  activeTab?: string;
+  isNight?: boolean;
+}
+
 const ROOM_ASPECT: number = 1402 / 1122;
 const NIGHT_START_HOUR: number = 18;
 const NIGHT_END_HOUR: number = 6;
@@ -227,7 +232,16 @@ struct Index {
   private clockTimer: number = -1;
 
   aboutToAppear(): void {
-    this.applyAutoPeriod();
+    const params = router.getParams() as IndexRouteParams;
+    if (params.activeTab !== undefined) {
+      this.activeTab = params.activeTab;
+    }
+    if (params.isNight !== undefined) {
+      this.isNight = params.isNight;
+      this.manualPeriod = true;
+    } else {
+      this.applyAutoPeriod();
+    }
     try {
       this.clockTimer = setInterval(() => {
         if (!this.manualPeriod) {

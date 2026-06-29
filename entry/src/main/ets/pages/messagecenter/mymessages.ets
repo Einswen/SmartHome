@@ -4,26 +4,47 @@ interface MyMessagesRouteParams {
   isNight?: boolean;
 }
 
-interface MessageSpec {
+interface NoticeSpec {
   id: string;
   title: string;
   desc: string;
   time: string;
-  level: string;
+  badge: string;
   color: string;
+  route?: string;
 }
 
-const MESSAGE_LIST: MessageSpec[] = [
-  { id: 'light', title: '客厅灯已关闭', desc: '夜间模式生效，商城和我的页面已同步切换为深色视觉。', time: '10:42', level: '设备', color: '#5E8CFF' },
-  { id: 'auto', title: '离家模式已执行', desc: '已关闭客厅电视、主灯与空气净化器。', time: '09:16', level: '自动化', color: '#19B7A4' },
-  { id: 'mall', title: '滤芯补货提醒', desc: '空气净化器滤芯预计 12 天后到期，可在商城一键订阅。', time: '昨天', level: '服务', color: '#F3A33A' }
+const NOTICE_LIST: NoticeSpec[] = [
+  {
+    id: 'assistant',
+    title: '智能助手',
+    desc: '点击进入智能助手对话',
+    time: '现在',
+    badge: 'AI',
+    color: '#6C86FF',
+    route: 'pages/Index'
+  },
+  {
+    id: 'scene',
+    title: '场景执行',
+    desc: '智能场景执行记录已同步',
+    time: '20:15',
+    badge: '场',
+    color: '#FF9F1C'
+  },
+  {
+    id: 'device',
+    title: '设备提醒',
+    desc: '客厅设备状态保持正常',
+    time: '18:45',
+    badge: '设',
+    color: '#FF9F1C'
+  }
 ];
 
 @Entry
 @Component
 struct MyMessagesPage {
-  @State showEmpty: boolean = false;
-  @State networkFailed: boolean = false;
   @State isNight: boolean = false;
 
   aboutToAppear(): void {
@@ -45,44 +66,35 @@ struct MyMessagesPage {
     return this.isNight ? '#070A0F' : '#F4F6FA';
   }
 
+  private panelColor(): string {
+    return this.isNight ? '#D9151A22' : '#EFFFFFFF';
+  }
+
   private cardColor(): string {
-    return this.isNight ? '#D9151A22' : '#FFFFFF';
+    return this.isNight ? '#661F2632' : '#FFFFFFFF';
   }
 
-  private softColor(): string {
-    return this.isNight ? '#661F2632' : '#F0F4FA';
+  private lineColor(): string {
+    return this.isNight ? '#20FFFFFF' : '#12000000';
   }
 
-  private messages(): MessageSpec[] {
-    return this.showEmpty ? [] : MESSAGE_LIST;
+  private softBlue(): string {
+    return this.isNight ? '#223A5E8C' : '#DCEAFF';
   }
 
   build() {
-    Column() {
-      this.TopBar()
+    Stack({ alignContent: Alignment.Bottom }) {
+      this.PageAtmosphere()
 
-      if (this.networkFailed) {
-        this.NetworkState()
-      } else {
-        Scroll() {
-          Column() {
-            this.Summary()
-            this.MessageHeader()
-
-            if (this.messages().length === 0) {
-              this.EmptyState()
-            } else {
-              ForEach(this.messages(), (message: MessageSpec) => {
-                this.MessageCard(message)
-              }, (message: MessageSpec) => message.id)
-            }
-          }
-          .width('100%')
-          .padding({ left: 18, right: 18, bottom: 28 })
-        }
-        .layoutWeight(1)
-        .scrollBar(BarState.Off)
+      Column() {
+        this.PageTitle()
+        this.NoticePanel()
       }
+      .width('100%')
+      .height('100%')
+      .padding({ left: 28, right: 28, top: 50, bottom: 118 })
+
+      this.BottomNav()
     }
     .width('100%')
     .height('100%')
@@ -90,209 +102,199 @@ struct MyMessagesPage {
   }
 
   @Builder
-  TopBar() {
-    Row() {
-      Button('<')
-        .width(40)
-        .height(40)
-        .fontSize(20)
-        .fontColor(this.primaryText())
-        .backgroundColor(this.cardColor())
-        .borderRadius(20)
-        .onClick(() => {
-          router.back();
-        })
+  PageAtmosphere() {
+    Stack() {
+      Column()
+        .width('100%')
+        .height('100%')
+        .backgroundColor(this.bgColor())
 
-      Text('消息中心')
-        .fontSize(22)
-        .fontWeight(FontWeight.Bold)
-        .fontColor(this.primaryText())
-        .margin({ left: 14 })
-        .layoutWeight(1)
+      Column()
+        .width(430)
+        .height(290)
+        .borderRadius(160)
+        .backgroundColor(this.softBlue())
+        .position({ x: 44, y: -84 })
 
-      Button(this.networkFailed ? '恢复' : '断网')
-        .height(34)
-        .fontSize(12)
-        .fontWeight(FontWeight.Bold)
-        .fontColor(this.networkFailed ? '#FFFFFF' : this.primaryText())
-        .backgroundColor(this.networkFailed ? '#5E8CFF' : this.cardColor())
-        .borderRadius(17)
-        .padding({ left: 12, right: 12 })
-        .onClick(() => {
-          this.networkFailed = !this.networkFailed;
-        })
+      Column()
+        .width(500)
+        .height(300)
+        .borderRadius(180)
+        .backgroundColor(this.isNight ? '#222B2018' : '#F7E9D4')
+        .position({ x: 56, y: 610 })
     }
     .width('100%')
-    .padding({ left: 18, right: 18, top: 28, bottom: 14 })
+    .height('100%')
   }
 
   @Builder
-  Summary() {
+  PageTitle() {
+    Row() {
+      Column() {
+        Text('消息中心')
+          .fontSize(31)
+          .fontWeight(FontWeight.Bold)
+          .fontColor(this.primaryText())
+
+        Text('智能消息与助手入口')
+          .fontSize(12)
+          .fontColor(this.secondaryText())
+          .margin({ top: 4 })
+      }
+      .layoutWeight(1)
+      .alignItems(HorizontalAlign.Start)
+
+      Column()
+        .width(9)
+        .height(9)
+        .borderRadius(5)
+        .backgroundColor('#12C995')
+        .margin({ right: 6 })
+    }
+    .width('100%')
+    .alignItems(VerticalAlign.Center)
+    .margin({ bottom: 20 })
+  }
+
+  @Builder
+  NoticePanel() {
     Column() {
-      Text('需要关注 1 条')
-        .fontSize(24)
-        .fontWeight(FontWeight.Bold)
-        .fontColor(this.primaryText())
-        .width('100%')
-      Text('系统已按设备、自动化、服务三类聚合，重要告警会保持置顶。')
-        .fontSize(13)
-        .lineHeight(21)
-        .fontColor(this.secondaryText())
-        .width('100%')
-        .margin({ top: 8 })
       Row() {
-        this.Metric('设备', '1')
-        Blank().width(8)
-        this.Metric('自动化', '1')
-        Blank().width(8)
-        this.Metric('服务', '1')
+        Text('消息通知')
+          .fontSize(20)
+          .fontWeight(FontWeight.Bold)
+          .fontColor(this.primaryText())
+          .layoutWeight(1)
+
+        Text('全部')
+          .fontSize(13)
+          .fontWeight(FontWeight.Bold)
+          .fontColor('#5E79FF')
       }
       .width('100%')
-      .margin({ top: 16 })
+      .alignItems(VerticalAlign.Center)
+      .margin({ bottom: 10 })
+
+      ForEach(NOTICE_LIST, (notice: NoticeSpec) => {
+        this.NoticeItem(notice)
+      }, (notice: NoticeSpec) => notice.id)
     }
     .width('100%')
-    .padding({ left: 20, right: 20, top: 22, bottom: 22 })
-    .linearGradient({ angle: 135, colors: this.isNight ? [['#1B2432', 0.0], ['#111820', 0.62], ['#332B1C', 1.0]] : [['#E6EEFF', 0.0], ['#FFFFFF', 0.62], ['#FFF2D7', 1.0]] })
-    .borderRadius(26)
-  }
-
-  @Builder
-  Metric(label: string, value: string) {
-    Column() {
-      Text(value).fontSize(18).fontWeight(FontWeight.Bold).fontColor(this.primaryText())
-      Text(label).fontSize(11).fontColor(this.secondaryText()).margin({ top: 4 })
-    }
-    .layoutWeight(1)
-    .height(62)
-    .justifyContent(FlexAlign.Center)
-    .backgroundColor(this.isNight ? '#331E2530' : '#CCFFFFFF')
-    .borderRadius(18)
-  }
-
-  @Builder
-  MessageHeader() {
-    Row() {
-      Text('最近通知')
-        .fontSize(18)
-        .fontWeight(FontWeight.Bold)
-        .fontColor(this.primaryText())
-        .layoutWeight(1)
-
-      Button(this.showEmpty ? '恢复' : '清空')
-        .height(32)
-        .fontSize(12)
-        .fontWeight(FontWeight.Bold)
-        .fontColor('#5E8CFF')
-        .backgroundColor(this.isNight ? '#335E8CFF' : '#EAF0FF')
-        .borderRadius(16)
-        .padding({ left: 12, right: 12 })
-        .onClick(() => {
-          this.showEmpty = !this.showEmpty;
-        })
-    }
-    .width('100%')
-    .margin({ top: 22, bottom: 10 })
-  }
-
-  @Builder
-  MessageCard(message: MessageSpec) {
-    Row() {
-      Column()
-        .width(8)
-        .height(48)
-        .borderRadius(4)
-        .backgroundColor(message.color)
-
-      Column() {
-        Row() {
-          Text(message.title)
-            .fontSize(16)
-            .fontWeight(FontWeight.Bold)
-            .fontColor(this.primaryText())
-            .layoutWeight(1)
-            .maxLines(1)
-          Text(message.time)
-            .fontSize(11)
-            .fontColor(this.secondaryText())
-        }
-        .width('100%')
-
-        Text(message.desc)
-          .fontSize(12)
-          .lineHeight(19)
-          .fontColor(this.secondaryText())
-          .margin({ top: 6 })
-          .maxLines(2)
-
-        Text(message.level)
-          .fontSize(10)
-          .fontWeight(FontWeight.Bold)
-          .fontColor(message.color)
-          .padding({ left: 8, right: 8, top: 5, bottom: 5 })
-          .backgroundColor(this.softColor())
-          .borderRadius(12)
-          .margin({ top: 10 })
-      }
-      .alignItems(HorizontalAlign.Start)
-      .layoutWeight(1)
-      .margin({ left: 12 })
-    }
-    .width('100%')
-    .padding({ left: 16, right: 16, top: 16, bottom: 16 })
-    .backgroundColor(this.cardColor())
-    .borderRadius(22)
-    .margin({ top: 10 })
-  }
-
-  @Builder
-  EmptyState() {
-    Column() {
-      Text('暂无消息')
-        .fontSize(20)
-        .fontWeight(FontWeight.Bold)
-        .fontColor(this.primaryText())
-      Text('设备告警、自动化执行与服务提醒会出现在这里。')
-        .fontSize(13)
-        .lineHeight(20)
-        .fontColor(this.secondaryText())
-        .textAlign(TextAlign.Center)
-        .margin({ top: 8 })
-    }
-    .width('100%')
-    .padding({ left: 30, right: 30, top: 46, bottom: 46 })
-    .backgroundColor(this.cardColor())
+    .padding({ left: 18, right: 18, top: 18, bottom: 12 })
+    .backgroundColor(this.panelColor())
+    .border({
+      width: 1,
+      color: this.lineColor()
+    })
     .borderRadius(24)
   }
 
   @Builder
-  NetworkState() {
-    Column() {
-      Blank().height(86)
-      Text('消息加载失败')
-        .fontSize(23)
-        .fontWeight(FontWeight.Bold)
-        .fontColor(this.primaryText())
-      Text('当前网络不可用，暂时无法同步最新告警。')
-        .fontSize(13)
-        .lineHeight(21)
+  NoticeItem(notice: NoticeSpec) {
+    Row() {
+      Column() {
+        Text(notice.badge)
+          .fontSize(notice.badge === 'AI' ? 18 : 17)
+          .fontWeight(FontWeight.Bold)
+          .fontColor('#FFFFFF')
+
+        if (notice.id === 'assistant') {
+          Text('2/2')
+            .fontSize(9)
+            .fontColor('#EAF0FF')
+            .margin({ top: 2 })
+        }
+      }
+      .width(notice.id === 'assistant' ? 50 : 44)
+      .height(notice.id === 'assistant' ? 50 : 44)
+      .justifyContent(FlexAlign.Center)
+      .alignItems(HorizontalAlign.Center)
+      .backgroundColor(notice.color)
+      .borderRadius(25)
+
+      Column() {
+        Text(notice.title)
+          .fontSize(16)
+          .fontWeight(FontWeight.Bold)
+          .fontColor(this.primaryText())
+          .maxLines(1)
+
+        Text(notice.desc)
+          .fontSize(12)
+          .fontColor(this.secondaryText())
+          .maxLines(1)
+          .margin({ top: 5 })
+      }
+      .layoutWeight(1)
+      .alignItems(HorizontalAlign.Start)
+      .margin({ left: 14 })
+
+      Text(notice.time)
+        .fontSize(11)
         .fontColor(this.secondaryText())
-        .textAlign(TextAlign.Center)
-        .margin({ left: 36, right: 36, top: 10 })
-      Button('重试')
-        .height(42)
-        .fontSize(14)
-        .fontWeight(FontWeight.Bold)
-        .fontColor('#FFFFFF')
-        .backgroundColor('#5E8CFF')
-        .borderRadius(21)
-        .padding({ left: 24, right: 24 })
-        .margin({ top: 22 })
-        .onClick(() => {
-          this.networkFailed = false;
-        })
+        .margin({ left: 8 })
+    }
+    .width('100%')
+    .height(66)
+    .padding({ left: 14, right: 14 })
+    .backgroundColor(this.cardColor())
+    .border({
+      width: 1,
+      color: notice.id === 'assistant' ? '#335E79FF' : this.lineColor()
+    })
+    .borderRadius(20)
+    .margin({ top: 10 })
+    .onClick(() => {
+      if (notice.route !== undefined) {
+        router.pushUrl({ url: notice.route, params: { isNight: this.isNight, activeTab: 'smart' } });
+      }
+    })
+  }
+
+  @Builder
+  BottomNav() {
+    Row() {
+      this.NavItem('家', '家', false)
+      this.NavItem('智', '智能', true)
+      this.NavItem('商', '商场', false)
+      this.NavItem('我', '我的', false)
+    }
+    .width('100%')
+    .height(86)
+    .padding({ left: 18, right: 18, top: 10, bottom: 10 })
+    .backgroundColor(this.cardColor())
+    .borderRadius(30)
+    .margin({ left: 28, right: 28, bottom: 28 })
+  }
+
+  @Builder
+  NavItem(icon: string, label: string, active: boolean) {
+    Column() {
+      Text(icon)
+        .fontSize(22)
+        .fontWeight(FontWeight.Medium)
+        .fontColor(active ? this.primaryText() : this.secondaryText())
+
+      Text(label)
+        .fontSize(13)
+        .fontWeight(active ? FontWeight.Bold : FontWeight.Medium)
+        .fontColor(active ? this.primaryText() : this.secondaryText())
+        .margin({ top: 3 })
     }
     .layoutWeight(1)
-    .width('100%')
+    .height(62)
+    .justifyContent(FlexAlign.Center)
     .alignItems(HorizontalAlign.Center)
+    .backgroundColor(active ? (this.isNight ? '#33262D36' : '#F7F8FB') : '#00000000')
+    .borderRadius(22)
+    .onClick(() => {
+      if (label === '我的') {
+        router.back();
+      } else if (label === '智能') {
+        router.pushUrl({ url: 'pages/Index', params: { isNight: this.isNight, activeTab: 'smart' } });
+      } else if (label === '家') {
+        router.pushUrl({ url: 'pages/Index', params: { isNight: this.isNight, activeTab: 'home' } });
+      }
+    })
   }
 }
