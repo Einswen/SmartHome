@@ -232,11 +232,11 @@ struct Index {
   private clockTimer: number = -1;
 
   aboutToAppear(): void {
-    const params = router.getParams() as IndexRouteParams;
-    if (params.activeTab !== undefined) {
+    const params = router.getParams() as IndexRouteParams | undefined;
+    if (params && params.activeTab !== undefined) {
       this.activeTab = params.activeTab;
     }
-    if (params.isNight !== undefined) {
+    if (params && params.isNight !== undefined) {
       this.isNight = params.isNight;
       this.manualPeriod = true;
     } else {
