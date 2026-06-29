@@ -27,8 +27,8 @@ struct MyMessagesPage {
   @State isNight: boolean = false;
 
   aboutToAppear(): void {
-    const params = router.getParams() as MyMessagesRouteParams;
-    if (params.isNight !== undefined) {
+    const params = router.getParams() as MyMessagesRouteParams | undefined;
+    if (params && params.isNight !== undefined) {
       this.isNight = params.isNight;
     }
   }

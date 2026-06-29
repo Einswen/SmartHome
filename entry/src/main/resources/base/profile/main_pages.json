@@ -5,7 +5,7 @@
     "pages/my/mydevicedetail",
     "pages/my/myfamily",
     "pages/my/mysettings",
-    "pages/my/mymessages",
+    "pages/messagecenter/mymessages",
     "pages/my/mylogin",
     "pages/store/storehome",
     "pages/store/storeproduct",

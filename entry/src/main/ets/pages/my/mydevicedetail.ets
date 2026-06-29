@@ -37,11 +37,11 @@ struct MyDeviceDetailPage {
   @State isNight: boolean = false;
 
   aboutToAppear(): void {
-    const params = router.getParams() as DeviceDetailRouteParams;
-    if (params.deviceId !== undefined) {
+    const params = router.getParams() as DeviceDetailRouteParams | undefined;
+    if (params && params.deviceId !== undefined) {
       this.deviceId = params.deviceId;
     }
-    if (params.isNight !== undefined) {
+    if (params && params.isNight !== undefined) {
       this.isNight = params.isNight;
     }
   }

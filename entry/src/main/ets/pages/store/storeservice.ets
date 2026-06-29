@@ -14,8 +14,8 @@ struct StoreServicePage {
   @State serviceSubmitted: boolean = false;
 
   aboutToAppear(): void {
-    const params = router.getParams() as StoreServiceRouteParams;
-    if (params.isNight !== undefined) {
+    const params = router.getParams() as StoreServiceRouteParams | undefined;
+    if (params && params.isNight !== undefined) {
       this.isNight = params.isNight;
     }
   }

@@ -59,12 +59,12 @@ struct StoreProductPage {
   @StorageLink('cartLinePayload') cartLinePayload: string = '';
 
   aboutToAppear(): void {
-    const params = router.getParams() as ProductRouteParams;
-    if (params.productId !== undefined) {
+    const params = router.getParams() as ProductRouteParams | undefined;
+    if (params && params.productId !== undefined) {
       this.productId = params.productId;
       this.activeShotIndex = 0;
     }
-    if (params.isNight !== undefined) {
+    if (params && params.isNight !== undefined) {
       this.isNight = params.isNight;
     }
   }
