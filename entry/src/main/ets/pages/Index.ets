@@ -1,3 +1,4 @@
+import router from '@ohos.router';
 import { DeviceDetailPages } from '../components/DeviceDetailPages';
 import { P31_StoreHome } from './store/storehome';
 import { P21_MyProfile } from './my/myprofile';
@@ -1513,26 +1514,59 @@ struct Index {
         .fontWeight(FontWeight.Bold)
         .layoutWeight(1)
 
-      Button(this.isNight ? '夜间' : '日间')
+      Row() {
+        Button(this.isNight ? '夜间' : '日间')
+          .height(42)
+          .fontSize(13)
+          .fontWeight(FontWeight.Bold)
+          .fontColor(this.inverseText())
+          .backgroundColor(this.translucentInverseBg())
+          .border({
+            width: 1,
+            color: this.glassBorderColor()
+          })
+          .borderRadius(21)
+          .scale(this.buttonScale('toggle_period'))
+          .opacity(this.buttonOpacity('toggle_period'))
+          .animation({ duration: 120, curve: Curve.EaseOut })
+          .onTouch((event: TouchEvent) => {
+            this.handlePressState('toggle_period', event);
+          })
+          .onClick(() => {
+            this.togglePeriodForDebug();
+          })
+
+        Stack() {
+          Column()
+            .width(42)
+            .height(42)
+            .backgroundColor(this.translucentInverseBg())
+            .border({
+              width: 1,
+              color: this.glassBorderColor()
+            })
+            .borderRadius(21)
+
+          Text('✉')
+            .fontSize(18)
+            .fontWeight(FontWeight.Bold)
+            .fontColor(this.inverseText())
+
+          Column()
+            .width(7)
+            .height(7)
+            .borderRadius(3.5)
+            .backgroundColor(this.isNight ? '#8EB8FF' : '#5E8CFF')
+            .margin({ left: 13, top: -12 })
+        }
+        .width(42)
         .height(42)
-        .fontSize(13)
-        .fontWeight(FontWeight.Bold)
-        .fontColor(this.inverseText())
-        .backgroundColor(this.translucentInverseBg())
-        .border({
-          width: 1,
-          color: this.glassBorderColor()
-        })
-        .borderRadius(21)
-        .scale(this.buttonScale('toggle_period'))
-        .opacity(this.buttonOpacity('toggle_period'))
-        .animation({ duration: 120, curve: Curve.EaseOut })
-        .onTouch((event: TouchEvent) => {
-          this.handlePressState('toggle_period', event);
-        })
+        .margin({ left: 10 })
         .onClick(() => {
-          this.togglePeriodForDebug();
+          router.pushUrl({ url: 'pages/messagecenter/mymessages', params: { isNight: this.isNight } });
         })
+      }
+      .alignItems(VerticalAlign.Center)
     }
     .width('100%')
     .alignItems(VerticalAlign.Center)
