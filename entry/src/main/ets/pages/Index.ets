@@ -1,6 +1,7 @@
+import router from '@ohos.router';
 import { DeviceDetailPages } from '../components/DeviceDetailPages';
-import { P21_MyProfile } from './my/myprofile';
 import { P31_StoreHome } from './store/storehome';
+import { P21_MyProfile } from './my/myprofile';
 import {
   AgentMessageSpec,
   AgentRecordSpec,
@@ -60,11 +61,29 @@ interface SceneSpec {
   detail: string;
   badge: string;
   baseId?: string;
+  devicePresets?: SceneDevicePresetSpec[];
 }
 
 interface RoomDeviceState {
   roomId: string;
   pointIds: string[];
+}
+
+interface SceneDevicePresetSpec {
+  pointId: string;
+  on: boolean;
+  value: number;
+}
+
+interface DynamicDeviceStateSpec {
+  pointId: string;
+  on: boolean;
+  value: number;
+}
+
+interface IndexRouteParams {
+  activeTab?: string;
+  isNight?: boolean;
 }
 
 const ROOM_ASPECT: number = 1402 / 1122;
@@ -82,7 +101,8 @@ const SCENE_TEMPLATES: SceneSpec[] = [
   { id: 'morning', label: '早安', detail: '开帘与日间', badge: '晨', baseId: 'morning' },
   { id: 'arrive', label: '回家', detail: '灯光与空气', badge: '家', baseId: 'arrive' },
   { id: 'movie', label: '观影', detail: '客厅联动', badge: '影', baseId: 'movie' },
-  { id: 'sleep', label: '睡眠', detail: '夜间静音', badge: '夜', baseId: 'sleep' }
+  { id: 'sleep', label: '睡眠', detail: '夜间静音', badge: '夜', baseId: 'sleep' },
+  { id: 'pet', label: '宠物模式', detail: '看护与通风', badge: '宠', baseId: 'pet' }
 ];
 
 const INITIAL_SCENES: SceneSpec[] = SCENE_TEMPLATES;
@@ -157,6 +177,16 @@ const POINTS: PointSpec[] = [
   { id: 'bedroom_door', roomId: 'bedroom', name: '房门', type: '安防', x: 91, y: 58, detail: '已关闭', action: 'toggle' }
 ];
 
+const GENERIC_DEVICE_LIBRARY: PointSpec[] = [
+  { id: 'generic_air', roomId: 'generic', name: '空调', type: '温控', x: 50, y: 22, detail: '可设置目标温度', action: 'temperature' },
+  { id: 'generic_curtain', roomId: 'generic', name: '窗帘', type: '遮阳', x: 32, y: 42, detail: '可设置开合比例', action: 'curtain' },
+  { id: 'generic_tv', roomId: 'generic', name: '电视', type: '影音', x: 70, y: 36, detail: '可切换开关状态', action: 'toggle' },
+  { id: 'generic_purifier', roomId: 'generic', name: '空气净化器', type: '空气', x: 86, y: 56, detail: '可切换净化状态', action: 'toggle' },
+  { id: 'generic_robot', roomId: 'generic', name: '清洁机器人', type: '清洁', x: 20, y: 72, detail: '可启动或暂停清扫', action: 'toggle' },
+  { id: 'generic_light', roomId: 'generic', name: '主灯', type: '照明', x: 40, y: 78, detail: '可设置开关和亮度', action: 'light' },
+  { id: 'generic_door', roomId: 'generic', name: '门锁', type: '安防', x: 88, y: 60, detail: '可设置锁定状态', action: 'toggle' }
+];
+
 const DEFAULT_POINT: PointSpec = POINTS[0];
 
 const INITIAL_ROOM_DEVICES: RoomDeviceState[] = [
@@ -182,7 +212,6 @@ struct Index {
   @State agentPrompt: string = '';
   @State agentListening: boolean = false;
   @State agentThinking: boolean = false;
-  @State smartPageMode: string = 'center';
   @State smartHubExpanded: boolean = false;
   @State smartFloatX: number = 232;
   @State smartFloatY: number = 128;
@@ -208,32 +237,38 @@ struct Index {
   @State customSceneName: string = '';
   @State customSceneDetail: string = '';
   @State selectedSceneTemplateId: string = 'morning';
+  @State editingSceneId: string = '';
+  @State sceneDevicePresetsDraft: SceneDevicePresetSpec[] = [];
+  @State dynamicDeviceStates: DynamicDeviceStateSpec[] = [];
   @State roomDevices: RoomDeviceState[] = INITIAL_ROOM_DEVICES;
-  @StorageLink('homeLivingAirInstalled') livingAirInstalled: boolean = true;
-  @StorageLink('homeLivingCurtainInstalled') livingCurtainInstalled: boolean = true;
-  @StorageLink('homeLivingTvInstalled') livingTvInstalled: boolean = true;
-  @StorageLink('homeLivingPurifierInstalled') livingPurifierInstalled: boolean = true;
-  @StorageLink('homeLivingRobotInstalled') livingRobotInstalled: boolean = true;
-  @StorageLink('homeLivingLightInstalled') livingLightInstalled: boolean = true;
-  @StorageLink('homeNightMode') isNight: boolean = false;
-  @StorageLink('homeNightManual') manualPeriod: boolean = false;
-  @StorageLink('homeLivingLightOn') livingLightOn: boolean = false;
+  @State isNight: boolean = false;
+  @State manualPeriod: boolean = false;
+  @State livingLightOn: boolean = false;
   @State bedroomLightOn: boolean = false;
-  @StorageLink('homeLivingTemperature') livingTemperature: number = 24;
+  @State livingTemperature: number = 24;
   @State bedroomTemperature: number = 23;
-  @StorageLink('homeLivingCurtain') livingCurtain: number = 46;
+  @State livingCurtain: number = 46;
   @State bedroomCurtain: number = 58;
   @State livingLightLevel: number = 68;
   @State bedroomLightLevel: number = 22;
-  @StorageLink('homeLivingTvOn') livingTvOn: boolean = false;
-  @StorageLink('homeLivingPurifierOn') livingPurifierOn: boolean = true;
-  @StorageLink('homeLivingRobotOn') livingRobotOn: boolean = false;
+  @State livingTvOn: boolean = false;
+  @State livingPurifierOn: boolean = true;
+  @State livingRobotOn: boolean = false;
   @State bedroomRobotOn: boolean = false;
   @State bedroomDoorLocked: boolean = true;
   private clockTimer: number = -1;
 
   aboutToAppear(): void {
-    this.applyAutoPeriod();
+    const params = router.getParams() as IndexRouteParams | undefined;
+    if (params && params.activeTab !== undefined) {
+      this.activeTab = params.activeTab;
+    }
+    if (params && params.isNight !== undefined) {
+      this.isNight = params.isNight;
+      this.manualPeriod = true;
+    } else {
+      this.applyAutoPeriod();
+    }
     try {
       this.clockTimer = setInterval(() => {
         if (!this.manualPeriod) {
@@ -283,38 +318,263 @@ struct Index {
     return room.templateId !== undefined ? room.templateId : room.id;
   }
 
+  private pointBaseId(pointId: string): string {
+    const markerIndex = pointId.indexOf('@');
+    if (markerIndex >= 0) {
+      const nextMarkerIndex = pointId.indexOf('@', markerIndex + 1);
+      if (nextMarkerIndex >= 0) {
+        return pointId.substring(markerIndex + 1, nextMarkerIndex);
+      }
+      return pointId.substring(markerIndex + 1);
+    }
+    return pointId;
+  }
+
+  private roomPointId(roomId: string, pointId: string, instanceIndex?: number): string {
+    if (instanceIndex !== undefined) {
+      return `${roomId}@${pointId}@${instanceIndex}`;
+    }
+    return `${roomId}@${pointId}`;
+  }
+
+  private roomIdForPointId(pointId: string): string {
+    const markerIndex = pointId.indexOf('@');
+    if (markerIndex >= 0) {
+      return pointId.substring(0, markerIndex);
+    }
+    for (let i = 0; i < this.roomDevices.length; i++) {
+      if (this.roomDevices[i].pointIds.indexOf(pointId) >= 0) {
+        return this.roomDevices[i].roomId;
+      }
+    }
+    return this.activeRoomId;
+  }
+
+  private pointLibraryForRoom(roomId: string): PointSpec[] {
+    const templateId = this.roomTemplateId(roomId);
+    const templatePoints = POINTS.filter((point: PointSpec) => point.roomId === templateId && point.action !== 'info');
+    return templatePoints.length > 0 ? templatePoints : GENERIC_DEVICE_LIBRARY;
+  }
+
+  private pointDefinitionById(pointId: string): PointSpec {
+    const baseId = this.pointBaseId(pointId);
+    for (let i = 0; i < POINTS.length; i++) {
+      if (POINTS[i].id === baseId) {
+        return POINTS[i];
+      }
+    }
+    for (let i = 0; i < GENERIC_DEVICE_LIBRARY.length; i++) {
+      if (GENERIC_DEVICE_LIBRARY[i].id === baseId) {
+        return GENERIC_DEVICE_LIBRARY[i];
+      }
+    }
+    return DEFAULT_POINT;
+  }
+
+  private pointSpecForRoom(roomId: string, pointId: string): PointSpec {
+    const definition = this.pointDefinitionById(pointId);
+    return {
+      id: pointId,
+      roomId: roomId,
+      name: definition.name,
+      type: definition.type,
+      x: definition.x,
+      y: definition.y,
+      detail: definition.detail,
+      action: definition.action
+    };
+  }
+
+  private usesScopedPointIds(roomId: string): boolean {
+    return this.usesGenericRoomLibrary(roomId) || roomId !== this.roomTemplateId(roomId);
+  }
+
+  private nextScopedPointId(roomId: string, pointId: string): string {
+    const installedIds = this.installedPointIds(roomId);
+    let nextIndex = 1;
+    for (let i = 0; i < installedIds.length; i++) {
+      const installedId = installedIds[i];
+      if (this.pointBaseId(installedId) !== pointId) {
+        continue;
+      }
+      const roomScopedPrefix = `${roomId}@${pointId}`;
+      if (installedId === roomScopedPrefix) {
+        if (nextIndex < 2) {
+          nextIndex = 2;
+        }
+        continue;
+      }
+      if (installedId.indexOf(`${roomScopedPrefix}@`) === 0) {
+        const suffix = installedId.substring(roomScopedPrefix.length + 1);
+        const parsedIndex = Number(suffix);
+        if (!Number.isNaN(parsedIndex) && nextIndex <= parsedIndex) {
+          nextIndex = parsedIndex + 1;
+        }
+      }
+    }
+    return this.roomPointId(roomId, pointId, nextIndex);
+  }
+
+  private usesSharedTemplateState(roomId: string): boolean {
+    const templateId = this.roomTemplateId(roomId);
+    return roomId === templateId && (templateId === 'living' || templateId === 'bedroom');
+  }
+
+  private hasStaticActionInRoom(roomId: string, action: string): boolean {
+    const points = this.pointsForRoom(roomId);
+    for (let i = 0; i < points.length; i++) {
+      if (points[i].action === action && points[i].id.indexOf('@') < 0) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  private sharedTemperatureForRoom(roomId: string): number {
+    return this.roomTemplateId(roomId) === 'living' ? this.livingTemperature : this.bedroomTemperature;
+  }
+
+  private setSharedTemperatureForRoom(roomId: string, value: number): void {
+    if (this.roomTemplateId(roomId) === 'living') {
+      this.livingTemperature = value;
+      return;
+    }
+    this.bedroomTemperature = value;
+  }
+
+  private sharedCurtainForRoom(roomId: string): number {
+    return this.roomTemplateId(roomId) === 'living' ? this.livingCurtain : this.bedroomCurtain;
+  }
+
+  private setSharedCurtainForRoom(roomId: string, value: number): void {
+    if (this.roomTemplateId(roomId) === 'living') {
+      this.livingCurtain = value;
+      return;
+    }
+    this.bedroomCurtain = value;
+  }
+
+  private sharedLightOnForRoom(roomId: string): boolean {
+    return this.roomTemplateId(roomId) === 'living' ? this.livingLightOn : this.bedroomLightOn;
+  }
+
+  private setSharedLightOnForRoom(roomId: string, value: boolean): void {
+    if (this.roomTemplateId(roomId) === 'living') {
+      this.livingLightOn = value;
+      return;
+    }
+    this.bedroomLightOn = value;
+  }
+
+  private sharedLightLevelForRoom(roomId: string): number {
+    return this.roomTemplateId(roomId) === 'living' ? this.livingLightLevel : this.bedroomLightLevel;
+  }
+
+  private setSharedLightLevelForRoom(roomId: string, value: number): void {
+    if (this.roomTemplateId(roomId) === 'living') {
+      this.livingLightLevel = value;
+      return;
+    }
+    this.bedroomLightLevel = value;
+  }
+
+  private sharedToggleOn(point: PointSpec): boolean {
+    const baseId = this.pointBaseId(point.id);
+    if (baseId === 'living_tv') {
+      return this.livingTvOn;
+    }
+    if (baseId === 'living_purifier') {
+      return this.livingPurifierOn;
+    }
+    if (baseId === 'living_robot') {
+      return this.livingRobotOn;
+    }
+    if (baseId === 'bedroom_robot') {
+      return this.bedroomRobotOn;
+    }
+    if (baseId === 'bedroom_door') {
+      return this.bedroomDoorLocked;
+    }
+    return false;
+  }
+
+  private setSharedToggleOn(point: PointSpec, value: boolean): void {
+    const baseId = this.pointBaseId(point.id);
+    if (baseId === 'living_tv') {
+      this.livingTvOn = value;
+      return;
+    }
+    if (baseId === 'living_purifier') {
+      this.livingPurifierOn = value;
+      return;
+    }
+    if (baseId === 'living_robot') {
+      this.livingRobotOn = value;
+      return;
+    }
+    if (baseId === 'bedroom_robot') {
+      this.bedroomRobotOn = value;
+      return;
+    }
+    if (baseId === 'bedroom_door') {
+      this.bedroomDoorLocked = value;
+    }
+  }
+
+  private dynamicStateDefault(point: PointSpec): DynamicDeviceStateSpec {
+    if (point.action === 'temperature') {
+      return { pointId: point.id, on: true, value: 24 };
+    }
+    if (point.action === 'curtain') {
+      return { pointId: point.id, on: true, value: 50 };
+    }
+    if (point.action === 'light') {
+      return { pointId: point.id, on: false, value: 68 };
+    }
+    if (this.pointBaseId(point.id) === 'generic_door') {
+      return { pointId: point.id, on: true, value: 100 };
+    }
+    return { pointId: point.id, on: false, value: 100 };
+  }
+
+  private dynamicState(pointId: string): DynamicDeviceStateSpec {
+    for (let i = 0; i < this.dynamicDeviceStates.length; i++) {
+      if (this.dynamicDeviceStates[i].pointId === pointId) {
+        return this.dynamicDeviceStates[i];
+      }
+    }
+    return this.dynamicStateDefault(this.pointById(pointId));
+  }
+
+  private setDynamicState(nextState: DynamicDeviceStateSpec): void {
+    let matched = false;
+    const nextStates = this.dynamicDeviceStates.map((state: DynamicDeviceStateSpec) => {
+      if (state.pointId === nextState.pointId) {
+        matched = true;
+        return nextState;
+      }
+      return state;
+    });
+    this.dynamicDeviceStates = matched ? nextStates : [...nextStates, nextState];
+  }
+
+  private removeDynamicState(pointId: string): void {
+    this.dynamicDeviceStates = this.dynamicDeviceStates.filter((state: DynamicDeviceStateSpec) => state.pointId !== pointId);
+  }
+
+  private usesGenericRoomLibrary(roomId: string): boolean {
+    return this.pointLibraryForRoom(roomId) === GENERIC_DEVICE_LIBRARY;
+  }
+
   private activeTemplateRoomId(): string {
     return this.roomTemplateId(this.activeRoomId);
   }
 
   private templateControllablePoints(roomId: string): PointSpec[] {
-    const templateId = this.roomTemplateId(roomId);
-    return POINTS.filter((point: PointSpec) => point.roomId === templateId && point.action !== 'info');
+    return this.pointLibraryForRoom(roomId);
   }
 
   private installedPointIds(roomId: string): string[] {
-    if (roomId === 'living') {
-      const ids: string[] = [];
-      if (this.livingAirInstalled) {
-        ids.push('living_air');
-      }
-      if (this.livingCurtainInstalled) {
-        ids.push('living_curtain');
-      }
-      if (this.livingTvInstalled) {
-        ids.push('living_tv');
-      }
-      if (this.livingPurifierInstalled) {
-        ids.push('living_purifier');
-      }
-      if (this.livingRobotInstalled) {
-        ids.push('living_robot');
-      }
-      if (this.livingLightInstalled) {
-        ids.push('living_light');
-      }
-      return ids;
-    }
     for (let i = 0; i < this.roomDevices.length; i++) {
       if (this.roomDevices[i].roomId === roomId) {
         return this.roomDevices[i].pointIds;
@@ -324,14 +584,6 @@ struct Index {
   }
 
   private setInstalledPointIds(roomId: string, pointIds: string[]): void {
-    if (roomId === 'living') {
-      this.livingAirInstalled = pointIds.indexOf('living_air') >= 0;
-      this.livingCurtainInstalled = pointIds.indexOf('living_curtain') >= 0;
-      this.livingTvInstalled = pointIds.indexOf('living_tv') >= 0;
-      this.livingPurifierInstalled = pointIds.indexOf('living_purifier') >= 0;
-      this.livingRobotInstalled = pointIds.indexOf('living_robot') >= 0;
-      this.livingLightInstalled = pointIds.indexOf('living_light') >= 0;
-    }
     let matched = false;
     const nextRoomDevices: RoomDeviceState[] = this.roomDevices.map((item: RoomDeviceState) => {
       if (item.roomId === roomId) {
@@ -352,49 +604,77 @@ struct Index {
 
   private pointsForRoom(roomId: string): PointSpec[] {
     const installedIds = this.installedPointIds(roomId);
-    return this.templateControllablePoints(roomId).filter((point: PointSpec) => installedIds.indexOf(point.id) >= 0);
+    const points: PointSpec[] = [];
+    for (let i = 0; i < installedIds.length; i++) {
+      points.push(this.pointSpecForRoom(roomId, installedIds[i]));
+    }
+    return points;
   }
 
   private pointById(pointId: string): PointSpec {
-    for (let i = 0; i < POINTS.length; i++) {
-      if (POINTS[i].id === pointId) {
-        return POINTS[i];
-      }
-    }
-    return DEFAULT_POINT;
+    return this.pointSpecForRoom(this.roomIdForPointId(pointId), pointId);
   }
 
   private activeLightOn(): boolean {
-    const templateId = this.activeTemplateRoomId();
-    if (templateId === 'living') {
-      return this.livingLightOn;
-    }
-    if (templateId === 'bedroom') {
-      return this.bedroomLightOn;
-    }
-    return false;
+    return this.lightOnForRoom(this.activeRoomId);
   }
 
   private setActiveLight(value: boolean): void {
-    const templateId = this.activeTemplateRoomId();
-    if (templateId === 'living') {
-      this.livingLightOn = value;
-      return;
-    }
-    if (templateId === 'bedroom') {
-      this.bedroomLightOn = value;
-    }
+    this.setLightOnForRoom(this.activeRoomId, value);
   }
 
   private lightOnForRoom(roomId: string): boolean {
-    const templateId = this.roomTemplateId(roomId);
-    if (templateId === 'living') {
-      return this.livingLightOn;
+    const points = this.pointsForRoom(roomId).filter((point: PointSpec) => point.action === 'light');
+    let hasStaticLight = false;
+    for (let i = 0; i < points.length; i++) {
+      if (points[i].id.indexOf('@') >= 0 && this.dynamicState(points[i].id).on) {
+        return true;
+      }
+      if (points[i].id.indexOf('@') < 0) {
+        hasStaticLight = true;
+      }
     }
-    if (templateId === 'bedroom') {
-      return this.bedroomLightOn;
+    if (hasStaticLight && this.usesSharedTemplateState(roomId)) {
+      return this.sharedLightOnForRoom(roomId);
     }
     return false;
+  }
+
+  private setLightOnForRoom(roomId: string, value: boolean): void {
+    const points = this.pointsForRoom(roomId).filter((point: PointSpec) => point.action === 'light');
+    let updatedDynamic = false;
+    for (let i = 0; i < points.length; i++) {
+      if (points[i].id.indexOf('@') >= 0) {
+        const state = this.dynamicState(points[i].id);
+        this.setDynamicState({
+          pointId: points[i].id,
+          on: value,
+          value: state.value
+        });
+        updatedDynamic = true;
+      }
+    }
+    if (updatedDynamic) {
+      return;
+    }
+    if (this.hasStaticActionInRoom(roomId, 'light') && this.usesSharedTemplateState(roomId)) {
+      this.setSharedLightOnForRoom(roomId, value);
+    }
+  }
+
+  private lightLevelForRoom(roomId: string): number {
+    const points = this.pointsForRoom(roomId).filter((point: PointSpec) => point.action === 'light');
+    let hasStaticLight = false;
+    for (let i = 0; i < points.length; i++) {
+      if (points[i].id.indexOf('@') >= 0) {
+        return this.dynamicState(points[i].id).value;
+      }
+      hasStaticLight = true;
+    }
+    if (hasStaticLight && this.usesSharedTemplateState(roomId)) {
+      return this.sharedLightLevelForRoom(roomId);
+    }
+    return 0;
   }
 
   private roomImageById(roomId: string): Resource {
@@ -608,8 +888,34 @@ struct Index {
   }
 
   private pointStatus(point: PointSpec): string {
+    const baseId = this.pointBaseId(point.id);
+    if (point.id.indexOf('@') >= 0) {
+      const state = this.dynamicState(point.id);
+      if (point.action === 'temperature') {
+        return `${state.value}°C`;
+      }
+      if (point.action === 'curtain') {
+        return `${state.value}%`;
+      }
+      if (point.action === 'light') {
+        return state.on ? `已开 · ${state.value}%` : '已关闭';
+      }
+      if (baseId === 'generic_tv') {
+        return state.on ? '播放中' : '待机';
+      }
+      if (baseId === 'generic_purifier') {
+        return state.on ? '运行中' : '已关闭';
+      }
+      if (baseId === 'generic_robot') {
+        return state.on ? '清扫中' : '待命';
+      }
+      if (baseId === 'generic_door') {
+        return state.on ? '已上锁' : '未上锁';
+      }
+      return state.on ? '已开启' : '已关闭';
+    }
     if (point.action === 'light') {
-      return this.activeLightOn() ? `已开 · ${this.activeTemplateRoomId() === 'living' ? this.livingLightLevel : this.bedroomLightLevel}%` : '已关闭';
+      return this.lightOnForRoom(point.roomId) ? `已开 · ${this.lightLevelForRoom(point.roomId)}%` : '已关闭';
     }
     if (point.id === 'living_air') {
       return `${this.livingTemperature}°C`;
@@ -702,9 +1008,11 @@ struct Index {
     this.addRoomPanelVisible = false;
     this.devicePanelMode = '';
     this.addScenePanelVisible = true;
+    this.editingSceneId = '';
     this.customSceneName = '';
     this.customSceneDetail = '';
     this.selectedSceneTemplateId = this.sceneBaseId(this.activeSceneId);
+    this.sceneDevicePresetsDraft = [];
     this.selectionVersion++;
   }
 
@@ -733,7 +1041,8 @@ struct Index {
       label: this.nextSceneLabel(sceneId),
       detail: template.detail,
       badge: template.badge,
-      baseId: sceneId
+      baseId: sceneId,
+      devicePresets: this.sceneDefaultsForTemplate(sceneId)
     };
     this.scenes = [...this.scenes, nextScene];
     this.activeSceneId = nextScene.id;
@@ -752,13 +1061,72 @@ struct Index {
       label: name,
       detail: this.sceneDraftDetailValue(),
       badge: template.badge,
-      baseId: template.id
+      baseId: template.id,
+      devicePresets: this.sceneDevicePresetsDraft
     };
     this.scenes = [...this.scenes, nextScene];
     this.activeSceneId = nextScene.id;
     this.applyScene(nextScene.id);
+    this.editingSceneId = '';
     this.customSceneName = '';
     this.customSceneDetail = '';
+    this.sceneDevicePresetsDraft = [];
+    this.addScenePanelVisible = false;
+  }
+
+  private isEditingScene(): boolean {
+    return this.editingSceneId.length > 0;
+  }
+
+  private openEditScenePanel(sceneId: string): void {
+    const scene = this.sceneById(sceneId);
+    this.selectedPointId = '';
+    this.detailPointId = '';
+    this.addRoomPanelVisible = false;
+    this.devicePanelMode = '';
+    this.addScenePanelVisible = true;
+    this.editingSceneId = sceneId;
+    this.customSceneName = scene.label;
+    this.customSceneDetail = scene.detail;
+    this.selectedSceneTemplateId = this.sceneBaseId(sceneId);
+    this.sceneDevicePresetsDraft = scene.devicePresets !== undefined && scene.devicePresets.length > 0
+      ? scene.devicePresets.map((preset: SceneDevicePresetSpec): SceneDevicePresetSpec => this.cloneScenePreset(preset))
+      : this.sceneDefaultsForTemplate(sceneId);
+    this.selectionVersion++;
+  }
+
+  private saveSceneEditor(): void {
+    if (!this.isEditingScene()) {
+      this.addCustomScene();
+      return;
+    }
+    const name = this.customSceneName.trim();
+    if (name.length === 0) {
+      return;
+    }
+    const template = this.selectedSceneTemplate();
+    const nextScenes: SceneSpec[] = [];
+    for (let i = 0; i < this.scenes.length; i++) {
+      if (this.scenes[i].id === this.editingSceneId) {
+        nextScenes.push({
+          id: this.scenes[i].id,
+          label: name,
+          detail: this.sceneDraftDetailValue(),
+          badge: template.badge,
+          baseId: template.id,
+          devicePresets: this.sceneDevicePresetsDraft
+        });
+      } else {
+        nextScenes.push(this.scenes[i]);
+      }
+    }
+    this.scenes = nextScenes;
+    this.activeSceneId = this.editingSceneId;
+    this.applyScene(this.editingSceneId);
+    this.editingSceneId = '';
+    this.customSceneName = '';
+    this.customSceneDetail = '';
+    this.sceneDevicePresetsDraft = [];
     this.addScenePanelVisible = false;
   }
 
@@ -848,76 +1216,87 @@ struct Index {
 
   private togglePoint(pointId: string): void {
     const point = this.pointById(pointId);
+    if (point.id.indexOf('@') >= 0) {
+      const state = this.dynamicState(point.id);
+      this.setDynamicState({
+        pointId: point.id,
+        on: !state.on,
+        value: state.value
+      });
+      return;
+    }
     if (point.action === 'light') {
-      this.setActiveLight(!this.activeLightOn());
+      this.setLightOnForRoom(point.roomId, !this.lightOnForRoom(point.roomId));
       return;
     }
-    if (point.id === 'living_tv') {
-      this.livingTvOn = !this.livingTvOn;
-      return;
-    }
-    if (point.id === 'living_purifier') {
-      this.livingPurifierOn = !this.livingPurifierOn;
-      return;
-    }
-    if (point.id === 'living_robot') {
-      this.livingRobotOn = !this.livingRobotOn;
-      return;
-    }
-    if (point.id === 'bedroom_robot') {
-      this.bedroomRobotOn = !this.bedroomRobotOn;
-      return;
-    }
-    if (point.id === 'bedroom_door') {
-      this.bedroomDoorLocked = !this.bedroomDoorLocked;
-    }
+    this.setSharedToggleOn(point, !this.sharedToggleOn(point));
   }
 
   private adjustPoint(pointId: string, delta: number): void {
     const point = this.pointById(pointId);
-    if (point.id === 'living_air') {
+    const baseId = this.pointBaseId(point.id);
+    if (point.id.indexOf('@') >= 0) {
+      const state = this.dynamicState(point.id);
+      if (point.action === 'temperature') {
+        this.setDynamicState({ pointId: point.id, on: true, value: Math.min(Math.max(state.value + delta, 16), 30) });
+        return;
+      }
+      if (point.action === 'curtain') {
+        this.setDynamicState({ pointId: point.id, on: true, value: Math.min(Math.max(state.value + delta * 5, 0), 100) });
+        return;
+      }
+      if (point.action === 'light') {
+        this.setDynamicState({
+          pointId: point.id,
+          on: true,
+          value: Math.min(Math.max(state.value + delta * 10, 1), 100)
+        });
+      }
+      return;
+    }
+    if (baseId === 'living_air') {
       this.livingTemperature = Math.min(Math.max(this.livingTemperature + delta, 16), 30);
       return;
     }
-    if (point.id === 'bedroom_air') {
+    if (baseId === 'bedroom_air') {
       this.bedroomTemperature = Math.min(Math.max(this.bedroomTemperature + delta, 16), 30);
       return;
     }
-    if (point.id === 'living_curtain') {
+    if (baseId === 'living_curtain') {
       this.livingCurtain = Math.min(Math.max(this.livingCurtain + delta * 5, 0), 100);
       return;
     }
-    if (point.id === 'bedroom_curtain') {
+    if (baseId === 'bedroom_curtain') {
       this.bedroomCurtain = Math.min(Math.max(this.bedroomCurtain + delta * 5, 0), 100);
       return;
     }
     if (point.action === 'light') {
-      if (!this.activeLightOn()) {
-        this.setActiveLight(true);
+      if (!this.lightOnForRoom(point.roomId)) {
+        this.setLightOnForRoom(point.roomId, true);
       }
-      if (this.activeTemplateRoomId() === 'living') {
-        this.livingLightLevel = Math.min(Math.max(this.livingLightLevel + delta * 10, 1), 100);
-      } else {
-        this.bedroomLightLevel = Math.min(Math.max(this.bedroomLightLevel + delta * 10, 1), 100);
-      }
+      this.setSharedLightLevelForRoom(point.roomId, Math.min(Math.max(this.sharedLightLevelForRoom(point.roomId) + delta * 10, 1), 100));
     }
   }
 
   private detailValue(point: PointSpec): number {
-    if (point.id === 'living_air') {
+    const baseId = this.pointBaseId(point.id);
+    if (point.id.indexOf('@') >= 0) {
+      return this.dynamicState(point.id).value;
+    }
+    if (baseId === 'living_air') {
       return this.livingTemperature;
     }
-    if (point.id === 'bedroom_air') {
+    if (baseId === 'bedroom_air') {
       return this.bedroomTemperature;
     }
-    if (point.id === 'living_curtain') {
+    if (baseId === 'living_curtain') {
       return this.livingCurtain;
     }
-    if (point.id === 'bedroom_curtain') {
+    if (baseId === 'bedroom_curtain') {
       return this.bedroomCurtain;
     }
     if (point.action === 'light') {
-      return this.activeTemplateRoomId() === 'living' ? this.livingLightLevel : this.bedroomLightLevel;
+      return this.lightLevelForRoom(point.roomId);
     }
     return 0;
   }
@@ -933,31 +1312,37 @@ struct Index {
   }
 
   private setDetailValue(point: PointSpec, value: number): void {
-    if (point.id === 'living_air') {
+    const baseId = this.pointBaseId(point.id);
+    if (point.id.indexOf('@') >= 0) {
+      const state = this.dynamicState(point.id);
+      this.setDynamicState({
+        pointId: point.id,
+        on: point.action === 'light' ? true : state.on,
+        value: Math.round(value)
+      });
+      return;
+    }
+    if (baseId === 'living_air') {
       this.livingTemperature = Math.round(value);
       return;
     }
-    if (point.id === 'bedroom_air') {
+    if (baseId === 'bedroom_air') {
       this.bedroomTemperature = Math.round(value);
       return;
     }
-    if (point.id === 'living_curtain') {
+    if (baseId === 'living_curtain') {
       this.livingCurtain = Math.round(value);
       return;
     }
-    if (point.id === 'bedroom_curtain') {
+    if (baseId === 'bedroom_curtain') {
       this.bedroomCurtain = Math.round(value);
       return;
     }
     if (point.action === 'light') {
-      if (!this.activeLightOn()) {
-        this.setActiveLight(true);
+      if (!this.lightOnForRoom(point.roomId)) {
+        this.setLightOnForRoom(point.roomId, true);
       }
-      if (this.activeTemplateRoomId() === 'living') {
-        this.livingLightLevel = Math.round(value);
-      } else {
-        this.bedroomLightLevel = Math.round(value);
-      }
+      this.setSharedLightLevelForRoom(point.roomId, Math.round(value));
     }
   }
 
@@ -970,14 +1355,7 @@ struct Index {
   }
 
   private currentLightLevel(): number {
-    const templateId = this.activeTemplateRoomId();
-    if (templateId === 'living') {
-      return this.livingLightLevel;
-    }
-    if (templateId === 'bedroom') {
-      return this.bedroomLightLevel;
-    }
-    return 0;
+    return this.lightLevelForRoom(this.activeRoomId);
   }
 
   private hasActionInActiveRoom(action: string): boolean {
@@ -991,12 +1369,16 @@ struct Index {
   }
 
   private temperatureSummary(): string {
-    const templateId = this.activeTemplateRoomId();
-    if (templateId === 'living') {
-      return `${this.livingTemperature}°C`;
+    const points = this.pointsForActiveRoom().filter((point: PointSpec) => point.action === 'temperature');
+    let hasStaticTemperature = false;
+    for (let i = 0; i < points.length; i++) {
+      if (points[i].id.indexOf('@') >= 0) {
+        return `${this.dynamicState(points[i].id).value}°C`;
+      }
+      hasStaticTemperature = true;
     }
-    if (templateId === 'bedroom') {
-      return `${this.bedroomTemperature}°C`;
+    if (hasStaticTemperature && this.usesSharedTemplateState(this.activeRoomId)) {
+      return `${this.sharedTemperatureForRoom(this.activeRoomId)}°C`;
     }
     return '未配置';
   }
@@ -1009,7 +1391,15 @@ struct Index {
   }
 
   private securitySummary(): string {
-    if (this.activeTemplateRoomId() === 'bedroom') {
+    const points = this.pointsForActiveRoom().filter((point: PointSpec) => this.pointBaseId(point.id).indexOf('door') >= 0);
+    let hasStaticDoor = false;
+    for (let i = 0; i < points.length; i++) {
+      if (points[i].id.indexOf('@') >= 0) {
+        return this.dynamicState(points[i].id).on ? '已上锁' : '未上锁';
+      }
+      hasStaticDoor = true;
+    }
+    if (hasStaticDoor && this.usesSharedTemplateState(this.activeRoomId) && this.roomTemplateId(this.activeRoomId) === 'bedroom') {
       return this.bedroomDoorLocked ? '已上锁' : '未上锁';
     }
     return this.controllablePoints().length > 0 ? '状态正常' : '未配置';
@@ -1079,6 +1469,9 @@ struct Index {
     if (baseId === 'movie') {
       return '#7F9CFF';
     }
+    if (baseId === 'pet') {
+      return '#5FBF9A';
+    }
     return '#78A9FF';
   }
 
@@ -1098,43 +1491,28 @@ struct Index {
   private applyScene(sceneId: string): void {
     this.activeSceneId = sceneId;
     this.manualPeriod = true;
+    const scene = this.sceneById(sceneId);
     const baseId = this.sceneBaseId(sceneId);
     if (baseId === 'morning') {
       this.isNight = false;
-      this.livingCurtain = 82;
-      this.bedroomCurtain = 68;
-      this.livingLightOn = false;
-      this.bedroomLightOn = false;
-      this.livingTvOn = false;
-      this.bedroomDoorLocked = true;
-      return;
-    }
-    if (baseId === 'arrive') {
+    } else if (baseId === 'arrive') {
       this.isNight = false;
-      this.livingLightOn = true;
-      this.livingLightLevel = 76;
-      this.livingPurifierOn = true;
-      this.bedroomDoorLocked = false;
-      return;
-    }
-    if (baseId === 'movie') {
+    } else if (baseId === 'movie') {
       this.isNight = true;
-      this.livingTvOn = true;
-      this.livingLightOn = true;
-      this.livingLightLevel = 22;
-      this.livingCurtain = 16;
-      return;
+    } else if (baseId === 'pet') {
+      this.isNight = false;
+    } else {
+      this.isNight = true;
     }
-    this.isNight = true;
-    this.livingLightOn = false;
-    this.livingTvOn = false;
-    this.bedroomLightOn = true;
-    this.bedroomLightLevel = 12;
-    this.bedroomCurtain = 100;
-    this.bedroomDoorLocked = true;
+
+    const presets = scene.devicePresets !== undefined ? scene.devicePresets : this.sceneDefaultsForTemplate(sceneId);
+    for (let i = 0; i < presets.length; i++) {
+      this.applyScenePreset(presets[i]);
+    }
   }
 
   private pointBadge(point: PointSpec): string {
+    const baseId = this.pointBaseId(point.id);
     if (point.action === 'temperature') {
       return '温';
     }
@@ -1144,22 +1522,23 @@ struct Index {
     if (point.action === 'light') {
       return '灯';
     }
-    if (point.id.indexOf('door') >= 0) {
+    if (baseId.indexOf('door') >= 0) {
       return '门';
     }
-    if (point.id.indexOf('robot') >= 0) {
+    if (baseId.indexOf('robot') >= 0) {
       return '扫';
     }
-    if (point.id.indexOf('purifier') >= 0) {
+    if (baseId.indexOf('purifier') >= 0) {
       return '净';
     }
-    if (point.id.indexOf('tv') >= 0) {
+    if (baseId.indexOf('tv') >= 0) {
       return '影';
     }
     return point.name.substring(0, 1);
   }
 
   private deviceActionLabel(point: PointSpec): string {
+    const baseId = this.pointBaseId(point.id);
     if (point.action === 'temperature') {
       return '升温';
     }
@@ -1167,22 +1546,32 @@ struct Index {
       return this.detailValue(point) >= 100 ? '关闭' : '打开';
     }
     if (point.action === 'light') {
-      return this.activeLightOn() ? '关灯' : '开灯';
+      return point.id.indexOf('@') >= 0 ? (this.dynamicState(point.id).on ? '关灯' : '开灯') : (this.lightOnForRoom(point.roomId) ? '关灯' : '开灯');
     }
-    if (point.id === 'living_tv') {
-      return this.livingTvOn ? '关机' : '开机';
+    if (point.id.indexOf('@') >= 0 && baseId === 'generic_tv') {
+      return this.dynamicState(point.id).on ? '关机' : '开机';
     }
-    if (point.id === 'living_purifier') {
-      return this.livingPurifierOn ? '关闭' : '开启';
+    if (point.id.indexOf('@') >= 0 && baseId === 'generic_purifier') {
+      return this.dynamicState(point.id).on ? '关闭' : '开启';
     }
-    if (point.id === 'living_robot') {
-      return this.livingRobotOn ? '暂停' : '开始';
+    if (point.id.indexOf('@') >= 0 && baseId === 'generic_robot') {
+      return this.dynamicState(point.id).on ? '暂停' : '开始';
     }
-    if (point.id === 'bedroom_robot') {
-      return this.bedroomRobotOn ? '暂停' : '开始';
+    if (point.id.indexOf('@') >= 0 && baseId === 'generic_door') {
+      return this.dynamicState(point.id).on ? '解锁' : '上锁';
     }
-    if (point.id === 'bedroom_door') {
-      return this.bedroomDoorLocked ? '解锁' : '上锁';
+    if (baseId === 'living_tv' || baseId === 'living_purifier' || baseId === 'living_robot' || baseId === 'bedroom_robot' || baseId === 'bedroom_door') {
+      const enabled = this.sharedToggleOn(point);
+      if (baseId === 'living_tv') {
+        return enabled ? '关机' : '开机';
+      }
+      if (baseId === 'living_purifier') {
+        return enabled ? '关闭' : '开启';
+      }
+      if (baseId === 'bedroom_door') {
+        return enabled ? '解锁' : '上锁';
+      }
+      return enabled ? '暂停' : '开始';
     }
     if (point.action === 'toggle') {
       return '开关';
@@ -1225,6 +1614,10 @@ struct Index {
     return this.controllablePoints().slice(3);
   }
 
+  private overflowPoints(): PointSpec[] {
+    return this.controllablePoints().slice(6);
+  }
+
   private dotLeft(point: PointSpec): string {
     return this.percent(Math.min(Math.max(point.x - 3.1, 0), 92));
   }
@@ -1254,6 +1647,9 @@ struct Index {
 
   private roomPageHint(roomId: string): string {
     const count = this.pointsForRoom(roomId).length;
+    if (this.roomById(roomId).images === undefined) {
+      return count > 0 ? '通过下方设备区管理这个房间' : '这个房间还没有设备，可先在下方添加';
+    }
     return count > 0 ? '滑动来切换房间' : '这个房间还没有关联设备';
   }
 
@@ -1267,6 +1663,272 @@ struct Index {
       return value;
     }
     return this.selectedSceneTemplate().detail;
+  }
+
+  private sceneDefaultsForTemplate(sceneId: string): SceneDevicePresetSpec[] {
+    const baseId = this.sceneBaseId(sceneId);
+    if (baseId === 'morning') {
+      return [
+        { pointId: 'living_curtain', on: true, value: 82 },
+        { pointId: 'bedroom_curtain', on: true, value: 68 },
+        { pointId: 'living_light', on: false, value: 68 },
+        { pointId: 'bedroom_left_light', on: false, value: 22 },
+        { pointId: 'living_tv', on: false, value: 0 },
+        { pointId: 'bedroom_door', on: true, value: 100 }
+      ];
+    }
+    if (baseId === 'arrive') {
+      return [
+        { pointId: 'living_light', on: true, value: 76 },
+        { pointId: 'living_purifier', on: true, value: 100 },
+        { pointId: 'bedroom_door', on: false, value: 0 }
+      ];
+    }
+    if (baseId === 'movie') {
+      return [
+        { pointId: 'living_tv', on: true, value: 100 },
+        { pointId: 'living_light', on: true, value: 22 },
+        { pointId: 'living_curtain', on: true, value: 16 }
+      ];
+    }
+    if (baseId === 'pet') {
+      return [
+        { pointId: 'living_air', on: true, value: 24 },
+        { pointId: 'living_purifier', on: true, value: 100 },
+        { pointId: 'living_curtain', on: true, value: 42 },
+        { pointId: 'living_robot', on: false, value: 0 },
+        { pointId: 'bedroom_door', on: true, value: 100 }
+      ];
+    }
+    return [
+      { pointId: 'living_light', on: false, value: 0 },
+      { pointId: 'living_tv', on: false, value: 0 },
+      { pointId: 'bedroom_left_light', on: true, value: 12 },
+      { pointId: 'bedroom_curtain', on: true, value: 100 },
+      { pointId: 'bedroom_door', on: true, value: 100 }
+    ];
+  }
+
+  private sceneEditablePoints(): PointSpec[] {
+    let points: PointSpec[] = [];
+    for (let i = 0; i < this.rooms.length; i++) {
+      points = [...points, ...this.pointsForRoom(this.rooms[i].id)];
+    }
+    return points;
+  }
+
+  private sceneEditorTitle(): string {
+    return this.isEditingScene() ? '编辑场景' : '添加场景';
+  }
+
+  private sceneEditorSubtitle(): string {
+    return this.isEditingScene()
+      ? '调整这个场景保存的家电状态，保存后可直接执行。'
+      : '创建一个新场景，并保存每个家电的预设状态。';
+  }
+
+  private sceneEditorSubmitLabel(): string {
+    return this.isEditingScene() ? '保存场景' : '创建场景';
+  }
+
+  private sceneRoomLabel(point: PointSpec): string {
+    return this.roomById(point.roomId).name;
+  }
+
+  private scenePresetDraftOn(pointId: string): boolean {
+    const preset = this.scenePresetDraft(pointId);
+    if (preset !== undefined) {
+      return preset.on;
+    }
+    return this.pointCurrentOn(this.pointById(pointId));
+  }
+
+  private scenePresetDraftValue(pointId: string): number {
+    const preset = this.scenePresetDraft(pointId);
+    if (preset !== undefined) {
+      return preset.value;
+    }
+    return this.detailValue(this.pointById(pointId));
+  }
+
+  private scenePresetOffLabel(point: PointSpec): string {
+    const baseId = this.pointBaseId(point.id);
+    if (point.action === 'light') {
+      return '关灯';
+    }
+    if (baseId.indexOf('door') >= 0) {
+      return '解锁';
+    }
+    if (baseId.indexOf('tv') >= 0) {
+      return '关机';
+    }
+    if (baseId.indexOf('robot') >= 0) {
+      return '暂停';
+    }
+    return '关闭';
+  }
+
+  private scenePresetOnLabel(point: PointSpec): string {
+    const baseId = this.pointBaseId(point.id);
+    if (point.action === 'light') {
+      return '开灯';
+    }
+    if (baseId.indexOf('door') >= 0) {
+      return '上锁';
+    }
+    if (baseId.indexOf('tv') >= 0) {
+      return '开机';
+    }
+    if (baseId.indexOf('robot') >= 0) {
+      return '开始';
+    }
+    return '开启';
+  }
+
+  private scenePresetDraft(pointId: string): SceneDevicePresetSpec | undefined {
+    for (let i = 0; i < this.sceneDevicePresetsDraft.length; i++) {
+      if (this.sceneDevicePresetsDraft[i].pointId === pointId) {
+        return this.sceneDevicePresetsDraft[i];
+      }
+    }
+    return undefined;
+  }
+
+  private hasScenePresetDraft(pointId: string): boolean {
+    return this.scenePresetDraft(pointId) !== undefined;
+  }
+
+  private cloneScenePreset(preset: SceneDevicePresetSpec): SceneDevicePresetSpec {
+    return this.scenePresetSpec(preset.pointId, preset.on, preset.value);
+  }
+
+  private scenePresetSpec(pointId: string, on: boolean, value: number): SceneDevicePresetSpec {
+    return {
+      pointId: pointId,
+      on: on,
+      value: value
+    };
+  }
+
+  private defaultScenePreset(point: PointSpec): SceneDevicePresetSpec {
+    return {
+      pointId: point.id,
+      on: this.pointCurrentOn(point),
+      value: this.detailValue(point)
+    };
+  }
+
+  private pointCurrentOn(point: PointSpec): boolean {
+    const baseId = this.pointBaseId(point.id);
+    if (point.id.indexOf('@') >= 0) {
+      return this.dynamicState(point.id).on;
+    }
+    if (point.action === 'light') {
+      return this.lightOnForRoom(point.roomId);
+    }
+    if (point.action === 'temperature' || point.action === 'curtain') {
+      return true;
+    }
+    if (baseId === 'living_tv') {
+      return this.livingTvOn;
+    }
+    if (baseId === 'living_purifier') {
+      return this.livingPurifierOn;
+    }
+    if (baseId === 'living_robot') {
+      return this.livingRobotOn;
+    }
+    if (baseId === 'bedroom_robot') {
+      return this.bedroomRobotOn;
+    }
+    if (baseId === 'bedroom_door') {
+      return this.bedroomDoorLocked;
+    }
+    return false;
+  }
+
+  private scenePresetStatus(point: PointSpec): string {
+    const preset = this.scenePresetDraft(point.id);
+    if (preset === undefined) {
+      return '未加入场景';
+    }
+    const baseId = this.pointBaseId(point.id);
+    if (point.action === 'temperature') {
+      return `${preset.value}°C`;
+    }
+    if (point.action === 'curtain') {
+      return `${preset.value}%`;
+    }
+    if (point.action === 'light') {
+      return preset.on ? `已开 · ${preset.value}%` : '已关闭';
+    }
+    if (baseId.indexOf('door') >= 0) {
+      return preset.on ? '已上锁' : '未上锁';
+    }
+    return preset.on ? '已开启' : '已关闭';
+  }
+
+  private toggleScenePresetDraft(point: PointSpec): void {
+    if (this.hasScenePresetDraft(point.id)) {
+      this.sceneDevicePresetsDraft = this.sceneDevicePresetsDraft.filter((preset: SceneDevicePresetSpec) => preset.pointId !== point.id);
+      return;
+    }
+    this.sceneDevicePresetsDraft = [...this.sceneDevicePresetsDraft, this.defaultScenePreset(point)];
+  }
+
+  private updateScenePresetDraftOn(pointId: string, on: boolean): void {
+    this.sceneDevicePresetsDraft = this.sceneDevicePresetsDraft.map((preset: SceneDevicePresetSpec) => {
+      if (preset.pointId === pointId) {
+        return this.scenePresetSpec(preset.pointId, on, preset.value);
+      }
+      return preset;
+    });
+  }
+
+  private updateScenePresetDraftValue(pointId: string, delta: number): void {
+    const point = this.pointById(pointId);
+    const min = this.detailMin(point);
+    const max = this.detailMax(point);
+    this.sceneDevicePresetsDraft = this.sceneDevicePresetsDraft.map((preset: SceneDevicePresetSpec) => {
+      if (preset.pointId === pointId) {
+        let nextValue = preset.value;
+        if (point.action === 'temperature') {
+          nextValue = Math.min(Math.max(preset.value + delta, min), max);
+        } else if (point.action === 'curtain') {
+          nextValue = Math.min(Math.max(preset.value + delta * 5, min), max);
+        } else if (point.action === 'light') {
+          nextValue = Math.min(Math.max(preset.value + delta * 10, 1), max);
+        }
+        return this.scenePresetSpec(preset.pointId, point.action === 'light' ? true : preset.on, nextValue);
+      }
+      return preset;
+    });
+  }
+
+  private applyScenePreset(preset: SceneDevicePresetSpec): void {
+    const point = this.pointById(preset.pointId);
+    if (point.id.indexOf('@') >= 0) {
+      this.setDynamicState({
+        pointId: point.id,
+        on: preset.on,
+        value: preset.value
+      });
+      return;
+    }
+    if (point.action === 'temperature') {
+      this.setSharedTemperatureForRoom(point.roomId, preset.value);
+      return;
+    }
+    if (point.action === 'curtain') {
+      this.setSharedCurtainForRoom(point.roomId, preset.value);
+      return;
+    }
+    if (point.action === 'light') {
+      this.setSharedLightLevelForRoom(point.roomId, preset.value);
+      this.setSharedLightOnForRoom(point.roomId, preset.on);
+      return;
+    }
+    this.setSharedToggleOn(point, preset.on);
   }
 
   private panelViewportHeight(): number {
@@ -1287,8 +1949,7 @@ struct Index {
   }
 
   private availableDevicesForActiveRoom(): PointSpec[] {
-    const installedIds = this.installedPointIds(this.activeRoomId);
-    return this.templateControllablePoints(this.activeRoomId).filter((point: PointSpec) => installedIds.indexOf(point.id) < 0);
+    return this.templateControllablePoints(this.activeRoomId);
   }
 
   private canAddDeviceInActiveRoom(): boolean {
@@ -1301,16 +1962,20 @@ struct Index {
 
   private addDeviceToActiveRoom(pointId: string): void {
     const installedIds = this.installedPointIds(this.activeRoomId);
-    if (installedIds.indexOf(pointId) >= 0) {
-      return;
+    const installedBaseIds = installedIds.map((item: string) => this.pointBaseId(item));
+    const shouldCreateScopedInstance = this.usesScopedPointIds(this.activeRoomId) || installedBaseIds.indexOf(pointId) >= 0;
+    const nextPointId = shouldCreateScopedInstance ? this.nextScopedPointId(this.activeRoomId, pointId) : pointId;
+    this.setInstalledPointIds(this.activeRoomId, [...installedIds, nextPointId]);
+    if (nextPointId.indexOf('@') >= 0) {
+      this.setDynamicState(this.dynamicStateDefault(this.pointSpecForRoom(this.activeRoomId, nextPointId)));
     }
-    this.setInstalledPointIds(this.activeRoomId, [...installedIds, pointId]);
     this.selectionVersion++;
   }
 
   private removeDeviceFromActiveRoom(pointId: string): void {
     const nextInstalledIds = this.installedPointIds(this.activeRoomId).filter((id: string) => id !== pointId);
     this.setInstalledPointIds(this.activeRoomId, nextInstalledIds);
+    this.removeDynamicState(pointId);
     if (this.selectedPointId === pointId) {
       this.selectedPointId = '';
     }
@@ -1329,7 +1994,10 @@ struct Index {
   }
 
   private devicePanelHint(): string {
-    return this.devicePanelMode === 'add' ? '添加后会同步出现在 2.5D 图里' : '删除后会同时从设备区和 2.5D 图中移除';
+    if (this.devicePanelMode === 'add') {
+      return this.activeRoom().images !== undefined ? '添加后会同步到 2.5D 视图和下方设备区' : '这个房间没有 2.5D 图，也可以继续添加并在下方控制';
+    }
+    return this.activeRoom().images !== undefined ? '删除后会同时从设备区和 2.5D 视图中移除' : '删除后会从当前房间的设备区中移除';
   }
 
   private devicePanelEmptyText(): string {
@@ -1342,7 +2010,7 @@ struct Index {
 
   private listPrimaryLabel(point: PointSpec): string {
     if (point.action === 'light') {
-      return this.activeLightOn() ? '关闭' : '打开';
+      return this.lightOnForRoom(point.roomId) ? '关闭' : '打开';
     }
     if (point.action === 'temperature') {
       return '-';
@@ -1449,6 +2117,9 @@ struct Index {
 
   private openAutomationComposer(): void {
     this.expandedAutomationId = '';
+    this.automationTitle = '';
+    this.automationTrigger = '';
+    this.automationAction = '';
     this.automationComposerVisible = true;
   }
 
@@ -1538,6 +2209,18 @@ struct Index {
     return '智能中枢运行中';
   }
 
+  private goSmartDetail(mode: string): void {
+    router.pushUrl({
+      url: 'pages/smart/smartdetails',
+      params: {
+        mode: mode,
+        isNight: this.isNight,
+        automations: this.automations,
+        chatMessages: this.chatMessages
+      }
+    });
+  }
+
   @Builder
   TopBar() {
     Row() {
@@ -1547,26 +2230,59 @@ struct Index {
         .fontWeight(FontWeight.Bold)
         .layoutWeight(1)
 
-      Button(this.isNight ? '夜间' : '日间')
+      Row() {
+        Button(this.isNight ? '夜间' : '日间')
+          .height(42)
+          .fontSize(13)
+          .fontWeight(FontWeight.Bold)
+          .fontColor(this.inverseText())
+          .backgroundColor(this.translucentInverseBg())
+          .border({
+            width: 1,
+            color: this.glassBorderColor()
+          })
+          .borderRadius(21)
+          .scale(this.buttonScale('toggle_period'))
+          .opacity(this.buttonOpacity('toggle_period'))
+          .animation({ duration: 120, curve: Curve.EaseOut })
+          .onTouch((event: TouchEvent) => {
+            this.handlePressState('toggle_period', event);
+          })
+          .onClick(() => {
+            this.togglePeriodForDebug();
+          })
+
+        Stack() {
+          Column()
+            .width(42)
+            .height(42)
+            .backgroundColor(this.translucentInverseBg())
+            .border({
+              width: 1,
+              color: this.glassBorderColor()
+            })
+            .borderRadius(21)
+
+          Text('✉')
+            .fontSize(18)
+            .fontWeight(FontWeight.Bold)
+            .fontColor(this.inverseText())
+
+          Column()
+            .width(7)
+            .height(7)
+            .borderRadius(3.5)
+            .backgroundColor(this.isNight ? '#8EB8FF' : '#5E8CFF')
+            .margin({ left: 13, top: -12 })
+        }
+        .width(42)
         .height(42)
-        .fontSize(13)
-        .fontWeight(FontWeight.Bold)
-        .fontColor(this.inverseText())
-        .backgroundColor(this.translucentInverseBg())
-        .border({
-          width: 1,
-          color: this.glassBorderColor()
-        })
-        .borderRadius(21)
-        .scale(this.buttonScale('toggle_period'))
-        .opacity(this.buttonOpacity('toggle_period'))
-        .animation({ duration: 120, curve: Curve.EaseOut })
-        .onTouch((event: TouchEvent) => {
-          this.handlePressState('toggle_period', event);
-        })
+        .margin({ left: 10 })
         .onClick(() => {
-          this.togglePeriodForDebug();
+          router.pushUrl({ url: 'pages/messagecenter/mymessages', params: { isNight: this.isNight } });
         })
+      }
+      .alignItems(VerticalAlign.Center)
     }
     .width('100%')
     .alignItems(VerticalAlign.Center)
@@ -1653,10 +2369,15 @@ struct Index {
               .fontWeight(FontWeight.Bold)
               .fontColor(this.primaryText())
 
-            Text('当前房间暂未配置 2.5D 视角图')
+            Text(this.pointsForRoom(room.id).length > 0 ? `${this.pointsForRoom(room.id).length} 台设备可在下方直接控制` : '当前房间暂未配置 2.5D 视角图')
               .fontSize(13)
               .fontColor(this.secondaryText())
               .margin({ top: 10 })
+
+            Text('没有 2.5D 图也可以继续添加和管理设备')
+              .fontSize(11)
+              .fontColor(this.secondaryText())
+              .margin({ top: 6 })
           }
           .width('100%')
           .height('100%')
@@ -1904,9 +2625,27 @@ struct Index {
           .fontColor(this.primaryText())
           .layoutWeight(1)
 
-        Text('轻点执行')
+        Button('编辑当前场景')
+          .height(34)
           .fontSize(12)
-          .fontColor(this.secondaryText())
+          .fontWeight(FontWeight.Bold)
+          .fontColor(this.primaryText())
+          .backgroundColor(this.glassShellColor())
+          .border({
+            width: 1,
+            color: this.glassBorderColor()
+          })
+          .borderRadius(17)
+          .padding({ left: 14, right: 14 })
+          .scale(this.buttonScale('scene_edit_current'))
+          .opacity(this.buttonOpacity('scene_edit_current'))
+          .animation({ duration: 120, curve: Curve.EaseOut })
+          .onTouch((event: TouchEvent) => {
+            this.handlePressState('scene_edit_current', event);
+          })
+          .onClick(() => {
+            this.openEditScenePanel(this.activeSceneId);
+          })
       }
       .width('100%')
 
@@ -2423,6 +3162,16 @@ struct Index {
           }
           .margin({ top: 10 })
         }
+
+        if (this.overflowPoints().length > 0) {
+          Column() {
+            ForEach(this.overflowPoints(), (point: PointSpec) => {
+              this.WideDeviceCard(point)
+            }, (point: PointSpec) => point.id)
+          }
+          .width('100%')
+          .margin({ top: 10 })
+        }
       } else {
         Column() {
           Text('当前房间还没有可控制设备')
@@ -2430,7 +3179,7 @@ struct Index {
             .fontWeight(FontWeight.Bold)
             .fontColor(this.primaryText())
 
-          Text('先添加设备或继续为这个房间配置 2.5D 图与点位。')
+          Text('先添加设备即可，没有 2.5D 图的房间也能正常控制。')
             .fontSize(12)
             .fontColor(this.secondaryText())
             .margin({ top: 8 })
@@ -2498,7 +3247,7 @@ struct Index {
       .width('100%')
       .margin({ top: 16 })
 
-      Text(this.canAddDeviceInActiveRoom() || this.canRemoveDeviceInActiveRoom() ? '设备白点会和这里的增删保持同步' : '当前房间还没有预设可管理设备')
+      Text(this.activeRoom().images !== undefined ? '设备白点会和这里的增删保持同步' : '这个房间没有 2.5D 图时，设备依然可以在这里增删和控制')
         .fontSize(12)
         .fontColor(this.secondaryText())
         .margin({ top: 10 })
@@ -2544,85 +3293,90 @@ struct Index {
       .width('100%')
       .alignItems(VerticalAlign.Top)
 
-      if (this.devicePanelPoints().length > 0) {
-        Column() {
-          ForEach(this.devicePanelPoints(), (point: PointSpec) => {
-            Row() {
-              Column() {
-                Text(point.name)
-                  .fontSize(15)
+      Scroll() {
+        if (this.devicePanelPoints().length > 0) {
+          Column() {
+            ForEach(this.devicePanelPoints(), (point: PointSpec) => {
+              Row() {
+                Column() {
+                  Text(point.name)
+                    .fontSize(15)
+                    .fontWeight(FontWeight.Bold)
+                    .fontColor(this.primaryText())
+
+                  Text(point.type)
+                    .fontSize(11)
+                    .fontColor(this.secondaryText())
+                    .margin({ top: 3 })
+                }
+                .layoutWeight(1)
+                .alignItems(HorizontalAlign.Start)
+
+                Button(this.devicePanelActionLabel())
+                  .height(36)
+                  .fontSize(12)
                   .fontWeight(FontWeight.Bold)
-                  .fontColor(this.primaryText())
-
-                Text(point.type)
-                  .fontSize(11)
-                  .fontColor(this.secondaryText())
-                  .margin({ top: 3 })
+                  .fontColor(this.devicePanelMode === 'add' ? this.inverseText() : this.primaryText())
+                  .backgroundColor(this.devicePanelMode === 'add' ? this.translucentInverseBg() : this.translucentCardColor())
+                  .border({
+                    width: 1,
+                    color: this.devicePanelMode === 'add' ? this.glassBorderColor() : this.lineColor()
+                  })
+                  .borderRadius(18)
+                  .padding({ left: 16, right: 16 })
+                  .scale(this.buttonScale(`${this.devicePanelMode}_${point.id}`))
+                  .opacity(this.buttonOpacity(`${this.devicePanelMode}_${point.id}`))
+                  .animation({ duration: 120, curve: Curve.EaseOut })
+                  .onTouch((event: TouchEvent) => {
+                    this.handlePressState(`${this.devicePanelMode}_${point.id}`, event);
+                  })
+                  .onClick(() => {
+                    if (this.devicePanelMode === 'add') {
+                      this.addDeviceToActiveRoom(point.id);
+                    } else {
+                      this.removeDeviceFromActiveRoom(point.id);
+                    }
+                  })
               }
-              .layoutWeight(1)
-              .alignItems(HorizontalAlign.Start)
+              .width('100%')
+              .padding({ left: 14, right: 14, top: 14, bottom: 14 })
+              .backgroundColor(this.glassShellColor())
+              .border({
+                width: 1,
+                color: this.glassBorderColor()
+              })
+              .borderRadius(18)
+              .margin({ top: 10 })
+            }, (point: PointSpec) => point.id)
+          }
+          .width('100%')
+          .margin({ top: 10 })
+        } else {
+          Column() {
+            Text(this.devicePanelEmptyText())
+              .fontSize(14)
+              .fontWeight(FontWeight.Bold)
+              .fontColor(this.primaryText())
 
-              Button(this.devicePanelActionLabel())
-                .height(36)
-                .fontSize(12)
-                .fontWeight(FontWeight.Bold)
-                .fontColor(this.devicePanelMode === 'add' ? this.inverseText() : this.primaryText())
-                .backgroundColor(this.devicePanelMode === 'add' ? this.translucentInverseBg() : this.translucentCardColor())
-                .border({
-                  width: 1,
-                  color: this.devicePanelMode === 'add' ? this.glassBorderColor() : this.lineColor()
-                })
-                .borderRadius(18)
-                .padding({ left: 16, right: 16 })
-                .scale(this.buttonScale(`${this.devicePanelMode}_${point.id}`))
-                .opacity(this.buttonOpacity(`${this.devicePanelMode}_${point.id}`))
-                .animation({ duration: 120, curve: Curve.EaseOut })
-                .onTouch((event: TouchEvent) => {
-                  this.handlePressState(`${this.devicePanelMode}_${point.id}`, event);
-                })
-                .onClick(() => {
-                  if (this.devicePanelMode === 'add') {
-                    this.addDeviceToActiveRoom(point.id);
-                  } else {
-                    this.removeDeviceFromActiveRoom(point.id);
-                  }
-                })
-            }
-            .width('100%')
-            .padding({ left: 14, right: 14, top: 14, bottom: 14 })
-            .backgroundColor(this.glassShellColor())
-            .border({
-              width: 1,
-              color: this.glassBorderColor()
-            })
-            .borderRadius(18)
-            .margin({ top: 10 })
-          }, (point: PointSpec) => point.id)
+            Text('切换房间后可以继续管理当前空间里的设备。')
+              .fontSize(12)
+              .fontColor(this.secondaryText())
+              .margin({ top: 8 })
+          }
+          .width('100%')
+          .padding({ left: 14, right: 14, top: 18, bottom: 18 })
+          .backgroundColor(this.glassShellColor())
+          .border({
+            width: 1,
+            color: this.glassBorderColor()
+          })
+          .borderRadius(18)
+          .margin({ top: 14 })
         }
-        .width('100%')
-        .margin({ top: 10 })
-      } else {
-        Column() {
-          Text(this.devicePanelEmptyText())
-            .fontSize(14)
-            .fontWeight(FontWeight.Bold)
-            .fontColor(this.primaryText())
-
-          Text('切换房间后可以继续管理当前空间里的设备。')
-            .fontSize(12)
-            .fontColor(this.secondaryText())
-            .margin({ top: 8 })
-        }
-        .width('100%')
-        .padding({ left: 14, right: 14, top: 18, bottom: 18 })
-        .backgroundColor(this.glassShellColor())
-        .border({
-          width: 1,
-          color: this.glassBorderColor()
-        })
-        .borderRadius(18)
-        .margin({ top: 14 })
       }
+      .width('100%')
+      .height(Math.min(this.panelViewportHeight() * 0.58, 420))
+      .scrollBar(BarState.Off)
     }
     .width('100%')
     .padding({ left: 16, right: 16, top: 16, bottom: 16 })
@@ -2772,12 +3526,12 @@ struct Index {
     Column() {
       Row() {
         Column() {
-          Text('添加场景')
+          Text(this.sceneEditorTitle())
             .fontSize(24)
             .fontWeight(FontWeight.Bold)
             .fontColor(this.primaryText())
 
-          Text('新增后的场景会出现在右侧滑动列表里，并且可以直接执行。')
+          Text(this.sceneEditorSubtitle())
             .fontSize(12)
             .fontColor(this.secondaryText())
             .margin({ top: 6 })
@@ -2807,129 +3561,93 @@ struct Index {
 
       Scroll() {
         Column() {
-          Text('快速添加')
-            .fontSize(13)
-            .fontWeight(FontWeight.Bold)
-            .fontColor(this.primaryText())
+          if (!this.isEditingScene()) {
+            Column() {
+              Text('快速添加')
+                .fontSize(13)
+                .fontWeight(FontWeight.Bold)
+                .fontColor(this.primaryText())
 
-          Text('选一个场景模板，马上复制出一个同风格场景。')
-            .fontSize(12)
-            .fontColor(this.secondaryText())
-            .margin({ top: 4 })
+              Text('选一个场景模板，马上复制出一个同风格场景。')
+                .fontSize(12)
+                .fontColor(this.secondaryText())
+                .margin({ top: 4 })
 
-          Scroll() {
-            Row() {
-              ForEach(SCENE_TEMPLATES, (scene: SceneSpec) => {
-                Column() {
-                  this.ToneBadge(scene.badge, this.sceneTint(scene.id), 36)
+              Scroll() {
+                Row() {
+                  ForEach(SCENE_TEMPLATES, (scene: SceneSpec) => {
+                    Column() {
+                      this.ToneBadge(scene.badge, this.sceneTint(scene.id), 36)
 
-                  Text(scene.label)
-                    .fontSize(14)
-                    .fontWeight(FontWeight.Bold)
-                    .fontColor(this.primaryText())
-                    .margin({ top: 10 })
+                      Text(scene.label)
+                        .fontSize(14)
+                        .fontWeight(FontWeight.Bold)
+                        .fontColor(this.primaryText())
+                        .margin({ top: 10 })
 
-                  Text(scene.detail)
-                    .fontSize(11)
-                    .fontColor(this.secondaryText())
-                    .margin({ top: 4 })
-                    .maxLines(2)
+                      Text(scene.detail)
+                        .fontSize(11)
+                        .fontColor(this.secondaryText())
+                        .margin({ top: 4 })
+                        .maxLines(2)
 
-                  Button('添加')
-                    .height(34)
-                    .fontSize(12)
-                    .fontWeight(FontWeight.Bold)
-                    .fontColor(this.primaryText())
+                      Button('添加')
+                        .height(34)
+                        .fontSize(12)
+                        .fontWeight(FontWeight.Bold)
+                        .fontColor(this.primaryText())
+                        .backgroundColor(this.glassShellColor())
+                        .border({
+                          width: 1,
+                          color: this.glassBorderColor()
+                        })
+                        .borderRadius(17)
+                        .padding({ left: 16, right: 16 })
+                        .margin({ top: 14 })
+                        .scale(this.buttonScale(`scene_preset_${scene.id}`))
+                        .opacity(this.buttonOpacity(`scene_preset_${scene.id}`))
+                        .animation({ duration: 120, curve: Curve.EaseOut })
+                        .onTouch((event: TouchEvent) => {
+                          this.handlePressState(`scene_preset_${scene.id}`, event);
+                        })
+                        .onClick(() => {
+                          this.addPresetScene(scene.id);
+                        })
+                    }
+                    .width(170)
+                    .height(190)
+                    .justifyContent(FlexAlign.Center)
+                    .alignItems(HorizontalAlign.Center)
+                    .padding({ left: 16, right: 16, top: 18, bottom: 18 })
                     .backgroundColor(this.glassShellColor())
                     .border({
                       width: 1,
                       color: this.glassBorderColor()
                     })
-                    .borderRadius(17)
-                    .padding({ left: 16, right: 16 })
-                    .margin({ top: 14 })
-                    .scale(this.buttonScale(`scene_preset_${scene.id}`))
-                    .opacity(this.buttonOpacity(`scene_preset_${scene.id}`))
-                    .animation({ duration: 120, curve: Curve.EaseOut })
-                    .onTouch((event: TouchEvent) => {
-                      this.handlePressState(`scene_preset_${scene.id}`, event);
-                    })
-                    .onClick(() => {
-                      this.addPresetScene(scene.id);
-                    })
+                    .borderRadius(22)
+                    .margin({ right: 12 })
+                  }, (scene: SceneSpec) => scene.id)
                 }
-                .width(170)
-                .height(190)
-                .justifyContent(FlexAlign.Center)
-                .alignItems(HorizontalAlign.Center)
-                .padding({ left: 16, right: 16, top: 18, bottom: 18 })
-                .backgroundColor(this.glassShellColor())
-                .border({
-                  width: 1,
-                  color: this.glassBorderColor()
-                })
-                .borderRadius(22)
-                .margin({ right: 12 })
-              }, (scene: SceneSpec) => scene.id)
+                .padding({ right: 8 })
+              }
+              .width('100%')
+              .scrollBar(BarState.Off)
+              .scrollable(ScrollDirection.Horizontal)
+              .margin({ top: 14 })
             }
-            .padding({ right: 8 })
+            .width('100%')
           }
-          .width('100%')
-          .scrollBar(BarState.Off)
-          .scrollable(ScrollDirection.Horizontal)
-          .margin({ top: 14 })
 
           Column() {
-            Text('自定义场景')
+            Text('场景信息')
               .fontSize(13)
               .fontWeight(FontWeight.Bold)
               .fontColor(this.primaryText())
 
-            Text('自己命名，并借用一种现成场景的执行逻辑。')
+            Text('自己命名场景，并补充一段说明。')
               .fontSize(12)
               .fontColor(this.secondaryText())
               .margin({ top: 4 })
-
-            Scroll() {
-              Row() {
-                ForEach(SCENE_TEMPLATES, (scene: SceneSpec) => {
-                  Column() {
-                    this.ToneBadge(scene.badge, this.sceneTint(scene.id), 30)
-
-                    Text(scene.label)
-                      .fontSize(12)
-                      .fontWeight(FontWeight.Bold)
-                      .fontColor(this.selectedSceneTemplateId === scene.id ? this.inverseText() : this.primaryText())
-                      .margin({ top: 8 })
-                  }
-                  .width(96)
-                  .height(86)
-                  .justifyContent(FlexAlign.Center)
-                  .alignItems(HorizontalAlign.Center)
-                  .backgroundColor(this.selectedSceneTemplateId === scene.id ? this.translucentInverseBg() : this.glassShellColor())
-                  .border({
-                    width: 1,
-                    color: this.selectedSceneTemplateId === scene.id ? this.glassBorderColor() : this.lineColor()
-                  })
-                  .borderRadius(18)
-                  .margin({ right: 10 })
-                  .scale(this.buttonScale(`scene_template_${scene.id}`))
-                  .opacity(this.buttonOpacity(`scene_template_${scene.id}`))
-                  .animation({ duration: 120, curve: Curve.EaseOut })
-                  .onTouch((event: TouchEvent) => {
-                    this.handlePressState(`scene_template_${scene.id}`, event);
-                  })
-                  .onClick(() => {
-                    this.selectedSceneTemplateId = scene.id;
-                  })
-                }, (scene: SceneSpec) => scene.id)
-              }
-              .padding({ right: 8 })
-            }
-            .width('100%')
-            .scrollBar(BarState.Off)
-            .scrollable(ScrollDirection.Horizontal)
-            .margin({ top: 14 })
 
             TextInput({ placeholder: '场景名称，例如：晚餐模式', text: this.customSceneName })
               .width('100%')
@@ -2944,7 +3662,7 @@ struct Index {
               })
               .borderRadius(18)
               .padding({ left: 16, right: 16 })
-              .margin({ top: 16 })
+              .margin({ top: 14 })
               .onChange((value: string) => {
                 this.customSceneName = value;
               })
@@ -2999,7 +3717,235 @@ struct Index {
             .borderRadius(20)
             .margin({ top: 16 })
 
-            Button('创建场景')
+            Row() {
+              Text('设备预设')
+                .fontSize(13)
+                .fontWeight(FontWeight.Bold)
+                .fontColor(this.primaryText())
+                .layoutWeight(1)
+
+              Text(`${this.sceneDevicePresetsDraft.length} 项`)
+                .fontSize(11)
+                .fontColor(this.secondaryText())
+            }
+            .width('100%')
+            .margin({ top: 18 })
+
+            Text('从已连接设备中选择要纳入场景的家电，并保存它们的目标状态。')
+              .fontSize(12)
+              .fontColor(this.secondaryText())
+              .margin({ top: 4 })
+
+            if (this.sceneEditablePoints().length > 0) {
+              Column() {
+                ForEach(this.sceneEditablePoints(), (point: PointSpec) => {
+                  Column() {
+                    Row() {
+                      Column() {
+                        Text(point.name)
+                          .fontSize(15)
+                          .fontWeight(FontWeight.Bold)
+                          .fontColor(this.primaryText())
+
+                        Text(`${this.sceneRoomLabel(point)} · ${point.type}`)
+                          .fontSize(11)
+                          .fontColor(this.secondaryText())
+                          .margin({ top: 3 })
+                      }
+                      .layoutWeight(1)
+                      .alignItems(HorizontalAlign.Start)
+
+                      Button(this.hasScenePresetDraft(point.id) ? '移出' : '加入')
+                        .height(36)
+                        .fontSize(12)
+                        .fontWeight(FontWeight.Bold)
+                        .fontColor(this.hasScenePresetDraft(point.id) ? this.primaryText() : this.inverseText())
+                        .backgroundColor(this.hasScenePresetDraft(point.id) ? this.translucentCardColor() : this.translucentInverseBg())
+                        .border({
+                          width: 1,
+                          color: this.hasScenePresetDraft(point.id) ? this.lineColor() : this.glassBorderColor()
+                        })
+                        .borderRadius(18)
+                        .padding({ left: 16, right: 16 })
+                        .scale(this.buttonScale(`scene_pick_${point.id}`))
+                        .opacity(this.buttonOpacity(`scene_pick_${point.id}`))
+                        .animation({ duration: 120, curve: Curve.EaseOut })
+                        .onTouch((event: TouchEvent) => {
+                          this.handlePressState(`scene_pick_${point.id}`, event);
+                        })
+                        .onClick(() => {
+                          this.toggleScenePresetDraft(point);
+                        })
+                    }
+                    .width('100%')
+
+                    if (this.hasScenePresetDraft(point.id)) {
+                      Column() {
+                        Text(this.scenePresetStatus(point))
+                          .fontSize(12)
+                          .fontWeight(FontWeight.Medium)
+                          .fontColor(this.primaryText())
+
+                        if (point.action === 'light' || point.action === 'toggle') {
+                          Row() {
+                            Button(this.scenePresetOffLabel(point))
+                              .layoutWeight(1)
+                              .height(34)
+                              .fontSize(12)
+                              .fontWeight(FontWeight.Bold)
+                              .fontColor(!this.scenePresetDraftOn(point.id) ? this.inverseText() : this.primaryText())
+                              .backgroundColor(!this.scenePresetDraftOn(point.id) ? this.translucentInverseBg() : this.glassShellColor())
+                              .border({
+                                width: 1,
+                                color: !this.scenePresetDraftOn(point.id) ? this.glassBorderColor() : this.lineColor()
+                              })
+                              .borderRadius(14)
+                              .scale(this.buttonScale(`scene_off_${point.id}`))
+                              .opacity(this.buttonOpacity(`scene_off_${point.id}`))
+                              .animation({ duration: 120, curve: Curve.EaseOut })
+                              .onTouch((event: TouchEvent) => {
+                                this.handlePressState(`scene_off_${point.id}`, event);
+                              })
+                              .onClick(() => {
+                                this.updateScenePresetDraftOn(point.id, false);
+                              })
+
+                            Button(this.scenePresetOnLabel(point))
+                              .layoutWeight(1)
+                              .height(34)
+                              .fontSize(12)
+                              .fontWeight(FontWeight.Bold)
+                              .fontColor(this.scenePresetDraftOn(point.id) ? this.inverseText() : this.primaryText())
+                              .backgroundColor(this.scenePresetDraftOn(point.id) ? this.translucentInverseBg() : this.glassShellColor())
+                              .border({
+                                width: 1,
+                                color: this.scenePresetDraftOn(point.id) ? this.glassBorderColor() : this.lineColor()
+                              })
+                              .borderRadius(14)
+                              .margin({ left: 10 })
+                              .scale(this.buttonScale(`scene_on_${point.id}`))
+                              .opacity(this.buttonOpacity(`scene_on_${point.id}`))
+                              .animation({ duration: 120, curve: Curve.EaseOut })
+                              .onTouch((event: TouchEvent) => {
+                                this.handlePressState(`scene_on_${point.id}`, event);
+                              })
+                              .onClick(() => {
+                                this.updateScenePresetDraftOn(point.id, true);
+                              })
+                          }
+                          .width('100%')
+                          .margin({ top: 12 })
+                        }
+
+                        if (point.action === 'temperature' || point.action === 'curtain' || point.action === 'light') {
+                          Row() {
+                            Button('-')
+                              .width(42)
+                              .height(34)
+                              .fontSize(16)
+                              .fontWeight(FontWeight.Bold)
+                              .fontColor(this.primaryText())
+                              .backgroundColor(this.glassShellColor())
+                              .border({
+                                width: 1,
+                                color: this.lineColor()
+                              })
+                              .borderRadius(14)
+                              .scale(this.buttonScale(`scene_minus_${point.id}`))
+                              .opacity(this.buttonOpacity(`scene_minus_${point.id}`))
+                              .animation({ duration: 120, curve: Curve.EaseOut })
+                              .onTouch((event: TouchEvent) => {
+                                this.handlePressState(`scene_minus_${point.id}`, event);
+                              })
+                              .onClick(() => {
+                                this.updateScenePresetDraftValue(point.id, -1);
+                              })
+
+                            Column() {
+                              Text(point.action === 'light' ? '亮度' : (point.action === 'temperature' ? '目标温度' : '开合比例'))
+                                .fontSize(11)
+                                .fontColor(this.secondaryText())
+
+                              Text(`${this.scenePresetDraftValue(point.id)}${this.detailUnit(point)}`)
+                                .fontSize(15)
+                                .fontWeight(FontWeight.Bold)
+                                .fontColor(this.primaryText())
+                                .margin({ top: 3 })
+                            }
+                            .layoutWeight(1)
+                            .alignItems(HorizontalAlign.Center)
+
+                            Button('+')
+                              .width(42)
+                              .height(34)
+                              .fontSize(16)
+                              .fontWeight(FontWeight.Bold)
+                              .fontColor(this.primaryText())
+                              .backgroundColor(this.glassShellColor())
+                              .border({
+                                width: 1,
+                                color: this.lineColor()
+                              })
+                              .borderRadius(14)
+                              .scale(this.buttonScale(`scene_plus_${point.id}`))
+                              .opacity(this.buttonOpacity(`scene_plus_${point.id}`))
+                              .animation({ duration: 120, curve: Curve.EaseOut })
+                              .onTouch((event: TouchEvent) => {
+                                this.handlePressState(`scene_plus_${point.id}`, event);
+                              })
+                              .onClick(() => {
+                                this.updateScenePresetDraftValue(point.id, 1);
+                              })
+                          }
+                          .width('100%')
+                          .margin({ top: 12 })
+                        }
+                      }
+                      .width('100%')
+                      .margin({ top: 12 })
+                    } else {
+                      Text('加入后即可保存这个设备在场景中的预设状态')
+                        .fontSize(11)
+                        .fontColor(this.secondaryText())
+                        .margin({ top: 10 })
+                    }
+                  }
+                  .width('100%')
+                  .padding({ left: 14, right: 14, top: 14, bottom: 14 })
+                  .backgroundColor(this.glassShellColor())
+                  .border({
+                    width: 1,
+                    color: this.glassBorderColor()
+                  })
+                  .borderRadius(18)
+                  .margin({ top: 12 })
+                }, (point: PointSpec) => point.id)
+              }
+              .width('100%')
+            } else {
+              Column() {
+                Text('当前还没有可加入场景的设备')
+                  .fontSize(14)
+                  .fontWeight(FontWeight.Bold)
+                  .fontColor(this.primaryText())
+
+                Text('先回到房间里添加设备，再回来设置场景预设。')
+                  .fontSize(12)
+                  .fontColor(this.secondaryText())
+                  .margin({ top: 8 })
+              }
+              .width('100%')
+              .padding({ left: 14, right: 14, top: 18, bottom: 18 })
+              .backgroundColor(this.glassShellColor())
+              .border({
+                width: 1,
+                color: this.glassBorderColor()
+              })
+              .borderRadius(18)
+              .margin({ top: 12 })
+            }
+
+            Button(this.sceneEditorSubmitLabel())
               .width('100%')
               .height(50)
               .fontSize(15)
@@ -3008,22 +3954,22 @@ struct Index {
               .backgroundColor(this.translucentInverseBg())
               .borderRadius(22)
               .margin({ top: 18, bottom: 22 })
-              .opacity(this.customSceneName.trim().length > 0 ? this.buttonOpacity('create_scene') : 0.36)
-              .scale(this.customSceneName.trim().length > 0 ? this.buttonScale('create_scene') : { x: 1, y: 1 })
+              .opacity(this.customSceneName.trim().length > 0 ? this.buttonOpacity('save_scene') : 0.36)
+              .scale(this.customSceneName.trim().length > 0 ? this.buttonScale('save_scene') : { x: 1, y: 1 })
               .animation({ duration: 120, curve: Curve.EaseOut })
               .onTouch((event: TouchEvent) => {
                 if (this.customSceneName.trim().length > 0) {
-                  this.handlePressState('create_scene', event);
+                  this.handlePressState('save_scene', event);
                 }
               })
               .onClick(() => {
                 if (this.customSceneName.trim().length > 0) {
-                  this.addCustomScene();
+                  this.saveSceneEditor();
                 }
               })
           }
           .width('100%')
-          .padding({ top: 24 })
+          .padding({ top: this.isEditingScene() ? 0 : 24 })
         }
         .width('100%')
         .padding({ left: 20, right: 20, top: 8, bottom: 18 })
@@ -3200,6 +4146,9 @@ struct Index {
           color: this.lineColor()
         })
         .borderRadius(18)
+        .onClick(() => {
+          this.goSmartDetail('running');
+        })
 
         Column() {
           Text(`${this.automations.length}`)
@@ -3224,6 +4173,9 @@ struct Index {
         })
         .borderRadius(18)
         .margin({ left: 10 })
+        .onClick(() => {
+          this.goSmartDetail('all');
+        })
 
         Column() {
           Text(`${this.chatMessages.length}`)
@@ -3248,6 +4200,9 @@ struct Index {
         })
         .borderRadius(18)
         .margin({ left: 10 })
+        .onClick(() => {
+          this.goSmartDetail('chat');
+        })
       }
       .width('100%')
       .margin({ top: 16 })
@@ -3555,7 +4510,7 @@ struct Index {
     })
     .onClick(() => {
       if (actionKey === 'assistant') {
-        this.smartPageMode = 'assistant';
+        this.activeTab = 'smart';
       }
     })
   }
@@ -3817,7 +4772,7 @@ struct Index {
         .borderRadius(18)
         .padding({ left: 0, right: 0 })
         .onClick(() => {
-          this.smartPageMode = 'center';
+          this.activeTab = 'home';
         })
 
       Column() {
@@ -4034,64 +4989,41 @@ struct Index {
 
   @Builder
   SmartPage() {
-    Stack({ alignContent: Alignment.TopEnd }) {
-      if (this.smartPageMode === 'assistant') {
-        Column() {
-          Column() {
-            this.AssistantPageTitle()
-          }
-          .width('100%')
-          .margin({ bottom: 8 })
+    Column() {
+      Column() {
+        this.AssistantPageTitle()
+      }
+      .width('100%')
+      .margin({ bottom: 8 })
 
-          this.ChatSurface()
+      Column() {
+        this.ScriptHeaderCard()
+      }
+      .width('100%')
+      .margin({ bottom: 10 })
 
-          this.ChatComposer()
-        }
-        .width('100%')
-        .height('100%')
-        .padding({ left: 14, right: 14, top: 14, bottom: 102 })
-      } else {
-        Column() {
-          Column() {
-            this.SmartPageTitle()
-          }
-          .width('100%')
-          .margin({ bottom: 8 })
-
-          Column() {
-            this.SmartNoticeCenter()
-          }
-          .width('100%')
-          .margin({ bottom: 10 })
-
-          if (this.automationComposerVisible) {
-            this.AutomationComposerCard()
-          }
-        }
-        .width('100%')
-        .height('100%')
-        .padding({ left: 14, right: 14, top: 14, bottom: 102 })
+      if (this.automationComposerVisible) {
+        this.AutomationComposerCard()
       }
 
-      if (this.smartHubExpanded) {
-        this.SmartHubPanel()
-      }
+      this.ChatSurface()
 
-      this.SmartHubFloat()
+      this.ChatComposer()
     }
     .width('100%')
     .height('100%')
+    .padding({ left: 14, right: 14, top: 14, bottom: 102 })
   }
 
   @Builder
   EmptyPage() {
     Column() {
-      Text('页面暂不可用')
+      Text(this.activeTab === 'store' ? '商场页面建设中' : '我的页面建设中')
         .fontSize(22)
         .fontWeight(FontWeight.Bold)
         .fontColor(this.primaryText())
 
-      Text('请返回首页或重新选择底部导航。')
+      Text('当前先保留空白页，后续可以继续扩展完整功能。')
         .fontSize(13)
         .lineHeight(20)
         .fontColor(this.secondaryText())

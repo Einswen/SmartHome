@@ -73,7 +73,7 @@ export async function askDeepSeek(prompt: string): Promise<DeepSeekAnswer> {
   if (!hasDeepSeekApiKey()) {
     return {
       ok: false,
-      content: 'DeepSeek API Key 还没有配置。请打开 smart/DeepSeekConfig.ets，把 DEEPSEEK_API_KEY 填成你的 Key。',
+      content: 'API Key 配置。',
       statusCode: 0,
       error: 'missing_api_key'
     };

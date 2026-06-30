@@ -1,4 +1,4 @@
-﻿import router from '@ohos.router';
+import router from '@ohos.router';
 
 interface CartRouteParams {
   isNight?: boolean;
@@ -40,7 +40,7 @@ struct StoreCartPage {
   @State networkFailed: boolean = false;
   @State selectedAll: boolean = true;
   @State checkoutDone: boolean = false;
-  @StorageLink('homeNightMode') isNight: boolean = false;
+  @State isNight: boolean = false;
   @State addedProductId: string = '';
   @State addedCount: number = 1;
   @StorageLink('cartAddedProductId') cartAddedProductId: string = '';
@@ -48,14 +48,14 @@ struct StoreCartPage {
   @StorageLink('cartLinePayload') cartLinePayload: string = '';
 
   aboutToAppear(): void {
-    const params = router.getParams() as CartRouteParams;
-    if (params.isNight !== undefined) {
+    const params = router.getParams() as CartRouteParams | undefined;
+    if (params && params.isNight !== undefined) {
       this.isNight = params.isNight;
     }
-    if (params.addedProductId !== undefined) {
+    if (params && params.addedProductId !== undefined) {
       this.addedProductId = params.addedProductId;
     }
-    if (params.addedCount !== undefined) {
+    if (params && params.addedCount !== undefined) {
       this.addedCount = params.addedCount;
     }
   }
@@ -521,4 +521,3 @@ struct StoreCartPage {
     .alignItems(HorizontalAlign.Center)
   }
 }
-

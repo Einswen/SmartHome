@@ -1,4 +1,4 @@
-﻿import router from '@ohos.router';
+import router from '@ohos.router';
 
 interface MyDevicesRouteParams {
   isNight?: boolean;
@@ -33,7 +33,7 @@ struct MyDevicesPage {
   @State showEmpty: boolean = false;
   @State pressedKey: string = '';
   @State selectedDeviceId: string = 'living_light';
-  @StorageLink('homeNightMode') isNight: boolean = false;
+  @State isNight: boolean = false;
   @StorageLink('homeLivingAirInstalled') livingAirInstalled: boolean = true;
   @StorageLink('homeLivingCurtainInstalled') livingCurtainInstalled: boolean = true;
   @StorageLink('homeLivingTvInstalled') livingTvInstalled: boolean = true;
@@ -48,8 +48,8 @@ struct MyDevicesPage {
   @StorageLink('homeLivingRobotOn') livingRobotOn: boolean = false;
 
   aboutToAppear(): void {
-    const params = router.getParams() as MyDevicesRouteParams;
-    if (params.isNight !== undefined) {
+    const params = router.getParams() as MyDevicesRouteParams | undefined;
+    if (params && params.isNight !== undefined) {
       this.isNight = params.isNight;
     }
   }
@@ -708,4 +708,3 @@ struct MyDevicesPage {
     .alignItems(HorizontalAlign.Center)
   }
 }
-

@@ -624,11 +624,9 @@ export struct P31_StoreHome {
 @Entry
 @Component
 struct StoreHomeEntry {
-  @StorageLink('homeNightMode') isNight: boolean = false;
-
   build() {
     Column() {
-      P31_StoreHome({ isNight: this.isNight })
+      P31_StoreHome({ isNight: false })
     }
     .width('100%')
     .height('100%')

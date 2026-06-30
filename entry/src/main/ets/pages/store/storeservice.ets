@@ -1,4 +1,4 @@
-﻿import router from '@ohos.router';
+import router from '@ohos.router';
 
 interface StoreServiceRouteParams {
   isNight?: boolean;
@@ -9,13 +9,13 @@ interface StoreServiceRouteParams {
 struct StoreServicePage {
   @State networkFailed: boolean = false;
   @State activeTicket: string = 'install';
-  @StorageLink('homeNightMode') isNight: boolean = false;
+  @State isNight: boolean = false;
   @State selectedService: string = '上门安装';
   @State serviceSubmitted: boolean = false;
 
   aboutToAppear(): void {
-    const params = router.getParams() as StoreServiceRouteParams;
-    if (params.isNight !== undefined) {
+    const params = router.getParams() as StoreServiceRouteParams | undefined;
+    if (params && params.isNight !== undefined) {
       this.isNight = params.isNight;
     }
   }
@@ -119,7 +119,9 @@ struct StoreServicePage {
         .width('100%')
       Row() {
         this.Metric('响应', '2 小时')
+        Blank().width(8)
         this.Metric('保内', '5 台')
+        Blank().width(8)
         this.Metric('工单', '1 个')
       }
       .width('100%')
@@ -148,7 +150,6 @@ struct StoreServicePage {
     .justifyContent(FlexAlign.Center)
     .backgroundColor('#CCFFFFFF')
     .borderRadius(18)
-    .margin({ right: 8 })
   }
 
   @Builder
@@ -317,4 +318,3 @@ struct StoreServicePage {
     .alignItems(HorizontalAlign.Center)
   }
 }
-

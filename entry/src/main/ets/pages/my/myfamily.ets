@@ -1,4 +1,4 @@
-﻿import router from '@ohos.router';
+import router from '@ohos.router';
 
 interface MyFamilyRouteParams {
   isNight?: boolean;
@@ -25,7 +25,7 @@ struct MyFamilyPage {
   @State inviteVisible: boolean = true;
   @State inviteFailed: boolean = false;
   @State activeHome: string = '幸福之家';
-  @StorageLink('homeNightMode') isNight: boolean = false;
+  @State isNight: boolean = false;
   @StorageLink('familyHideGuest') hideGuest: boolean = false;
   @StorageLink('familyHasCustomMember') hasCustomMember: boolean = false;
   @StorageLink('familyCustomMemberName') customMemberName: string = '新成员';
@@ -35,8 +35,8 @@ struct MyFamilyPage {
   @State selectedMemberRole: string = '普通成员';
 
   aboutToAppear(): void {
-    const params = router.getParams() as MyFamilyRouteParams;
-    if (params.isNight !== undefined) {
+    const params = router.getParams() as MyFamilyRouteParams | undefined;
+    if (params && params.isNight !== undefined) {
       this.isNight = params.isNight;
     }
   }
@@ -558,4 +558,3 @@ struct MyFamilyPage {
     .borderRadius(24)
   }
 }
-

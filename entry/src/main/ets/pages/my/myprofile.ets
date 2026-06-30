@@ -34,7 +34,7 @@ const MY_HOMES: HomeBriefSpec[] = [
 const MY_FEATURES: MyFeatureSpec[] = [
   { id: 'devices', title: '设备中心', desc: '与首页客厅首图 6 个点位一一对应', route: 'pages/my/mydevices', accent: '#5E8CFF' },
   { id: 'family', title: '家庭管理', desc: '成员、二维码邀请、权限与家庭切换', route: 'pages/my/myfamily', accent: '#19B7A4' },
-  { id: 'messages', title: '消息中心', desc: '设备告警、自动化执行与服务通知', route: 'pages/my/mymessages', accent: '#F3A33A' },
+  { id: 'messages', title: '消息中心', desc: '设备告警、自动化执行与服务通知', route: 'pages/messagecenter/mymessages', accent: '#F3A33A' },
   { id: 'settings', title: '授权中心', desc: '账号安全、隐私授权与通用偏好', route: 'pages/my/mysettings', accent: '#7F72F2' }
 ];
 
@@ -338,19 +338,14 @@ export struct P21_MyProfile {
         Text('刚刚同步')
           .fontSize(12)
           .fontColor(this.secondaryText())
-          .margin({ right: 8 })
-
-        Image($r('sys.media.ohos_ic_public_arrow_right'))
-          .width(15)
-          .height(15)
-          .fillColor(this.secondaryText())
-          .opacity(0.68)
       }
       .width('100%')
 
       Row() {
         this.HealthMetric('在线率', this.activeHome().health, '#35D27A')
+        Blank().width(8)
         this.HealthMetric('异常设备', this.activeHomeIndex === 0 ? '0' : '1', '#F3A33A')
+        Blank().width(8)
         this.HealthMetric('自动化', this.activeHomeIndex === 0 ? '26' : '12', '#5E8CFF')
       }
       .width('100%')
@@ -362,9 +357,6 @@ export struct P21_MyProfile {
     .border({ width: 1, color: this.lineColor() })
     .borderRadius(24)
     .margin({ top: 22 })
-    .onClick(() => {
-      router.pushUrl({ url: 'pages/my/myhomehealth', params: { isNight: this.isNight } });
-    })
   }
 
   @Builder
@@ -384,7 +376,6 @@ export struct P21_MyProfile {
     .justifyContent(FlexAlign.Center)
     .backgroundColor(this.softPanelColor())
     .borderRadius(18)
-    .margin({ right: 8 })
   }
 
   @Builder
