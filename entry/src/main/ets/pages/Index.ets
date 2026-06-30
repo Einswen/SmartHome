@@ -505,6 +505,9 @@ struct Index {
   }
 
   private dynamicStateDefault(point: PointSpec): DynamicDeviceStateSpec {
+    if (this.pointBaseId(point.id) === 'generic_air') {
+      return { pointId: point.id, on: false, value: 24 };
+    }
     if (point.action === 'temperature') {
       return { pointId: point.id, on: true, value: 24 };
     }
@@ -1232,31 +1235,51 @@ struct Index {
     this.selectionVersion++;
   }
 
-  private togglePoint(pointId: string): void {
-    const point = this.pointById(pointId);
+  private pointToggleOn(point: PointSpec): boolean {
+    if (point.id.indexOf('@') >= 0) {
+      return this.dynamicState(point.id).on;
+    }
+    if (point.action === 'light') {
+      return this.lightOnForRoom(point.roomId);
+    }
+    return this.sharedToggleOn(point);
+  }
+
+  private setPointToggleLocal(point: PointSpec, value: boolean): void {
     if (point.id.indexOf('@') >= 0) {
       const state = this.dynamicState(point.id);
       this.setDynamicState({
         pointId: point.id,
-        on: !state.on,
+        on: value,
         value: state.value
       });
       return;
     }
     if (point.action === 'light') {
-      this.setLightOnForRoom(point.roomId, !this.lightOnForRoom(point.roomId));
+      this.setLightOnForRoom(point.roomId, value);
       return;
     }
-    this.setSharedToggleOn(point, !this.sharedToggleOn(point));
+    this.setSharedToggleOn(point, value);
   }
 
   private async toggleAirByMotor(point: PointSpec): Promise<void> {
-    const nextOn = !this.sharedAirOnForRoom(point.roomId);
+    const isDynamicAir = point.id.indexOf('@') >= 0;
+    const previousOn = isDynamicAir ? this.dynamicState(point.id).on : this.sharedAirOnForRoom(point.roomId);
+    const nextOn = !previousOn;
     const actionLabel = nextOn ? '开' : '关';
     const command = nextOn ? 'ON' : 'OFF';
     const label = `${point.name}${actionLabel}`;
     this.updateCloudDebug(`准备下发：${label}，映射为电机控制 Motor=${command}`);
-    this.setSharedAirOnForRoom(point.roomId, nextOn);
+    if (isDynamicAir) {
+      const state = this.dynamicState(point.id);
+      this.setDynamicState({
+        pointId: point.id,
+        on: nextOn,
+        value: state.value
+      });
+    } else {
+      this.setSharedAirOnForRoom(point.roomId, nextOn);
+    }
     try {
       await HuaweiCloudApi.sendMotorCommand(command);
       this.updateCloudDebug(`下发成功：${label}，华为云已接收电机控制 Motor=${command}`);
@@ -1280,7 +1303,85 @@ struct Index {
         }
         return;
       }
-      this.setSharedAirOnForRoom(point.roomId, !nextOn);
+      if (isDynamicAir) {
+        const state = this.dynamicState(point.id);
+        this.setDynamicState({
+          pointId: point.id,
+          on: previousOn,
+          value: state.value
+        });
+      } else {
+        this.setSharedAirOnForRoom(point.roomId, previousOn);
+      }
+      this.reportCloudError(`下发失败：${label}。${errorMessage}`);
+    }
+  }
+
+  private async togglePointByMotor(point: PointSpec): Promise<void> {
+    const previousOn = this.pointToggleOn(point);
+    const nextOn = !previousOn;
+    const command = nextOn ? 'ON' : 'OFF';
+    const label = `${point.name}${nextOn ? '开启' : '关闭'}`;
+    this.updateCloudDebug(`准备下发：${label}，映射为电机控制 Motor=${command}`);
+    this.setPointToggleLocal(point, nextOn);
+    try {
+      await HuaweiCloudApi.sendMotorCommand(command);
+      this.updateCloudDebug(`下发成功：${label}，华为云已接收电机控制 Motor=${command}`);
+      try {
+        promptAction.showToast({
+          message: `下发成功：${label}`,
+          duration: 2000
+        });
+      } catch {
+      }
+    } catch (err) {
+      const errorMessage = this.debugErrorText(err as Object);
+      if (this.isCommandResponseTimeout(errorMessage)) {
+        this.updateCloudDebug(`命令已发送但设备响应超时：${label}。串口若已收到 Motor=${command}，说明云端到板子已通，需要检查板子端命令响应/执行逻辑。原始错误：${errorMessage}`);
+        try {
+          promptAction.showToast({
+            message: `命令已发送：${label}，设备响应超时`,
+            duration: 4000
+          });
+        } catch {
+        }
+        return;
+      }
+      this.setPointToggleLocal(point, previousOn);
+      this.reportCloudError(`下发失败：${label}。${errorMessage}`);
+    }
+  }
+
+  private async setDetailValueByMotor(point: PointSpec, value: number): Promise<void> {
+    const previousValue = this.detailValue(point);
+    const command = value > 0 ? 'ON' : 'OFF';
+    const label = `${point.name}${value > 0 ? '打开' : '关闭'}`;
+    this.updateCloudDebug(`准备下发：${label}，映射为电机控制 Motor=${command}`);
+    this.setDetailValue(point, value);
+    try {
+      await HuaweiCloudApi.sendMotorCommand(command);
+      this.updateCloudDebug(`下发成功：${label}，华为云已接收电机控制 Motor=${command}`);
+      try {
+        promptAction.showToast({
+          message: `下发成功：${label}`,
+          duration: 2000
+        });
+      } catch {
+      }
+    } catch (err) {
+      const errorMessage = this.debugErrorText(err as Object);
+      if (this.isCommandResponseTimeout(errorMessage)) {
+        this.updateCloudDebug(`命令已发送但设备响应超时：${label}。串口若已收到 Motor=${command}，说明云端到板子已通，需要检查板子端命令响应/执行逻辑。原始错误：${errorMessage}`);
+        try {
+          promptAction.showToast({
+            message: `命令已发送：${label}，设备响应超时`,
+            duration: 4000
+          });
+        } catch {
+        }
+        return;
+      }
+      this.setDetailValue(point, previousValue);
       this.reportCloudError(`下发失败：${label}。${errorMessage}`);
     }
   }
@@ -1587,8 +1688,9 @@ struct Index {
 
   private deviceActionLabel(point: PointSpec): string {
     const baseId = this.pointBaseId(point.id);
-    if (baseId === 'living_air' || baseId === 'bedroom_air') {
-      return this.sharedAirOnForRoom(point.roomId) ? '关空调' : '开空调';
+    if (baseId === 'living_air' || baseId === 'bedroom_air' || baseId === 'generic_air') {
+      const airOn = point.id.indexOf('@') >= 0 ? this.dynamicState(point.id).on : this.sharedAirOnForRoom(point.roomId);
+      return airOn ? '关空调' : '开空调';
     }
     if (point.action === 'temperature') {
       return '升温';
@@ -1633,7 +1735,7 @@ struct Index {
   private runDeviceAction(pointId: string): void {
     const point = this.pointById(pointId);
     const baseId = this.pointBaseId(point.id);
-    if (baseId === 'living_air' || baseId === 'bedroom_air') {
+    if (baseId === 'living_air' || baseId === 'bedroom_air' || baseId === 'generic_air') {
       this.toggleAirByMotor(point);
       return;
     }
@@ -1642,11 +1744,11 @@ struct Index {
       return;
     }
     if (point.action === 'curtain') {
-      this.setDetailValue(point, this.detailValue(point) >= 100 ? 0 : 100);
+      this.setDetailValueByMotor(point, this.detailValue(point) >= 100 ? 0 : 100);
       return;
     }
     if (point.action === 'light' || point.action === 'toggle') {
-      this.togglePoint(point.id);
+      this.togglePointByMotor(point);
       return;
     }
     this.openPointDetail(point.id);
