@@ -31,7 +31,6 @@ const DEVICE_DETAIL_LIST: DeviceDetailSpec[] = [
 @Component
 struct MyDeviceDetailPage {
   @State deviceId: string = 'living_air';
-  @State networkFailed: boolean = false;
   @State deviceEnabled: boolean = true;
   @State level: number = 62;
   @State isNight: boolean = false;
@@ -79,21 +78,17 @@ struct MyDeviceDetailPage {
     Column() {
       this.TopBar()
 
-      if (this.networkFailed) {
-        this.NetworkState()
-      } else {
-        Scroll() {
-          Column() {
-            this.HeroCard(this.page())
-            this.ControlCard(this.page())
-            this.HealthCard(this.page())
-          }
-          .width('100%')
-          .padding({ left: 18, right: 18, bottom: 28 })
+      Scroll() {
+        Column() {
+          this.HeroCard(this.page())
+          this.ControlCard(this.page())
+          this.HealthCard(this.page())
         }
-        .layoutWeight(1)
-        .scrollBar(BarState.Off)
+        .width('100%')
+        .padding({ left: 18, right: 18, bottom: 28 })
       }
+      .layoutWeight(1)
+      .scrollBar(BarState.Off)
     }
     .width('100%')
     .height('100%')
@@ -278,35 +273,4 @@ struct MyDeviceDetailPage {
     .borderRadius(18)
   }
 
-  @Builder
-  NetworkState() {
-    Column() {
-      Blank().height(86)
-      Text('设备详情同步失败')
-        .fontSize(23)
-        .fontWeight(FontWeight.Bold)
-        .fontColor(this.primaryText())
-      Text('当前网络不可用，控制指令会在恢复连接后再下发。')
-        .fontSize(13)
-        .lineHeight(21)
-        .fontColor(this.secondaryText())
-        .textAlign(TextAlign.Center)
-        .margin({ left: 36, right: 36, top: 10 })
-      Button('重试')
-        .height(42)
-        .fontSize(14)
-        .fontWeight(FontWeight.Bold)
-        .fontColor('#FFFFFF')
-        .backgroundColor('#5E8CFF')
-        .borderRadius(21)
-        .padding({ left: 24, right: 24 })
-        .margin({ top: 22 })
-        .onClick(() => {
-          this.networkFailed = false;
-        })
-    }
-    .layoutWeight(1)
-    .width('100%')
-    .alignItems(HorizontalAlign.Center)
-  }
 }

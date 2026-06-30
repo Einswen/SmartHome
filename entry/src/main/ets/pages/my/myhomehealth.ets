@@ -29,7 +29,6 @@ struct MyHomeHealthPage {
   @StorageLink('homeLivingRobotInstalled') livingRobotInstalled: boolean = true;
   @StorageLink('homeLivingLightInstalled') livingLightInstalled: boolean = true;
   @StorageLink('homeLivingDeviceCount') livingDeviceCount: number = 6;
-  @State networkFailed: boolean = false;
 
   aboutToAppear(): void {
     const params = router.getParams() as MyHomeHealthRouteParams;
@@ -103,21 +102,17 @@ struct MyHomeHealthPage {
     Column() {
       this.TopBar()
 
-      if (this.networkFailed) {
-        this.NetworkState()
-      } else {
-        Scroll() {
-          Column() {
-            this.ScoreCard()
-            this.TaskList()
-            this.ActionCard()
-          }
-          .width('100%')
-          .padding({ left: 18, right: 18, bottom: 28 })
+      Scroll() {
+        Column() {
+          this.ScoreCard()
+          this.TaskList()
+          this.ActionCard()
         }
-        .layoutWeight(1)
-        .scrollBar(BarState.Off)
+        .width('100%')
+        .padding({ left: 18, right: 18, bottom: 28 })
       }
+      .layoutWeight(1)
+      .scrollBar(BarState.Off)
     }
     .width('100%')
     .height('100%')
@@ -296,35 +291,4 @@ struct MyHomeHealthPage {
     .margin({ top: 16 })
   }
 
-  @Builder
-  NetworkState() {
-    Column() {
-      Blank().height(92)
-      Text('家庭报告同步失败')
-        .fontSize(23)
-        .fontWeight(FontWeight.Bold)
-        .fontColor(this.primaryText())
-      Text('当前无法刷新设备、自动化和服务状态，仍可查看本地缓存报告。')
-        .fontSize(13)
-        .lineHeight(21)
-        .fontColor(this.secondaryText())
-        .textAlign(TextAlign.Center)
-        .margin({ left: 36, right: 36, top: 10 })
-      Button('重试')
-        .height(42)
-        .fontSize(14)
-        .fontWeight(FontWeight.Bold)
-        .fontColor('#FFFFFF')
-        .backgroundColor('#5E8CFF')
-        .borderRadius(21)
-        .padding({ left: 24, right: 24 })
-        .margin({ top: 22 })
-        .onClick(() => {
-          this.networkFailed = false;
-        })
-    }
-    .layoutWeight(1)
-    .width('100%')
-    .alignItems(HorizontalAlign.Center)
-  }
 }

@@ -23,7 +23,6 @@ const MESSAGE_LIST: MessageSpec[] = [
 @Component
 struct MyMessagesPage {
   @State showEmpty: boolean = false;
-  @State networkFailed: boolean = false;
   @StorageLink('homeNightMode') isNight: boolean = false;
 
   aboutToAppear(): void {
@@ -61,28 +60,24 @@ struct MyMessagesPage {
     Column() {
       this.TopBar()
 
-      if (this.networkFailed) {
-        this.NetworkState()
-      } else {
-        Scroll() {
-          Column() {
-            this.Summary()
-            this.MessageHeader()
+      Scroll() {
+        Column() {
+          this.Summary()
+          this.MessageHeader()
 
-            if (this.messages().length === 0) {
-              this.EmptyState()
-            } else {
-              ForEach(this.messages(), (message: MessageSpec) => {
-                this.MessageCard(message)
-              }, (message: MessageSpec) => message.id)
-            }
+          if (this.messages().length === 0) {
+            this.EmptyState()
+          } else {
+            ForEach(this.messages(), (message: MessageSpec) => {
+              this.MessageCard(message)
+            }, (message: MessageSpec) => message.id)
           }
-          .width('100%')
-          .padding({ left: 18, right: 18, bottom: 28 })
         }
-        .layoutWeight(1)
-        .scrollBar(BarState.Off)
+        .width('100%')
+        .padding({ left: 18, right: 18, bottom: 28 })
       }
+      .layoutWeight(1)
+      .scrollBar(BarState.Off)
     }
     .width('100%')
     .height('100%')
@@ -252,36 +247,5 @@ struct MyMessagesPage {
     .borderRadius(24)
   }
 
-  @Builder
-  NetworkState() {
-    Column() {
-      Blank().height(86)
-      Text('消息加载失败')
-        .fontSize(23)
-        .fontWeight(FontWeight.Bold)
-        .fontColor(this.primaryText())
-      Text('当前网络不可用，暂时无法同步最新告警。')
-        .fontSize(13)
-        .lineHeight(21)
-        .fontColor(this.secondaryText())
-        .textAlign(TextAlign.Center)
-        .margin({ left: 36, right: 36, top: 10 })
-      Button('重试')
-        .height(42)
-        .fontSize(14)
-        .fontWeight(FontWeight.Bold)
-        .fontColor('#FFFFFF')
-        .backgroundColor('#5E8CFF')
-        .borderRadius(21)
-        .padding({ left: 24, right: 24 })
-        .margin({ top: 22 })
-        .onClick(() => {
-          this.networkFailed = false;
-        })
-    }
-    .layoutWeight(1)
-    .width('100%')
-    .alignItems(HorizontalAlign.Center)
-  }
 }
 
