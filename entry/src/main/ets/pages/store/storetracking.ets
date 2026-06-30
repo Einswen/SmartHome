@@ -167,17 +167,6 @@ struct StoreTrackingPage {
         .margin({ left: 14 })
         .layoutWeight(1)
 
-      Button(this.networkFailed ? '恢复' : '断网')
-        .height(34)
-        .fontSize(12)
-        .fontWeight(FontWeight.Bold)
-        .fontColor(this.networkFailed ? '#FFFFFF' : this.primaryText())
-        .backgroundColor(this.networkFailed ? this.accentColor() : this.cardColor())
-        .borderRadius(17)
-        .padding({ left: 12, right: 12 })
-        .onClick(() => {
-          this.networkFailed = !this.networkFailed;
-        })
     }
     .width('100%')
     .padding({ left: 18, right: 18, top: 28, bottom: 14 })

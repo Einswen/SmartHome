@@ -266,18 +266,19 @@ export struct P31_StoreHome {
           safePushUrl(this.getUIContext().getRouter(), { url: 'pages/store/storecart', params: this.routeParams() });
         })
 
-      Button(this.networkFailed ? '恢复' : '断网')
+      Button('地址')
         .height(36)
         .fontSize(12)
         .fontWeight(FontWeight.Bold)
-        .fontColor(this.networkFailed ? '#FFFFFF' : this.primaryText())
-        .backgroundColor(this.networkFailed ? '#F3A33A' : this.cardColor())
+        .fontColor(this.primaryText())
+        .backgroundColor(this.cardColor())
         .border({ width: 1, color: this.lineColor() })
         .borderRadius(18)
-        .padding({ left: 13, right: 13 })
+        .padding({ left: 14, right: 14 })
         .onClick(() => {
-          this.networkFailed = !this.networkFailed;
+          safePushUrl(this.getUIContext().getRouter(), { url: 'pages/store/storeaddress', params: this.routeParams() });
         })
+
     }
     .width('100%')
     .padding({ left: 18, right: 18, top: 30, bottom: 14 })
@@ -399,7 +400,7 @@ export struct P31_StoreHome {
       this.Entrance('分类', '按场景找设备', 'pages/store/storecategory', '#5E8CFF')
       this.Entrance('购物车', '2 件待确认', 'pages/store/storecart', '#19B7A4')
       this.Entrance('订单', '物流与订阅', 'pages/store/storeorders', '#F3A33A')
-      this.Entrance('售后', '保修与工单', 'pages/store/storeservice', '#7F72F2')
+      this.Entrance('地址', '配送与安装', 'pages/store/storeaddress', '#7F72F2')
     }
     .width('100%')
     .margin({ top: 16 })

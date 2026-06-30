@@ -252,17 +252,17 @@ struct StoreCartPage {
         .fontColor(this.primaryText())
         .margin({ left: 14 })
         .layoutWeight(1)
-      Button(this.networkFailed ? '恢复' : '断网')
+      Button('地址')
         .height(34)
         .fontSize(12)
         .fontWeight(FontWeight.Bold)
-        .fontColor(this.networkFailed ? '#FFFFFF' : this.primaryText())
-        .backgroundColor(this.networkFailed ? '#F3A33A' : this.cardColor())
+        .fontColor(this.primaryText())
+        .backgroundColor(this.cardColor())
         .borderRadius(17)
         .padding({ left: 12, right: 12 })
         .margin({ right: 8 })
         .onClick(() => {
-          this.networkFailed = !this.networkFailed;
+          safePushUrl(this.getUIContext().getRouter(), { url: 'pages/store/storeaddress', params: { isNight: this.isNight } });
         })
       Button(this.showEmpty ? '恢复' : '清空')
         .height(34)

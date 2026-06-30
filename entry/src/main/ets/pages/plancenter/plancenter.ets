@@ -63,7 +63,6 @@ const CHECKLISTS: ChecklistSpec[] = [
 struct PlanCenterPage {
   @StorageLink('homeNightMode') isNight: boolean = false;
   @State activePlanId: string = 'sleep';
-  @State previewEnabled: boolean = true;
   @State pressedKey: string = '';
 
   aboutToAppear(): void {
@@ -164,19 +163,6 @@ struct PlanCenterPage {
         .fontColor(this.primaryText())
         .margin({ left: 14 })
         .layoutWeight(1)
-
-      Button(this.previewEnabled ? '预览中' : '预览')
-        .height(34)
-        .fontSize(12)
-        .fontWeight(FontWeight.Bold)
-        .fontColor(this.previewEnabled ? '#FFFFFF' : this.primaryText())
-        .backgroundColor(this.previewEnabled ? '#5E8CFF' : this.cardColor())
-        .border({ width: 1, color: this.previewEnabled ? '#5E8CFF' : this.lineColor() })
-        .borderRadius(17)
-        .padding({ left: 12, right: 12 })
-        .onClick(() => {
-          this.previewEnabled = !this.previewEnabled;
-        })
     }
     .width('100%')
     .padding({ left: 18, right: 18, top: 28, bottom: 14 })

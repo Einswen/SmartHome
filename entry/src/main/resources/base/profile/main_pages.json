@@ -15,6 +15,7 @@
     "pages/store/storeorders",
     "pages/store/storeservice",
     "pages/store/storecart",
-    "pages/store/storetracking"
+    "pages/store/storetracking",
+    "pages/store/storeaddress"
   ]
 }

@@ -684,6 +684,9 @@ struct Index {
   }
 
   private installedPointIds(roomId: string): string[] {
+    if (roomId === 'living') {
+      return this.livingPointIdsText.length > 0 ? this.livingPointIdsText.split('|').filter((id: string) => id.length > 0) : [];
+    }
     for (let i = 0; i < this.roomDevices.length; i++) {
       if (this.roomDevices[i].roomId === roomId) {
         return this.roomDevices[i].pointIds;
@@ -705,6 +708,11 @@ struct Index {
       return item;
     });
     this.roomDevices = matched ? nextRoomDevices : [...nextRoomDevices, { roomId: roomId, pointIds: pointIds }];
+    if (roomId === 'living') {
+      this.livingPointIdsText = pointIds.join('|');
+      this.livingDeviceCount = pointIds.length;
+      this.syncLivingInstalledFlags(pointIds);
+    }
   }
 
   private pointsForActiveRoom(): PointSpec[] {
