@@ -31,19 +31,19 @@ struct MyLoginPage {
   }
 
   private bgColor(): string {
-    return this.isNight ? '#070A0F' : '#F4F6FA';
+    return this.isNight ? '#060709' : '#F2F4F8';
   }
 
   private cardColor(): string {
-    return this.isNight ? '#171D27' : '#FFFFFF';
+    return this.isNight ? '#731F232A' : '#B8FFFFFF';
   }
 
   private softColor(): string {
-    return this.isNight ? '#232B38' : '#F0F4FA';
+    return this.isNight ? '#73161A20' : '#B8EFF2F7';
   }
 
   private lineColor(): string {
-    return this.isNight ? '#24FFFFFF' : '#12000000';
+    return this.isNight ? '#24FFFFFF' : '#5CFFFFFF';
   }
 
   private canLogin(): boolean {
@@ -143,7 +143,7 @@ struct MyLoginPage {
     .padding({ top: 30, bottom: 26 })
     .linearGradient({
       angle: 135,
-      colors: this.isNight ? [['#1B2432', 0.0], ['#111820', 0.62], ['#23342D', 1.0]] : [['#EAF2FF', 0.0], ['#FFFFFF', 0.62], ['#EAF8F4', 1.0]]
+      colors: this.isNight ? [['#1B2432', 0.0], ['#111820', 0.62], ['#23342D', 1.0]] : [['#EAF2FF', 0.0], ['#B8FFFFFF', 0.62], ['#EAF8F4', 1.0]]
     })
     .borderRadius(28)
   }

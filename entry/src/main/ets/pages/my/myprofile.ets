@@ -62,11 +62,11 @@ export struct P21_MyProfile {
   }
 
   private bgColor(): string {
-    return this.isNight ? '#070A0F' : '#F4F6FA';
+    return this.isNight ? '#060709' : '#F2F4F8';
   }
 
   private panelColor(): string {
-    return this.isNight ? '#D9151A22' : '#FFFFFFFF';
+    return this.isNight ? '#731F232A' : '#B8FFFFFF';
   }
 
   private softPanelColor(): string {
@@ -74,7 +74,7 @@ export struct P21_MyProfile {
   }
 
   private lineColor(): string {
-    return this.isNight ? '#20FFFFFF' : '#12000000';
+    return this.isNight ? '#24FFFFFF' : '#5CFFFFFF';
   }
 
   private shadowColor(): string {
@@ -234,7 +234,7 @@ export struct P21_MyProfile {
     .padding({ left: 20, right: 20, top: 20, bottom: 18 })
     .linearGradient({
       angle: 135,
-      colors: this.isNight ? [['#192332', 0.0], ['#10151E', 0.66], ['#1A2D2B', 1.0]] : [['#E6EEFF', 0.0], ['#FFFFFF', 0.56], ['#EAF8F4', 1.0]]
+      colors: this.isNight ? [['#192332', 0.0], ['#10151E', 0.66], ['#1A2D2B', 1.0]] : [['#E6EEFF', 0.0], ['#B8FFFFFF', 0.56], ['#EAF8F4', 1.0]]
     })
     .border({ width: 1, color: this.lineColor() })
     .borderRadius(26)

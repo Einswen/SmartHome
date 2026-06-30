@@ -67,11 +67,11 @@ struct StoreOrdersPage {
   }
 
   private bgColor(): string {
-    return this.isNight ? '#070A0F' : '#F4F6FA';
+    return this.isNight ? '#060709' : '#F2F4F8';
   }
 
   private cardColor(): string {
-    return this.isNight ? '#D9151A22' : '#FFFFFF';
+    return this.isNight ? '#731F232A' : '#B8FFFFFF';
   }
 
   private orders(): OrderSpec[] {
@@ -227,7 +227,7 @@ struct StoreOrdersPage {
     }
     .width('100%')
     .padding({ left: 20, right: 20, top: 22, bottom: 22 })
-    .linearGradient({ angle: 135, colors: this.isNight ? [['#1B2432', 0.0], ['#111820', 0.62], ['#332B1C', 1.0]] : [['#EAF2FF', 0.0], ['#FFFFFF', 0.62], ['#FFF2D7', 1.0]] })
+    .linearGradient({ angle: 135, colors: this.isNight ? [['#1B2432', 0.0], ['#111820', 0.62], ['#332B1C', 1.0]] : [['#EAF2FF', 0.0], ['#B8FFFFFF', 0.62], ['#FFF2D7', 1.0]] })
     .borderRadius(26)
   }
 

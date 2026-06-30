@@ -70,15 +70,15 @@ struct StoreCartPage {
   }
 
   private bgColor(): string {
-    return this.isNight ? '#070A0F' : '#F4F6FA';
+    return this.isNight ? '#060709' : '#F2F4F8';
   }
 
   private cardColor(): string {
-    return this.isNight ? '#D9151A22' : '#FFFFFF';
+    return this.isNight ? '#731F232A' : '#B8FFFFFF';
   }
 
   private softColor(): string {
-    return this.isNight ? '#661F2632' : '#F0F4FA';
+    return this.isNight ? '#73161A20' : '#B8EFF2F7';
   }
 
   private items(): CartItemSpec[] {
@@ -318,7 +318,7 @@ struct StoreCartPage {
     }
     .width('100%')
     .padding({ left: 20, right: 20, top: 20, bottom: 20 })
-    .linearGradient({ angle: 135, colors: this.isNight ? [['#1B2432', 0.0], ['#111820', 0.62], ['#23342D', 1.0]] : [['#FFF2D7', 0.0], ['#FFFFFF', 0.64], ['#EAF8F4', 1.0]] })
+    .linearGradient({ angle: 135, colors: this.isNight ? [['#1B2432', 0.0], ['#111820', 0.62], ['#23342D', 1.0]] : [['#FFF2D7', 0.0], ['#B8FFFFFF', 0.64], ['#EAF8F4', 1.0]] })
     .borderRadius(26)
   }
 
