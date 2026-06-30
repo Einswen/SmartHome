@@ -2079,8 +2079,6 @@ struct Index {
     for (let i = 0; i < presets.length; i++) {
       this.applyScenePreset(presets[i]);
     }
-    this.syncDeviceStates();
-    this.syncActiveState();
     this.sendSceneToCloud(baseId);
   }
 
