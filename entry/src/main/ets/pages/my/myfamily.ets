@@ -1,4 +1,4 @@
-import router from '@ohos.router';
+﻿import { safeBack, safeGetParams } from '../../common/SafeRouter';
 
 interface MyFamilyRouteParams {
   isNight?: boolean;
@@ -35,7 +35,7 @@ struct MyFamilyPage {
   @State selectedMemberRole: string = '普通成员';
 
   aboutToAppear(): void {
-    const params = router.getParams() as MyFamilyRouteParams | undefined;
+    const params = safeGetParams(this.getUIContext().getRouter()) as MyFamilyRouteParams | undefined;
     if (params && params.isNight !== undefined) {
       this.isNight = params.isNight;
     }
@@ -121,7 +121,7 @@ struct MyFamilyPage {
         .backgroundColor(this.cardColor())
         .borderRadius(20)
         .onClick(() => {
-          router.back();
+          safeBack(this.getUIContext().getRouter());
         })
 
       Text('家庭管理')

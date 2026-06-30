@@ -1,4 +1,4 @@
-import router from '@ohos.router';
+﻿import { safeBack, safeGetParams, safePushUrl } from '../../common/SafeRouter';
 
 interface ProductRouteParams {
   productId?: string;
@@ -59,7 +59,7 @@ struct StoreProductPage {
   @StorageLink('cartLinePayload') cartLinePayload: string = '';
 
   aboutToAppear(): void {
-    const params = router.getParams() as ProductRouteParams | undefined;
+    const params = safeGetParams(this.getUIContext().getRouter()) as ProductRouteParams | undefined;
     if (params && params.productId !== undefined) {
       this.productId = params.productId;
       this.activeShotIndex = 0;
@@ -202,7 +202,7 @@ struct StoreProductPage {
         .backgroundColor(this.cardColor())
         .borderRadius(20)
         .onClick(() => {
-          router.back();
+          safeBack(this.getUIContext().getRouter());
         })
 
       Text('商品详情')
@@ -222,7 +222,7 @@ struct StoreProductPage {
         .padding({ left: 12, right: 12 })
         .margin({ right: 8 })
         .onClick(() => {
-          router.pushUrl({ url: 'pages/store/storecart', params: this.routeParams() });
+          safePushUrl(this.getUIContext().getRouter(), { url: 'pages/store/storecart', params: this.routeParams() });
         })
 
       Button(this.networkFailed ? '恢复' : '断网')
@@ -561,7 +561,7 @@ struct StoreProductPage {
           this.cartAddedProductId = this.productId;
           this.cartAddedCount = this.count;
           this.added = true;
-          router.pushUrl({ url: 'pages/store/storecart', params: this.addedRouteParams() });
+          safePushUrl(this.getUIContext().getRouter(), { url: 'pages/store/storecart', params: this.addedRouteParams() });
         })
       Button('去结算')
         .height(44)
@@ -572,7 +572,7 @@ struct StoreProductPage {
         .borderRadius(22)
         .padding({ left: 18, right: 18 })
         .onClick(() => {
-          router.pushUrl({ url: 'pages/store/storecart', params: this.routeParams() });
+          safePushUrl(this.getUIContext().getRouter(), { url: 'pages/store/storecart', params: this.routeParams() });
         })
     }
     .width('100%')
