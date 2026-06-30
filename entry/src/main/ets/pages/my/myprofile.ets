@@ -170,16 +170,20 @@ export struct P21_MyProfile {
       .alignItems(HorizontalAlign.Start)
       .layoutWeight(1)
 
-      Button(this.signedIn ? '已登录' : '登录')
+      Button(this.signedIn ? '退出登录' : '登录')
         .height(36)
         .fontSize(12)
         .fontWeight(FontWeight.Bold)
-        .fontColor(this.signedIn ? this.secondaryText() : '#FFFFFF')
-        .backgroundColor(this.signedIn ? this.softPanelColor() : '#11151D')
+        .fontColor(this.signedIn ? '#D35B4B' : '#FFFFFF')
+        .backgroundColor(this.signedIn ? (this.isNight ? '#33D35B4B' : '#FFF1EF') : '#11151D')
         .borderRadius(18)
         .padding({ left: 14, right: 14 })
         .onClick(() => {
-          safePushUrl(this.getUIContext().getRouter(), { url: 'pages/my/mylogin', params: { isNight: this.isNight } });
+          if (this.signedIn) {
+            this.signedIn = false;
+          } else {
+            safePushUrl(this.getUIContext().getRouter(), { url: 'pages/my/mylogin', params: { isNight: this.isNight } });
+          }
         })
     }
     .width('100%')

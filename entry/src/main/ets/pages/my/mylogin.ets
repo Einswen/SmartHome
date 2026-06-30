@@ -58,6 +58,11 @@ struct MyLoginPage {
     this.loginSuccess = true;
   }
 
+  private handleLogout(): void {
+    this.signedIn = false;
+    this.loginSuccess = false;
+  }
+
   build() {
     Stack() {
       Column() {
@@ -65,6 +70,9 @@ struct MyLoginPage {
         Scroll() {
           Column() {
             this.Hero()
+            if (this.signedIn) {
+              this.AccountStateCard()
+            }
             this.FormCard()
             this.SecurityTips()
           }
@@ -151,6 +159,25 @@ struct MyLoginPage {
   @Builder
   FormCard() {
     Column() {
+      if (this.signedIn) {
+        Text('当前账号')
+          .fontSize(13)
+          .fontWeight(FontWeight.Bold)
+          .fontColor(this.primaryText())
+          .width('100%')
+        Text(this.phone)
+          .fontSize(18)
+          .fontWeight(FontWeight.Bold)
+          .fontColor(this.primaryText())
+          .margin({ top: 8 })
+          .width('100%')
+        Text('退出后将停止同步家庭、设备、商城订单和授权偏好。')
+          .fontSize(12)
+          .lineHeight(19)
+          .fontColor(this.secondaryText())
+          .margin({ top: 8 })
+          .width('100%')
+      } else {
       Text('手机号')
         .fontSize(13)
         .fontWeight(FontWeight.Bold)
@@ -240,6 +267,7 @@ struct MyLoginPage {
       }
       .width('100%')
       .margin({ top: 14 })
+      }
     }
     .width('100%')
     .padding({ left: 18, right: 18, top: 18, bottom: 18 })
@@ -247,6 +275,41 @@ struct MyLoginPage {
     .borderRadius(24)
     .margin({ top: 16 })
     .shadow({ radius: 18, color: this.isNight ? '#66000000' : '#12151C20', offsetY: 8 })
+  }
+
+  @Builder
+  AccountStateCard() {
+    Row() {
+      Column() {
+        Text('已登录')
+          .fontSize(18)
+          .fontWeight(FontWeight.Bold)
+          .fontColor(this.primaryText())
+        Text('Lumi 家庭数据正在同步')
+          .fontSize(12)
+          .fontColor(this.secondaryText())
+          .margin({ top: 6 })
+      }
+      .alignItems(HorizontalAlign.Start)
+      .layoutWeight(1)
+
+      Button('退出登录')
+        .height(36)
+        .fontSize(12)
+        .fontWeight(FontWeight.Bold)
+        .fontColor('#D35B4B')
+        .backgroundColor(this.isNight ? '#33D35B4B' : '#FFF1EF')
+        .borderRadius(18)
+        .padding({ left: 14, right: 14 })
+        .onClick(() => {
+          this.handleLogout();
+        })
+    }
+    .width('100%')
+    .padding({ left: 18, right: 18, top: 16, bottom: 16 })
+    .backgroundColor(this.cardColor())
+    .borderRadius(24)
+    .margin({ top: 16 })
   }
 
   @Builder
