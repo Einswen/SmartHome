@@ -70,9 +70,6 @@ struct MyLoginPage {
         Scroll() {
           Column() {
             this.Hero()
-            if (this.loginSuccess) {
-              this.LoginSuccessBanner()
-            }
             if (this.signedIn) {
               this.AccountStateCard()
             }
@@ -88,6 +85,10 @@ struct MyLoginPage {
       .width('100%')
       .height('100%')
       .backgroundColor(this.bgColor())
+
+      if (this.loginSuccess) {
+        this.SuccessDialog()
+      }
     }
     .width('100%')
     .height('100%')
@@ -377,51 +378,62 @@ struct MyLoginPage {
   }
 
   @Builder
-  LoginSuccessBanner() {
-    Row() {
+  SuccessDialog() {
+    Stack({ alignContent: Alignment.Center }) {
+      Column()
+        .width('100%')
+        .height('100%')
+        .backgroundColor(this.isNight ? '#52000000' : '#26000000')
+
+      Column() {
       Stack() {
         Circle()
-          .width(34)
-          .height(34)
+          .width(58)
+          .height(58)
           .fill('#35D27A')
         Text('√')
-          .fontSize(17)
+          .fontSize(28)
           .fontWeight(FontWeight.Bold)
           .fontColor('#FFFFFF')
       }
-      .width(34)
-      .height(34)
+      .width(58)
+      .height(58)
 
-      Column() {
         Text('登录成功')
-          .fontSize(16)
+          .fontSize(22)
           .fontWeight(FontWeight.Bold)
           .fontColor(this.primaryText())
-        Text('家庭、设备、购物车和授权偏好已同步')
-          .fontSize(12)
-          .fontColor(this.secondaryText())
-          .margin({ top: 4 })
-      }
-      .alignItems(HorizontalAlign.Start)
-      .layoutWeight(1)
-      .margin({ left: 12 })
+          .margin({ top: 16 })
 
-      Button('完成')
-        .height(34)
-        .fontSize(12)
-        .fontWeight(FontWeight.Bold)
-        .fontColor(this.isNight ? '#11151D' : '#FFFFFF')
-        .backgroundColor(this.isNight ? '#F5F7FB' : '#11151D')
-        .borderRadius(17)
-        .padding({ left: 14, right: 14 })
-        .onClick(() => {
-          safeBack(this.getUIContext().getRouter());
-        })
+        Text('家庭、设备、购物车和授权偏好已同步')
+          .fontSize(13)
+          .lineHeight(21)
+          .fontColor(this.secondaryText())
+          .textAlign(TextAlign.Center)
+          .margin({ left: 12, right: 12, top: 10 })
+
+        Button('进入我的')
+          .width('100%')
+          .height(42)
+          .fontSize(14)
+          .fontWeight(FontWeight.Bold)
+          .fontColor(this.isNight ? '#11151D' : '#FFFFFF')
+          .backgroundColor(this.isNight ? '#F5F7FB' : '#11151D')
+          .borderRadius(21)
+          .margin({ top: 20 })
+          .onClick(() => {
+            safeBack(this.getUIContext().getRouter());
+          })
+      }
+      .width('78%')
+      .padding({ left: 22, right: 22, top: 24, bottom: 22 })
+      .backgroundColor(this.isNight ? '#D91A1E25' : '#EFFFFFFF')
+      .border({ width: 1, color: this.lineColor() })
+      .borderRadius(26)
+      .alignItems(HorizontalAlign.Center)
+      .shadow({ radius: 26, color: this.isNight ? '#AA000000' : '#33000000', offsetY: 12 })
     }
     .width('100%')
-    .padding({ left: 16, right: 16, top: 14, bottom: 14 })
-    .backgroundColor(this.cardColor())
-    .borderRadius(22)
-    .margin({ top: 16 })
+    .height('100%')
   }
 }
