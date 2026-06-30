@@ -1,4 +1,4 @@
-import router from '@ohos.router';
+﻿import { safeBackOrReplace, safeGetParams } from '../../common/SafeRouter';
 
 interface MyMessagesRouteParams {
   isNight?: boolean;
@@ -152,7 +152,7 @@ struct MyMessagesPage {
   @State accountPanelVisible: boolean = false;
 
   aboutToAppear(): void {
-    const params = router.getParams() as MyMessagesRouteParams | undefined;
+    const params = safeGetParams(this.getUIContext().getRouter()) as MyMessagesRouteParams | undefined;
     if (params && params.isNight !== undefined) {
       this.isNight = params.isNight;
     }
@@ -211,7 +211,7 @@ struct MyMessagesPage {
   }
 
   private backToHome(): void {
-    router.replaceUrl({ url: 'pages/Index', params: { isNight: this.isNight, activeTab: 'home' } });
+    safeBackOrReplace(this.getUIContext().getRouter(), { url: 'pages/Index', params: { isNight: this.isNight, activeTab: 'home' } });
   }
 
   build() {

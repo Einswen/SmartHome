@@ -1,4 +1,4 @@
-import router from '@ohos.router';
+﻿import { safeBack, safeGetParams, safePushUrl } from '../../common/SafeRouter';
 
 interface StoreOrdersRouteParams {
   isNight?: boolean;
@@ -29,7 +29,7 @@ struct StoreOrdersPage {
   @State isNight: boolean = false;
 
   aboutToAppear(): void {
-    const params = router.getParams() as StoreOrdersRouteParams | undefined;
+    const params = safeGetParams(this.getUIContext().getRouter()) as StoreOrdersRouteParams | undefined;
     if (params && params.isNight !== undefined) {
       this.isNight = params.isNight;
     }
@@ -96,7 +96,7 @@ struct StoreOrdersPage {
         .backgroundColor(this.cardColor())
         .borderRadius(20)
         .onClick(() => {
-          router.back();
+          safeBack(this.getUIContext().getRouter());
         })
       Text('我的订单')
         .fontSize(22)
@@ -275,7 +275,7 @@ struct StoreOrdersPage {
           .borderRadius(18)
           .margin({ left: 8 })
           .onClick(() => {
-            router.pushUrl({ url: 'pages/store/storeservice', params: { isNight: this.isNight } });
+            safePushUrl(this.getUIContext().getRouter(), { url: 'pages/store/storeservice', params: { isNight: this.isNight } });
           })
       }
       .width('100%')
@@ -316,7 +316,7 @@ struct StoreOrdersPage {
         .padding({ left: 18, right: 18 })
         .margin({ top: 18 })
         .onClick(() => {
-          router.back();
+          safeBack(this.getUIContext().getRouter());
         })
     }
     .width('100%')

@@ -1,4 +1,4 @@
-import router from '@ohos.router';
+﻿import { safeBack, safeGetParams, safePushUrl } from '../../common/SafeRouter';
 
 interface StoreCategoryRouteParams {
   isNight?: boolean;
@@ -12,7 +12,7 @@ struct StoreCategoryPage {
   @State showEmpty: boolean = false;
 
   aboutToAppear(): void {
-    const params = router.getParams() as StoreCategoryRouteParams | undefined;
+    const params = safeGetParams(this.getUIContext().getRouter()) as StoreCategoryRouteParams | undefined;
     if (params && params.isNight !== undefined) {
       this.isNight = params.isNight;
     }
@@ -79,7 +79,7 @@ struct StoreCategoryPage {
         .backgroundColor(this.cardColor())
         .borderRadius(20)
         .onClick(() => {
-          router.back();
+          safeBack(this.getUIContext().getRouter());
         })
       Text('商品分类')
         .fontSize(22)
@@ -172,7 +172,7 @@ struct StoreCategoryPage {
     .borderRadius(24)
     .margin({ top: 12 })
     .onClick(() => {
-      router.pushUrl({ url: 'pages/store/storeproduct', params: { productId: productId, isNight: this.isNight } });
+      safePushUrl(this.getUIContext().getRouter(), { url: 'pages/store/storeproduct', params: { productId: productId, isNight: this.isNight } });
     })
   }
 

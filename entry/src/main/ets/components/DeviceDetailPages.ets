@@ -291,14 +291,28 @@ export struct DeviceDetailPages {
 
   aboutToAppear(): void {
     this.currentValue = this.page().sliderValue;
-    if (this.pointId === 'living_tv' || this.pointId === 'bedroom_door') {
+    const basePointId = this.pointBaseId(this.pointId);
+    if (basePointId === 'living_tv' || basePointId === 'bedroom_door') {
       this.powerOn = false;
     }
   }
 
+  private pointBaseId(pointId: string): string {
+    const markerIndex = pointId.indexOf('@');
+    if (markerIndex >= 0) {
+      const nextMarkerIndex = pointId.indexOf('@', markerIndex + 1);
+      if (nextMarkerIndex >= 0) {
+        return pointId.substring(markerIndex + 1, nextMarkerIndex);
+      }
+      return pointId.substring(markerIndex + 1);
+    }
+    return pointId;
+  }
+
   private page(): DevicePageSpec {
+    const basePointId = this.pointBaseId(this.pointId);
     for (let i = 0; i < DEVICE_PAGES.length; i++) {
-      if (DEVICE_PAGES[i].id === this.pointId) {
+      if (DEVICE_PAGES[i].id === basePointId) {
         return DEVICE_PAGES[i];
       }
     }
@@ -818,7 +832,7 @@ export struct DeviceDetailPages {
           this.ControlDeck(this.page())
           this.Metrics(this.page())
 
-          if (this.pointId === 'living_purifier') {
+          if (this.pointBaseId(this.pointId) === 'living_purifier') {
             this.PurifierLinkedDevices()
           }
 

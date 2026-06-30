@@ -1,4 +1,4 @@
-import router from '@ohos.router';
+﻿import { safeGetParams, safePushUrl } from '../common/SafeRouter';
 import { DeviceDetailPages } from '../components/DeviceDetailPages';
 import { P31_StoreHome } from './store/storehome';
 import { P21_MyProfile } from './my/myprofile';
@@ -289,7 +289,7 @@ struct Index {
   private clockTimer: number = -1;
 
   aboutToAppear(): void {
-    const params = router.getParams() as IndexRouteParams | undefined;
+    const params = safeGetParams(this.getUIContext().getRouter()) as IndexRouteParams | undefined;
     if (params && params.activeTab !== undefined) {
       this.activeTab = params.activeTab;
     }
@@ -2362,7 +2362,7 @@ struct Index {
   }
 
   private goSmartDetail(mode: string): void {
-    router.pushUrl({
+    safePushUrl(this.getUIContext().getRouter(), {
       url: 'pages/smart/smartdetails',
       params: {
         mode: mode,
@@ -2431,7 +2431,7 @@ struct Index {
         .height(42)
         .margin({ left: 10 })
         .onClick(() => {
-          router.pushUrl({ url: 'pages/messagecenter/mymessages', params: { isNight: this.isNight } });
+          safePushUrl(this.getUIContext().getRouter(), { url: 'pages/messagecenter/mymessages', params: { isNight: this.isNight } });
         })
       }
       .alignItems(VerticalAlign.Center)
