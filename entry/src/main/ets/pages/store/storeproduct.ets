@@ -99,6 +99,10 @@ struct StoreProductPage {
     return this.isNight ? '#661F2632' : '#F0F4FA';
   }
 
+  private useWhiteProductBackground(productId: string): boolean {
+    return productId === 'sensor_pro' || productId === 'light_module' || productId === 'gesture_panel' || productId === 'robot_pack' || productId === 'gateway_m2';
+  }
+
   private productShots(product: ProductSpec): ProductShotSpec[] {
     if (product.id === 'robot_pack') {
       return [
@@ -333,7 +337,7 @@ struct StoreProductPage {
         .height(176)
         .linearGradient({
           angle: 135,
-          colors: this.isNight ? [['#202A38', 0.0], ['#111820', 0.62], ['#27313A', 1.0]] : [[shot.bgStart, 0.0], ['#FFFFFF', 0.58], [shot.bgEnd, 1.0]]
+          colors: this.useWhiteProductBackground(product.id) ? [['#FFFFFF', 0.0], ['#FFFFFF', 0.58], ['#FFFFFF', 1.0]] : (this.isNight ? [['#202A38', 0.0], ['#111820', 0.62], ['#27313A', 1.0]] : [[shot.bgStart, 0.0], ['#FFFFFF', 0.58], [shot.bgEnd, 1.0]])
         })
         .borderRadius(28)
 
@@ -347,7 +351,7 @@ struct StoreProductPage {
         Column()
           .width(54)
           .height(118)
-          .linearGradient({ angle: 90, colors: this.isNight ? [['#303947', 0.0], ['#1A2029', 1.0]] : [['#FFFFFF', 0.0], ['#DDE6F3', 1.0]] })
+          .linearGradient({ angle: 90, colors: this.useWhiteProductBackground(product.id) ? [['#FFFFFF', 0.0], ['#FFFFFF', 1.0]] : (this.isNight ? [['#303947', 0.0], ['#1A2029', 1.0]] : [['#FFFFFF', 0.0], ['#DDE6F3', 1.0]]) })
           .borderRadius(16)
           .opacity(0.72)
           .translate({ x: -56, y: 0 })
@@ -361,7 +365,7 @@ struct StoreProductPage {
         Column()
           .width(54)
           .height(118)
-          .linearGradient({ angle: 90, colors: this.isNight ? [['#1A2029', 0.0], ['#303947', 1.0]] : [['#DDE6F3', 0.0], ['#FFFFFF', 1.0]] })
+          .linearGradient({ angle: 90, colors: this.useWhiteProductBackground(product.id) ? [['#FFFFFF', 0.0], ['#FFFFFF', 1.0]] : (this.isNight ? [['#1A2029', 0.0], ['#303947', 1.0]] : [['#DDE6F3', 0.0], ['#FFFFFF', 1.0]]) })
           .borderRadius(16)
           .opacity(0.72)
           .translate({ x: 56, y: 0 })
@@ -387,7 +391,7 @@ struct StoreProductPage {
         Column()
           .width(62)
           .height(126)
-          .linearGradient({ angle: 90, colors: this.isNight ? [['#273241', 0.0], ['#131A22', 1.0]] : [['#EEF3FF', 0.0], ['#FFFFFF', 1.0]] })
+          .linearGradient({ angle: 90, colors: this.useWhiteProductBackground(product.id) ? [['#FFFFFF', 0.0], ['#FFFFFF', 1.0]] : (this.isNight ? [['#273241', 0.0], ['#131A22', 1.0]] : [['#EEF3FF', 0.0], ['#FFFFFF', 1.0]]) })
           .borderRadius(20)
           .opacity(0.78)
           .translate({ x: 58, y: -4 })
@@ -400,7 +404,7 @@ struct StoreProductPage {
         Column()
           .width(62)
           .height(126)
-          .linearGradient({ angle: 90, colors: this.isNight ? [['#131A22', 0.0], ['#273241', 1.0]] : [['#FFFFFF', 0.0], ['#EEF3FF', 1.0]] })
+          .linearGradient({ angle: 90, colors: this.useWhiteProductBackground(product.id) ? [['#FFFFFF', 0.0], ['#FFFFFF', 1.0]] : (this.isNight ? [['#131A22', 0.0], ['#273241', 1.0]] : [['#FFFFFF', 0.0], ['#EEF3FF', 1.0]]) })
           .borderRadius(20)
           .opacity(0.78)
           .translate({ x: -58, y: -4 })
@@ -413,7 +417,7 @@ struct StoreProductPage {
         Circle()
           .width(130)
           .height(130)
-          .fill(this.isNight ? '#262C36' : '#F8FAFD')
+          .fill(this.useWhiteProductBackground(product.id) ? '#FFFFFF' : (this.isNight ? '#262C36' : '#F8FAFD'))
           .opacity(0.72)
           .translate({ x: 0, y: 32 })
         Image(shot.image !== undefined ? shot.image : product.image)
