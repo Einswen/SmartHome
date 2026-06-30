@@ -32,7 +32,7 @@ lite_component("app") {
         #"./b2_nfc:nfc_example",
         #"./b3_eeprom:eeprom_example",
         #"./b4_lcd:lcd_example",
-        #"./b5_oled:oled_example",
+        "./b5_oled:oled_example",
         #"./b6_uart0:uart0_example",
         #"./b6_uart2:uart2_example",
         #"./b7_wifi_tcp:wifi_tcp_example",
@@ -70,7 +70,7 @@ lite_component("app") {
         #"./d4_iot_cloud_intelligent_vehicle:iot_cloud_iv_example",
         #"./d5_iot_cloud_body_induction:iot_cloud_bi_example",
         #"./d6_iot_cloud_gesture_sensor:iot_cloud_gs_example",
-        #"./d7_iot_cloud_intelligent_agriculture:iot_cloud_ia_example",
+        "./d7_iot_cloud_intelligent_agriculture:iot_cloud_ia_example",
     ]
 
     deps = [

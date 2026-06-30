@@ -324,4 +324,6 @@ subninja obj/vendor/lockzhiner/rk2206/hdf_drivers/gpio/gpio_driver.ninja
 subninja obj/vendor/lockzhiner/rk2206/hdf_drivers/i2c/i2c_driver.ninja
 subninja obj/vendor/lockzhiner/rk2206/hdf_drivers/pwm/pwm_driver.ninja
 subninja obj/vendor/lockzhiner/rk2206/hdf_drivers/spi/spi_driver.ninja
-build obj/vendor/lockzhiner/rk2206/samples/app.stamp: stamp
+build obj/vendor/lockzhiner/rk2206/samples/app.stamp: stamp ./libs/liboled_example.a ./libs/libiot_cloud_ia_example.a
+subninja obj/vendor/lockzhiner/rk2206/samples/b5_oled/oled_example.ninja
+subninja obj/vendor/lockzhiner/rk2206/samples/d7_iot_cloud_intelligent_agriculture/iot_cloud_ia_example.ninja

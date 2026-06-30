@@ -75,6 +75,7 @@ build huks_sdk: phony obj/base/security/huks/frameworks/huks_lite/huks_sdk.stamp
 build huks_test_common: phony ./libs/libhuks_test_common.a
 build i2c_driver: phony ./libs/libi2c_driver.a
 build iot: phony obj/domains/iot/link/iot.stamp
+build iot_cloud_ia_example: phony ./libs/libiot_cloud_ia_example.a
 build iothardware: phony obj/base/iot_hardware/peripheral/iothardware.stamp
 build iothardware_ndk: phony obj/base/iot_hardware/peripheral/iothardware_ndk.stamp
 build kal: phony obj/kernel/liteos_m/kal/kal.stamp
@@ -110,6 +111,7 @@ build musl-m: phony ./libs/libmusl-m.a
 build native_file: phony ./libs/libnative_file.a
 build ndk: phony obj/build/lite/ndk.stamp
 build ohos: phony obj/build/lite/ohos.stamp
+build oled_example: phony ./libs/liboled_example.a
 build pahomqtt_static: phony ./libs/libpahomqtt_static.a
 build parameter: phony obj/base/startup/syspara_lite/frameworks/parameter/parameter.stamp
 build parameter_notes: phony obj/base/startup/syspara_lite/frameworks/parameter/parameter_notes.stamp
@@ -337,6 +339,8 @@ build vendor/lockzhiner/rk2206/hdf_drivers/i2c$:i2c_driver: phony ./libs/libi2c_
 build vendor/lockzhiner/rk2206/hdf_drivers/pwm$:pwm_driver: phony ./libs/libpwm_driver.a
 build vendor/lockzhiner/rk2206/hdf_drivers/spi$:spi_driver: phony ./libs/libspi_driver.a
 build vendor/lockzhiner/rk2206/samples$:app: phony obj/vendor/lockzhiner/rk2206/samples/app.stamp
+build vendor/lockzhiner/rk2206/samples/b5_oled$:oled_example: phony ./libs/liboled_example.a
+build vendor/lockzhiner/rk2206/samples/d7_iot_cloud_intelligent_agriculture$:iot_cloud_ia_example: phony ./libs/libiot_cloud_ia_example.a
 
 build all: phony $
     obj/applications/sample/wifi-iot/app/app.stamp $
@@ -487,6 +491,8 @@ build all: phony $
     ./libs/libi2c_driver.a $
     ./libs/libpwm_driver.a $
     ./libs/libspi_driver.a $
-    obj/vendor/lockzhiner/rk2206/samples/app.stamp
+    obj/vendor/lockzhiner/rk2206/samples/app.stamp $
+    ./libs/liboled_example.a $
+    ./libs/libiot_cloud_ia_example.a
 
 default all

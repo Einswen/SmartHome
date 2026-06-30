@@ -42,7 +42,7 @@
 #include <stdint.h>
 
 #define OC_SERVER_URL              "tcp://183.230.40.39:6002"
-#define OC_SERVER_IP                "121.36.42.100"
+#define OC_SERVER_IP                "117.78.5.125"
 #define OC_SERVER_PORT              1883
 #define OC_CLIENT_ID_LEN            128
 #define OC_USERNAME_LEN             128

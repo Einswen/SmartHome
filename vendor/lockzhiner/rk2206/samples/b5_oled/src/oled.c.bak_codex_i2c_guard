@@ -44,56 +44,6 @@
 #define OLED_RST_Set()
 #else
 #define OLED_I2C_BUS        1
-typedef struct
-{
-    unsigned int bus;
-    I2cBusIo io;
-    const char *name;
-} OledI2cCandidate;
-
-static OledI2cCandidate m_oled_i2c_candidates[] =
-{
-    {
-        1,
-        {
-            .scl =  {.gpio = GPIO0_PC2, .func = MUX_FUNC5, .type = PULL_NONE, .drv = DRIVE_KEEP, .dir = LZGPIO_DIR_KEEP, .val = LZGPIO_LEVEL_KEEP},
-            .sda =  {.gpio = GPIO0_PC1, .func = MUX_FUNC5, .type = PULL_NONE, .drv = DRIVE_KEEP, .dir = LZGPIO_DIR_KEEP, .val = LZGPIO_LEVEL_KEEP},
-            .id = FUNC_ID_I2C1,
-            .mode = FUNC_MODE_M1,
-        },
-        "I2C1_M1 GPIO0_PC1/PC2"
-    },
-    {
-        1,
-        {
-            .scl =  {.gpio = GPIO0_PA3, .func = MUX_FUNC3, .type = PULL_NONE, .drv = DRIVE_KEEP, .dir = LZGPIO_DIR_KEEP, .val = LZGPIO_LEVEL_KEEP},
-            .sda =  {.gpio = GPIO0_PA2, .func = MUX_FUNC3, .type = PULL_NONE, .drv = DRIVE_KEEP, .dir = LZGPIO_DIR_KEEP, .val = LZGPIO_LEVEL_KEEP},
-            .id = FUNC_ID_I2C1,
-            .mode = FUNC_MODE_M2,
-        },
-        "I2C1_M2 GPIO0_PA2/PA3"
-    },
-    {
-        1,
-        {
-            .scl =  {.gpio = GPIO0_PB7, .func = MUX_FUNC4, .type = PULL_NONE, .drv = DRIVE_KEEP, .dir = LZGPIO_DIR_KEEP, .val = LZGPIO_LEVEL_KEEP},
-            .sda =  {.gpio = GPIO0_PB6, .func = MUX_FUNC4, .type = PULL_NONE, .drv = DRIVE_KEEP, .dir = LZGPIO_DIR_KEEP, .val = LZGPIO_LEVEL_KEEP},
-            .id = FUNC_ID_I2C1,
-            .mode = FUNC_MODE_M0,
-        },
-        "I2C1_M0 GPIO0_PB6/PB7"
-    },
-    {
-        2,
-        {
-            .scl =  {.gpio = GPIO0_PD6, .func = MUX_FUNC1, .type = PULL_NONE, .drv = DRIVE_KEEP, .dir = LZGPIO_DIR_KEEP, .val = LZGPIO_LEVEL_KEEP},
-            .sda =  {.gpio = GPIO0_PD5, .func = MUX_FUNC1, .type = PULL_NONE, .drv = DRIVE_KEEP, .dir = LZGPIO_DIR_KEEP, .val = LZGPIO_LEVEL_KEEP},
-            .id = FUNC_ID_I2C2,
-            .mode = FUNC_MODE_M0,
-        },
-        "I2C2_M0 GPIO0_PD5/PD6"
-    },
-};
 static I2cBusIo m_i2cBus =
 {
     .scl =  {.gpio = GPIO0_PC2, .func = MUX_FUNC5, .type = PULL_NONE, .drv = DRIVE_KEEP, .dir = LZGPIO_DIR_KEEP, .val = LZGPIO_LEVEL_KEEP},
@@ -102,10 +52,7 @@ static I2cBusIo m_i2cBus =
     .mode = FUNC_MODE_M1,
 };
 static unsigned int m_i2c_freq = 400000;
-static unsigned int m_oled_i2c_bus = OLED_I2C_BUS;
-static unsigned short m_oled_i2c_address = OLED_I2C_ADDRESS;
 #endif
-static unsigned int m_oled_i2c_failed = 0;
 
 /* 定义OLED读写操作 */
 #define OLED_CMD            0 // OLED的命令操作标记
@@ -266,18 +213,13 @@ static inline void write_iic_command(unsigned char iic_command)
     unsigned char buffer[2];
     unsigned int ret;
 
-    if (m_oled_i2c_failed)
-    {
-        return;
-    }
     /* 填充数据，第一个字节是通知OLED芯片，下一个字节是命令 */
     buffer[0] = 0x00;
     buffer[1] = iic_command;
-    ret = LzI2cWrite(m_oled_i2c_bus, m_oled_i2c_address, buffer, 2);
+    ret = LzI2cWrite(OLED_I2C_BUS, OLED_I2C_ADDRESS, buffer, 2);
     if (ret != 0)
     {
         printf("%s, %s, %d: LzI2cWrite failed(%d)!\n", __FILE__, __func__, __LINE__, ret);
-        m_oled_i2c_failed = 1;
     }
 }
 
@@ -294,58 +236,14 @@ static inline void write_iic_data(unsigned char iic_data)
     unsigned char buffer[2];
     unsigned int ret;
 
-    if (m_oled_i2c_failed)
-    {
-        return;
-    }
     /* 填充数据，第一个字节是通知OLED芯片，下一个字节是数据 */
     buffer[0] = 0x40;
     buffer[1] = iic_data;
-    ret = LzI2cWrite(m_oled_i2c_bus, m_oled_i2c_address, buffer, 2);
+    ret = LzI2cWrite(OLED_I2C_BUS, OLED_I2C_ADDRESS, buffer, 2);
     if (ret != 0)
     {
         printf("%s, %s, %d: LzI2cWrite failed(%d)!\n", __FILE__, __func__, __LINE__, ret);
-        m_oled_i2c_failed = 1;
     }
-}
-#endif
-
-#if OLED_I2C_ENABLE
-static unsigned int oled_probe_i2c(void)
-{
-    unsigned int candidate_count = sizeof(m_oled_i2c_candidates) / sizeof(m_oled_i2c_candidates[0]);
-    unsigned short addresses[] = {0x3C, 0x3D};
-    unsigned char buffer[2] = {0x00, 0xAE};
-    unsigned int i;
-    unsigned int j;
-
-    for (i = 0; i < candidate_count; i++)
-    {
-        m_i2cBus = m_oled_i2c_candidates[i].io;
-        m_oled_i2c_bus = m_oled_i2c_candidates[i].bus;
-        if (I2cIoInit(m_i2cBus) != LZ_HARDWARE_SUCCESS)
-        {
-            printf("[OLED] probe %s I2cIoInit failed\n", m_oled_i2c_candidates[i].name);
-            continue;
-        }
-        if (LzI2cInit(m_oled_i2c_bus, m_i2c_freq) != LZ_HARDWARE_SUCCESS)
-        {
-            printf("[OLED] probe %s LzI2cInit failed\n", m_oled_i2c_candidates[i].name);
-            continue;
-        }
-        for (j = 0; j < sizeof(addresses) / sizeof(addresses[0]); j++)
-        {
-            if (LzI2cWrite(m_oled_i2c_bus, addresses[j], buffer, 2) == LZ_HARDWARE_SUCCESS)
-            {
-                m_oled_i2c_address = addresses[j];
-                printf("[OLED] found at %s bus=%u addr=0x%02x\n", m_oled_i2c_candidates[i].name, m_oled_i2c_bus, m_oled_i2c_address);
-                return 0;
-            }
-        }
-        printf("[OLED] no response at %s\n", m_oled_i2c_candidates[i].name);
-        LzI2cDeinit(m_oled_i2c_bus);
-    }
-    return 1;
 }
 #endif
 
@@ -400,7 +298,6 @@ static inline void oled_set_pos(unsigned char x, unsigned char y)
  ***************************************************************/
 unsigned int oled_init()
 {
-    m_oled_i2c_failed = 0;
 #if !OLED_I2C_ENABLE
     /* GPIO0_C1 => I2C1_SDA_M1 */
     LzGpioInit(GPIO_I2C_SDA);
@@ -409,10 +306,15 @@ unsigned int oled_init()
     LzGpioInit(GPIO_I2C_SCL);
     LzGpioSetDir(GPIO_I2C_SCL, LZGPIO_DIR_OUT);
 #else
-    if (oled_probe_i2c() != 0)
+    if (I2cIoInit(m_i2cBus) != LZ_HARDWARE_SUCCESS)
     {
-        printf("[OLED] probe failed: no OLED response on known I2C pins\n");
-        return 1;
+        printf("%s, %d: I2cIoInit failed!\n", __FILE__, __LINE__);
+        return __FILE__;
+    }
+    if (LzI2cInit(OLED_I2C_BUS, m_i2c_freq) != LZ_HARDWARE_SUCCESS)
+    {
+        printf("%s, %d: I2cIoInit failed!\n", __FILE__, __LINE__);
+        return __FILE__;
     }
 #endif
     
@@ -452,10 +354,6 @@ unsigned int oled_init()
     oled_wr_byte(0x14, OLED_CMD); //
     
     oled_wr_byte(0xAF, OLED_CMD); //--turn on oled panel
-    if (m_oled_i2c_failed)
-    {
-        return 1;
-    }
     
     return 0;
 }
@@ -473,7 +371,7 @@ unsigned int oled_deinit()
     LzGpioDeinit(GPIO_I2C_SDA);
     LzGpioDeinit(GPIO_I2C_SCL);
 #else
-    LzI2cDeinit(m_oled_i2c_bus);
+    LzI2cDeinit(OLED_I2C_BUS);
 #endif
     return 0;
 }

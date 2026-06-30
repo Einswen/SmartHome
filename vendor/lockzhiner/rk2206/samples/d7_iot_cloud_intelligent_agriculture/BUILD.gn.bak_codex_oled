@@ -18,7 +18,6 @@ static_library("iot_cloud_ia_example") {
         "src/e53_intelligent_agriculture.c",
         "src/oc_mqtt.c",
         "src/oc_mqtt_profile_package.c",
-        "../b5_oled/src/oled.c",
     ]
 
     include_dirs = [
@@ -30,7 +29,6 @@ static_library("iot_cloud_ia_example") {
         "//device/rockchip/rk2206/adapter/include",
         "//device/rockchip/rk2206/sdk_liteos/board/include",
         "include",
-        "../b5_oled/include",
     ]
 
     deps = [

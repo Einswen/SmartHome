@@ -20,7 +20,6 @@
 #include "e53_intelligent_agriculture.h"
 #include "lz_hardware.h"
 #include "config_network.h"
-#include "oled.h"
 
 #define ROUTE_SSID                      "jackey"
 #define ROUTE_PASSWORD                  "19881988"
@@ -55,35 +54,6 @@ typedef struct
 
 static unsigned int m_ia_MsgQueue;
 static ia_status_t m_app_status;
-static int m_oled_ready = 0;
-
-static void ia_oled_show_status(const char *line2, const char *line3)
-{
-    if (!m_oled_ready)
-    {
-        return;
-    }
-    oled_clear();
-    oled_show_string(0, 0, (uint8_t *)"Smart Home", 16);
-    oled_show_string(0, 2, (uint8_t *)line2, 16);
-    oled_show_string(0, 4, (uint8_t *)line3, 16);
-}
-
-static void ia_oled_show_sensor(ia_report_t *report)
-{
-    char line[24];
-
-    if (!m_oled_ready)
-    {
-        return;
-    }
-    oled_clear();
-    oled_show_string(0, 0, (uint8_t *)"Smart Home", 16);
-    snprintf(line, sizeof(line), "Temp:%dC Hum:%d", report->temp, report->hum);
-    oled_show_string(0, 2, (uint8_t *)line, 16);
-    snprintf(line, sizeof(line), "Light:%d", report->lum);
-    oled_show_string(0, 4, (uint8_t *)line, 16);
-}
 
 /***************************************************************
 * 函数名称: ia_deal_report_msg
@@ -221,7 +191,7 @@ void ia_deal_cmd_msg(cmd_t *cmd)
     }
     else if (0 == strcmp(cJSON_GetStringValue(obj_cmdname), "电机控制"))
     {
-        obj_paras = cJSON_GetObjectItem(obj_root, "paras");
+        obj_paras = cJSON_GetObjectItem(obj_root, "Paras");
         if (obj_paras == NULL)
         {
             goto EXIT;
@@ -236,14 +206,12 @@ void ia_deal_cmd_msg(cmd_t *cmd)
             m_app_status.motor = 1;
             motor_set_status(ON);
             printf("Motor On\n");
-            ia_oled_show_status("Air ON", "Motor ON");
         }
         else
         {
             m_app_status.motor = 0;
             motor_set_status(OFF);
             printf("Motor Off\n");
-            ia_oled_show_status("Air OFF", "Motor OFF");
         }
         cmdret = 0;
     }
@@ -374,19 +342,6 @@ void iot_cloud_ia_example()
     {
         printf("Falied to create Message Queue ret:0x%x\n", ret);
         return;
-    }
-
-    if (oled_init() == 0)
-    {
-        m_oled_ready = 1;
-        oled_clear();
-        oled_show_string(0, 0, (uint8_t *)"Smart Home", 16);
-        oled_show_string(0, 2, (uint8_t *)"Cloud Ready", 16);
-    }
-    else
-    {
-        m_oled_ready = 0;
-        printf("[OLED] init failed, display disabled. Check I2C1 GPIO0_PC1/PC2 and address 0x3C.\n");
     }
 
     task1.pfnTaskEntry = (TSK_ENTRY_FUNC)iot_cloud_ia_thread;
