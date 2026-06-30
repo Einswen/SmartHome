@@ -1,8 +1,11 @@
 ﻿import { safeGetParams, safePushUrl } from '../common/SafeRouter';
 import {
   fetchHomeState,
+  SmartHomeApiResult,
   SmartHomeState,
   submitDeviceAction,
+  updateActiveState,
+  updateDeviceState,
   updateHomeSection,
   updateRoomDevices
 } from '../common/SmartHomeApi';
@@ -321,10 +324,11 @@ struct Index {
   @State bedroomRobotOn: boolean = false;
   @State bedroomDoorLocked: boolean = true;
   @StorageLink('lumiAuthToken') authToken: string = '';
+  @StorageLink('lumiHomeState') homeStateText: string = '';
   private clockTimer: number = -1;
+  private appliedHomeStateText: string = '';
 
   aboutToAppear(): void {
-    this.loadLivingDevicesFromStorage();
     const params = safeGetParams(this.getUIContext().getRouter()) as IndexRouteParams | undefined;
     if (params && params.activeTab !== undefined) {
       this.activeTab = params.activeTab;
@@ -347,6 +351,11 @@ struct Index {
     this.loadBackendState();
   }
 
+  onPageShow(): void {
+    this.applyStoredHomeState();
+    this.loadBackendState();
+  }
+
   aboutToDisappear(): void {
     if (this.clockTimer >= 0) {
       try {
@@ -358,6 +367,7 @@ struct Index {
   }
 
   private async loadBackendState(): Promise<void> {
+    this.applyStoredHomeState();
     if (this.authToken.trim().length === 0) {
       return;
     }
@@ -365,7 +375,32 @@ struct Index {
     if (!result.ok || result.data === undefined) {
       return;
     }
+    this.rememberBackendState(result.data);
     this.applyBackendState(result.data);
+  }
+
+  private rememberBackendState(state: SmartHomeState): void {
+    const stateText = JSON.stringify(state);
+    this.appliedHomeStateText = stateText;
+    this.homeStateText = stateText;
+  }
+
+  private rememberSyncedState(result: SmartHomeApiResult<SmartHomeState>): void {
+    if (result.ok && result.data !== undefined) {
+      this.rememberBackendState(result.data);
+    }
+  }
+
+  private applyStoredHomeState(): void {
+    if (this.homeStateText.length === 0 || this.homeStateText === this.appliedHomeStateText) {
+      return;
+    }
+    try {
+      const state = JSON.parse(this.homeStateText) as SmartHomeState;
+      this.appliedHomeStateText = this.homeStateText;
+      this.applyBackendState(state);
+    } catch {
+    }
   }
 
   private applyBackendState(state: SmartHomeState): void {
@@ -381,8 +416,12 @@ struct Index {
     if (deviceStates.length > 0) {
       this.dynamicDeviceStates = deviceStates;
     }
-    this.scenes = state.scenes as SceneSpec[];
-    this.automations = state.automations as AutomationSpec[];
+    if (state.scenes.length > 0) {
+      this.scenes = state.scenes as SceneSpec[];
+    }
+    if (state.automations.length > 0) {
+      this.automations = state.automations as AutomationSpec[];
+    }
     this.agentRecords = state.agentRecords as AgentRecordSpec[];
     this.chatMessages = state.agentMessages as AgentMessageSpec[];
     this.activeRoomId = state.activeRoomId;
@@ -390,6 +429,7 @@ struct Index {
     this.isNight = state.isNight;
     this.manualPeriod = state.manualPeriod;
     this.homeRoomSwiperIndex = this.roomIndexById(this.activeRoomId);
+    this.syncLivingDevicesToStorage();
     this.selectionVersion++;
   }
 
@@ -814,9 +854,6 @@ struct Index {
   }
 
   private installedPointIds(roomId: string): string[] {
-    if (roomId === 'living') {
-      return this.livingPointIdsText.length > 0 ? this.livingPointIdsText.split('|').filter((id: string) => id.length > 0) : [];
-    }
     for (let i = 0; i < this.roomDevices.length; i++) {
       if (this.roomDevices[i].roomId === roomId) {
         return this.roomDevices[i].pointIds;
@@ -1202,6 +1239,7 @@ struct Index {
     this.addScenePanelVisible = false;
     this.devicePanelMode = '';
     this.selectionVersion++;
+    this.syncActiveState();
   }
 
   private roomIndexById(roomId: string): number {
@@ -1217,6 +1255,7 @@ struct Index {
     this.homeRoomSwiperIndex = index;
     if (index < this.rooms.length) {
       this.activeRoomId = this.rooms[index].id;
+      this.syncActiveState();
     }
     this.selectedPointId = '';
     this.detailPointId = '';
@@ -1293,6 +1332,7 @@ struct Index {
     this.scenes = [...this.scenes, nextScene];
     this.activeSceneId = nextScene.id;
     this.applyScene(nextScene.id);
+    this.syncHomeSection('scenes', this.scenes);
     this.addScenePanelVisible = false;
   }
 
@@ -1313,6 +1353,7 @@ struct Index {
     this.scenes = [...this.scenes, nextScene];
     this.activeSceneId = nextScene.id;
     this.applyScene(nextScene.id);
+    this.syncHomeSection('scenes', this.scenes);
     this.editingSceneId = '';
     this.customSceneName = '';
     this.customSceneDetail = '';
@@ -1369,6 +1410,7 @@ struct Index {
     this.scenes = nextScenes;
     this.activeSceneId = this.editingSceneId;
     this.applyScene(this.editingSceneId);
+    this.syncHomeSection('scenes', this.scenes);
     this.editingSceneId = '';
     this.customSceneName = '';
     this.customSceneDetail = '';
@@ -1415,6 +1457,7 @@ struct Index {
         this.selectedPointId = '';
         this.detailPointId = '';
         this.selectionVersion++;
+        this.syncRooms();
         return;
       }
     }
@@ -1445,11 +1488,13 @@ struct Index {
     this.selectedPointId = '';
     this.detailPointId = '';
     this.selectionVersion++;
+    this.syncRooms();
   }
 
   private togglePeriodForDebug(): void {
     this.manualPeriod = true;
     this.isNight = !this.isNight;
+    this.syncActiveState();
   }
 
   private openPointDetail(pointId: string): void {
@@ -1784,6 +1829,8 @@ struct Index {
     for (let i = 0; i < presets.length; i++) {
       this.applyScenePreset(presets[i]);
     }
+    this.syncDeviceStates();
+    this.syncActiveState();
   }
 
   private pointBadge(point: PointSpec): string {
@@ -1882,13 +1929,22 @@ struct Index {
       return;
     }
     const point = this.pointById(pointId);
-    await submitDeviceAction(this.authToken, {
+    const result = await submitDeviceAction(this.authToken, {
       pointId: pointId,
       actionType: actionType,
       on: this.backendPointOn(point),
       value: this.detailValue(point),
       command: actionType
     });
+    if (result.ok && result.data !== undefined) {
+      this.rememberBackendState(result.data.homeState);
+      return;
+    }
+    this.rememberSyncedState(await updateDeviceState(this.authToken, pointId, {
+      on: this.backendPointOn(point),
+      value: this.detailValue(point),
+      command: actionType
+    }));
   }
 
   private backendPointOn(point: PointSpec): boolean {
@@ -1902,6 +1958,21 @@ struct Index {
       return this.sharedToggleOn(point);
     }
     return true;
+  }
+
+  private currentDeviceStatesSnapshot(): DynamicDeviceStateSpec[] {
+    const states: DynamicDeviceStateSpec[] = [];
+    for (let i = 0; i < this.rooms.length; i++) {
+      const points = this.pointsForRoom(this.rooms[i].id);
+      for (let j = 0; j < points.length; j++) {
+        states.push({
+          pointId: points[j].id,
+          on: this.backendPointOn(points[j]),
+          value: this.detailValue(points[j])
+        });
+      }
+    }
+    return states;
   }
 
   private mapSummary(): string {
@@ -2356,7 +2427,15 @@ struct Index {
     if (this.authToken.trim().length === 0) {
       return;
     }
-    await updateRoomDevices(this.authToken, roomId, this.installedPointIds(roomId));
+    const result = await updateRoomDevices(this.authToken, roomId, this.installedPointIds(roomId));
+    this.rememberSyncedState(result);
+    if (result.ok && result.data !== undefined) {
+      const roomDevices = this.backendRoomDevices(result.data.roomDevices);
+      if (roomDevices.length > 0) {
+        this.roomDevices = roomDevices;
+        this.syncLivingDevicesToStorage();
+      }
+    }
   }
 
   private devicePanelPoints(): PointSpec[] {
@@ -2435,7 +2514,37 @@ struct Index {
     if (this.authToken.trim().length === 0) {
       return;
     }
-    await updateHomeSection(this.authToken, section, value);
+    this.rememberSyncedState(await updateHomeSection(this.authToken, section, value));
+  }
+
+  private async syncRooms(): Promise<void> {
+    if (this.authToken.trim().length === 0) {
+      return;
+    }
+    this.rememberSyncedState(await updateHomeSection(this.authToken, 'rooms', this.rooms));
+    this.rememberSyncedState(await updateHomeSection(this.authToken, 'roomDevices', this.roomDevices));
+    this.syncActiveState();
+  }
+
+  private async syncDeviceStates(): Promise<void> {
+    if (this.authToken.trim().length === 0) {
+      return;
+    }
+    const snapshot = this.currentDeviceStatesSnapshot();
+    this.dynamicDeviceStates = snapshot;
+    this.rememberSyncedState(await updateHomeSection(this.authToken, 'deviceStates', snapshot));
+  }
+
+  private async syncActiveState(): Promise<void> {
+    if (this.authToken.trim().length === 0) {
+      return;
+    }
+    this.rememberSyncedState(await updateActiveState(this.authToken, {
+      activeRoomId: this.activeRoomId,
+      activeSceneId: this.activeSceneId,
+      isNight: this.isNight,
+      manualPeriod: this.manualPeriod
+    }));
   }
 
   private applyAgentSuggestion(prompt: string): void {

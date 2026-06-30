@@ -8,18 +8,23 @@ interface MyLoginRouteParams {
 @Entry
 @Component
 struct MyLoginPage {
-  @State phone: string = '13888888888';
-  @State password: string = '123456';
+  @State phone: string = '';
+  @State password: string = '';
   @State agreed: boolean = true;
   @State networkFailed: boolean = false;
+  @State authError: string = '';
   @State loginSuccess: boolean = false;
   @State loginLoading: boolean = false;
+  @State registerLoading: boolean = false;
   @State passwordFocused: boolean = false;
   @State isNight: boolean = false;
   @StorageLink('lumiUserSignedIn') signedIn: boolean = false;
   @StorageLink('lumiAuthToken') authToken: string = '';
+  @StorageLink('lumiHomeState') homeStateText: string = '';
   @StorageLink('lumiUserPhone') signedPhone: string = '';
   @StorageLink('lumiUserName') signedName: string = '';
+  @StorageLink('homeLivingPointIds') livingPointIdsText: string = '';
+  @StorageLink('homeLivingDeviceCount') livingDeviceCount: number = 0;
 
   aboutToAppear(): void {
     const params = safeGetParams(this.getUIContext().getRouter()) as MyLoginRouteParams | undefined;
@@ -53,28 +58,77 @@ struct MyLoginPage {
   }
 
   private canLogin(): boolean {
-    return this.agreed && this.phone.trim().length >= 6 && this.password.length >= 6 && !this.networkFailed && !this.loginLoading;
+    return this.agreed && this.phone.trim().length >= 6 && this.password.length >= 6 && !this.networkFailed && !this.loginLoading && !this.registerLoading;
+  }
+
+  private authFailureMessage(result: SmartHomeApiResult<SmartHomeAuthResponse>, fallback: string): string {
+    if (result.statusCode === 401) {
+      return '账号或密码错误';
+    }
+    if (result.statusCode === 409) {
+      return '这个手机号已注册，请直接登录';
+    }
+    if (result.statusCode === 0) {
+      return '网络连接失败，请稍后重试';
+    }
+    return result.error !== undefined && result.error.length > 0 ? result.error : fallback;
+  }
+
+  private saveAuthResponse(response: SmartHomeAuthResponse): void {
+    this.authToken = response.token;
+    this.signedPhone = response.user.phone;
+    this.signedName = response.user.displayName;
+    this.homeStateText = JSON.stringify(response.homeState);
+    this.livingPointIdsText = '';
+    this.livingDeviceCount = 0;
+    this.signedIn = true;
+    this.loginSuccess = true;
+    this.authError = '';
   }
 
   private async handleLogin(): Promise<void> {
     if (!this.canLogin()) {
       return;
     }
+    this.authError = '';
     this.loginLoading = true;
-    let result: SmartHomeApiResult<SmartHomeAuthResponse> = await loginSmartHome(this.phone.trim(), this.password);
-    if (!result.ok && result.statusCode === 401) {
-      result = await registerSmartHome(this.phone.trim(), this.password, 'Lumi 用户');
-    }
+    const result: SmartHomeApiResult<SmartHomeAuthResponse> = await loginSmartHome(this.phone.trim(), this.password);
     this.loginLoading = false;
     if (!result.ok || result.data === undefined) {
-      this.networkFailed = true;
+      this.authError = this.authFailureMessage(result, '登录失败，请检查账号密码');
+      this.networkFailed = result.statusCode === 0;
       return;
     }
-    this.authToken = result.data.token;
-    this.signedPhone = result.data.user.phone;
-    this.signedName = result.data.user.displayName;
-    this.signedIn = true;
-    this.loginSuccess = true;
+    this.saveAuthResponse(result.data);
+  }
+
+  private async handleRegister(): Promise<void> {
+    if (!this.canLogin()) {
+      return;
+    }
+    this.authError = '';
+    this.registerLoading = true;
+    const result: SmartHomeApiResult<SmartHomeAuthResponse> = await registerSmartHome(this.phone.trim(), this.password, 'Lumi 用户');
+    this.registerLoading = false;
+    if (!result.ok || result.data === undefined) {
+      this.authError = this.authFailureMessage(result, '注册失败，请稍后重试');
+      this.networkFailed = result.statusCode === 0;
+      return;
+    }
+    this.saveAuthResponse(result.data);
+  }
+
+  private handleLogout(): void {
+    this.signedIn = false;
+    this.loginSuccess = false;
+    this.authToken = '';
+    this.homeStateText = '';
+    this.livingPointIdsText = '';
+    this.livingDeviceCount = 0;
+    this.signedPhone = '';
+    this.signedName = '';
+    this.networkFailed = false;
+    this.authError = '';
   }
 
   build() {
@@ -87,6 +141,9 @@ struct MyLoginPage {
           Scroll() {
             Column() {
               this.Hero()
+              if (this.signedIn) {
+                this.AccountStateCard()
+              }
               this.FormCard()
               this.SecurityTips()
             }
@@ -174,6 +231,25 @@ struct MyLoginPage {
   @Builder
   FormCard() {
     Column() {
+      if (this.signedIn) {
+        Text('当前账号')
+          .fontSize(13)
+          .fontWeight(FontWeight.Bold)
+          .fontColor(this.primaryText())
+          .width('100%')
+        Text(this.phone)
+          .fontSize(18)
+          .fontWeight(FontWeight.Bold)
+          .fontColor(this.primaryText())
+          .margin({ top: 8 })
+          .width('100%')
+        Text('退出后将停止同步家庭、设备、商城订单和授权偏好。')
+          .fontSize(12)
+          .lineHeight(19)
+          .fontColor(this.secondaryText())
+          .margin({ top: 8 })
+          .width('100%')
+      } else {
       Text('手机号')
         .fontSize(13)
         .fontWeight(FontWeight.Bold)
@@ -189,6 +265,7 @@ struct MyLoginPage {
         .margin({ top: 8 })
         .onChange((value: string) => {
           this.phone = value;
+          this.authError = '';
         })
 
       Row() {
@@ -226,7 +303,17 @@ struct MyLoginPage {
         })
         .onChange((value: string) => {
           this.password = value;
+          this.authError = '';
         })
+
+      if (this.authError.length > 0) {
+        Text(this.authError)
+          .fontSize(12)
+          .lineHeight(18)
+          .fontColor('#D35B4B')
+          .margin({ top: 10 })
+          .width('100%')
+      }
 
       Row() {
         this.AgreementCheck()
@@ -251,6 +338,24 @@ struct MyLoginPage {
           this.handleLogin();
         })
 
+      Button(this.registerLoading ? '正在注册...' : '注册 Lumi 账号')
+        .width('100%')
+        .height(44)
+        .fontSize(14)
+        .fontWeight(FontWeight.Bold)
+        .fontColor(this.primaryText())
+        .backgroundColor(this.softColor())
+        .border({
+          width: 1,
+          color: this.lineColor()
+        })
+        .borderRadius(22)
+        .margin({ top: 10 })
+        .opacity(this.canLogin() ? 1 : 0.5)
+        .onClick(() => {
+          this.handleRegister();
+        })
+
       Row() {
         Text('忘记密码')
           .fontSize(12)
@@ -263,6 +368,7 @@ struct MyLoginPage {
       }
       .width('100%')
       .margin({ top: 14 })
+      }
     }
     .width('100%')
     .padding({ left: 18, right: 18, top: 18, bottom: 18 })
@@ -270,6 +376,41 @@ struct MyLoginPage {
     .borderRadius(24)
     .margin({ top: 16 })
     .shadow({ radius: 18, color: this.isNight ? '#66000000' : '#12151C20', offsetY: 8 })
+  }
+
+  @Builder
+  AccountStateCard() {
+    Row() {
+      Column() {
+        Text('已登录')
+          .fontSize(18)
+          .fontWeight(FontWeight.Bold)
+          .fontColor(this.primaryText())
+        Text('Lumi 家庭数据正在同步')
+          .fontSize(12)
+          .fontColor(this.secondaryText())
+          .margin({ top: 6 })
+      }
+      .alignItems(HorizontalAlign.Start)
+      .layoutWeight(1)
+
+      Button('退出登录')
+        .height(36)
+        .fontSize(12)
+        .fontWeight(FontWeight.Bold)
+        .fontColor('#D35B4B')
+        .backgroundColor(this.isNight ? '#33D35B4B' : '#FFF1EF')
+        .borderRadius(18)
+        .padding({ left: 14, right: 14 })
+        .onClick(() => {
+          this.handleLogout();
+        })
+    }
+    .width('100%')
+    .padding({ left: 18, right: 18, top: 16, bottom: 16 })
+    .backgroundColor(this.cardColor())
+    .borderRadius(24)
+    .margin({ top: 16 })
   }
 
   @Builder
@@ -371,33 +512,33 @@ struct MyLoginPage {
 
   @Builder
   SuccessDialog() {
-    Stack() {
+    Stack({ alignContent: Alignment.Center }) {
       Column()
         .width('100%')
         .height('100%')
-        .backgroundColor(this.isNight ? '#99000000' : '#66000000')
+        .backgroundColor(this.isNight ? '#52000000' : '#26000000')
 
       Column() {
-        Stack() {
-          Circle()
-            .width(64)
-            .height(64)
-            .fill('#F3A33A')
-          Text('√')
-            .fontSize(31)
-            .fontWeight(FontWeight.Bold)
-            .fontColor('#FFFFFF')
-        }
-        .width(64)
-        .height(64)
+      Stack() {
+        Circle()
+          .width(58)
+          .height(58)
+          .fill('#35D27A')
+        Text('√')
+          .fontSize(28)
+          .fontWeight(FontWeight.Bold)
+          .fontColor('#FFFFFF')
+      }
+      .width(58)
+      .height(58)
 
         Text('登录成功')
-          .fontSize(23)
+          .fontSize(22)
           .fontWeight(FontWeight.Bold)
           .fontColor(this.primaryText())
           .margin({ top: 16 })
 
-        Text('Lumi 家庭数据已同步，设备、购物车、订单与授权偏好已更新。')
+        Text('家庭、设备、购物车和授权偏好已同步')
           .fontSize(13)
           .lineHeight(21)
           .fontColor(this.secondaryText())
@@ -406,23 +547,24 @@ struct MyLoginPage {
 
         Button('进入我的')
           .width('100%')
-          .height(44)
-          .fontSize(15)
+          .height(42)
+          .fontSize(14)
           .fontWeight(FontWeight.Bold)
-          .fontColor('#FFFFFF')
-          .backgroundColor('#11151D')
-          .borderRadius(22)
-          .margin({ top: 22 })
+          .fontColor(this.isNight ? '#11151D' : '#FFFFFF')
+          .backgroundColor(this.isNight ? '#F5F7FB' : '#11151D')
+          .borderRadius(21)
+          .margin({ top: 20 })
           .onClick(() => {
             safeBack(this.getUIContext().getRouter());
           })
       }
-      .width('82%')
-      .padding({ left: 22, right: 22, top: 26, bottom: 22 })
-      .backgroundColor(this.cardColor())
-      .borderRadius(28)
+      .width('78%')
+      .padding({ left: 22, right: 22, top: 24, bottom: 22 })
+      .backgroundColor(this.isNight ? '#D91A1E25' : '#EFFFFFFF')
+      .border({ width: 1, color: this.lineColor() })
+      .borderRadius(26)
       .alignItems(HorizontalAlign.Center)
-      .shadow({ radius: 28, color: '#55000000', offsetY: 12 })
+      .shadow({ radius: 26, color: this.isNight ? '#AA000000' : '#33000000', offsetY: 12 })
     }
     .width('100%')
     .height('100%')

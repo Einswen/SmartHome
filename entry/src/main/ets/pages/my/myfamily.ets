@@ -1,4 +1,5 @@
 ﻿import { safeBack, safeGetParams } from '../../common/SafeRouter';
+import { fetchHomeState, SmartHomeApiResult, SmartHomeState, updateHomeSection } from '../../common/SmartHomeApi';
 
 interface MyFamilyRouteParams {
   isNight?: boolean;
@@ -10,6 +11,13 @@ interface FamilyMemberSpec {
   role: string;
   status: string;
   accent: string;
+}
+
+interface FamilyPreferences {
+  hideGuest?: boolean;
+  hasCustomMember?: boolean;
+  customMemberName?: string;
+  customMemberRole?: string;
 }
 
 const FAMILY_MEMBERS: FamilyMemberSpec[] = [
@@ -26,19 +34,103 @@ struct MyFamilyPage {
   @State inviteFailed: boolean = false;
   @State activeHome: string = '幸福之家';
   @State isNight: boolean = false;
-  @StorageLink('familyHideGuest') hideGuest: boolean = false;
-  @StorageLink('familyHasCustomMember') hasCustomMember: boolean = false;
-  @StorageLink('familyCustomMemberName') customMemberName: string = '新成员';
-  @StorageLink('familyCustomMemberRole') customMemberRole: string = '普通成员';
+  @State hideGuest: boolean = false;
+  @State hasCustomMember: boolean = false;
+  @State customMemberName: string = '新成员';
+  @State customMemberRole: string = '普通成员';
   @State showNewMember: boolean = false;
   @State selectedMemberName: string = '妈妈';
   @State selectedMemberRole: string = '普通成员';
+  @StorageLink('lumiAuthToken') authToken: string = '';
+  @StorageLink('lumiHomeState') homeStateText: string = '';
+  private appliedHomeStateText: string = '';
 
   aboutToAppear(): void {
     const params = safeGetParams(this.getUIContext().getRouter()) as MyFamilyRouteParams | undefined;
     if (params && params.isNight !== undefined) {
       this.isNight = params.isNight;
     }
+    this.loadFamilyState();
+  }
+
+  onPageShow(): void {
+    this.loadFamilyState();
+  }
+
+  private loadFamilyState(): void {
+    this.applyStoredHomeState();
+    this.loadBackendState();
+  }
+
+  private async loadBackendState(): Promise<void> {
+    if (this.authToken.trim().length === 0) {
+      return;
+    }
+    const result = await fetchHomeState(this.authToken);
+    if (!result.ok || result.data === undefined) {
+      return;
+    }
+    this.rememberHomeState(result.data);
+    this.applyFamilyPreferences(result.data.preferences as FamilyPreferences);
+  }
+
+  private applyStoredHomeState(): void {
+    if (this.homeStateText.length === 0 || this.homeStateText === this.appliedHomeStateText) {
+      return;
+    }
+    try {
+      const state = JSON.parse(this.homeStateText) as SmartHomeState;
+      this.appliedHomeStateText = this.homeStateText;
+      this.applyFamilyPreferences(state.preferences as FamilyPreferences);
+    } catch {
+    }
+  }
+
+  private rememberHomeState(state: SmartHomeState): void {
+    const stateText = JSON.stringify(state);
+    this.appliedHomeStateText = stateText;
+    this.homeStateText = stateText;
+  }
+
+  private rememberSyncedState(result: SmartHomeApiResult<SmartHomeState>): void {
+    if (result.ok && result.data !== undefined) {
+      this.rememberHomeState(result.data);
+    }
+  }
+
+  private applyFamilyPreferences(preferences: FamilyPreferences): void {
+    this.hideGuest = preferences.hideGuest === undefined ? false : preferences.hideGuest;
+    this.hasCustomMember = preferences.hasCustomMember === undefined ? false : preferences.hasCustomMember;
+    this.customMemberName = preferences.customMemberName === undefined ? '新成员' : preferences.customMemberName;
+    this.customMemberRole = preferences.customMemberRole === undefined ? '普通成员' : preferences.customMemberRole;
+  }
+
+  private currentPreferences(): FamilyPreferences {
+    let preferences: FamilyPreferences = {};
+    if (this.homeStateText.length > 0) {
+      try {
+        const state = JSON.parse(this.homeStateText) as SmartHomeState;
+        preferences = state.preferences as FamilyPreferences;
+      } catch {
+        preferences = {};
+      }
+    }
+    preferences.hideGuest = this.hideGuest;
+    preferences.hasCustomMember = this.hasCustomMember;
+    preferences.customMemberName = this.customMemberName;
+    preferences.customMemberRole = this.customMemberRole;
+    return preferences;
+  }
+
+  private syncFamilyPreferences(): void {
+    if (this.authToken.trim().length === 0) {
+      return;
+    }
+    this.syncFamilyPreferencesAsync();
+  }
+
+  private async syncFamilyPreferencesAsync(): Promise<void> {
+    this.rememberSyncedState(await updateHomeSection(this.authToken, 'preferences', this.currentPreferences()));
   }
 
   private primaryText(): string {
@@ -381,6 +473,7 @@ struct MyFamilyPage {
           } else {
             this.showNewMember = !this.showNewMember;
           }
+          this.syncFamilyPreferences();
         })
     }
     .width('100%')
@@ -437,6 +530,7 @@ struct MyFamilyPage {
             this.hasCustomMember = true;
             this.showNewMember = false;
             this.showEmpty = false;
+            this.syncFamilyPreferences();
           })
       }
       .width('100%')
@@ -516,6 +610,7 @@ struct MyFamilyPage {
               this.hasCustomMember = false;
               this.showNewMember = false;
             }
+            this.syncFamilyPreferences();
           })
       }
     }
@@ -550,6 +645,7 @@ struct MyFamilyPage {
         .margin({ top: 18 })
         .onClick(() => {
           this.showEmpty = false;
+          this.syncFamilyPreferences();
         })
     }
     .width('100%')

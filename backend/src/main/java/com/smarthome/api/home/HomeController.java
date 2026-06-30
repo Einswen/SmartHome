@@ -41,6 +41,11 @@ public class HomeController {
     return homeStates.updateActiveState(AuthContext.require().id(), request);
   }
 
+  @PutMapping("/active")
+  public HomeStateDto putActive(@RequestBody ActiveStateRequest request) {
+    return homeStates.updateActiveState(AuthContext.require().id(), request);
+  }
+
   @PutMapping("/sections/{section}")
   public HomeStateDto updateSection(@PathVariable String section, @Valid @RequestBody SectionUpdateRequest request) {
     return homeStates.updateSection(AuthContext.require().id(), section, request);
