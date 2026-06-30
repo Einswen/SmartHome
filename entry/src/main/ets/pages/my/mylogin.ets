@@ -1,4 +1,5 @@
 ﻿import { safeBack, safeGetParams } from '../../common/SafeRouter';
+import { loginSmartHome, registerSmartHome, SmartHomeAuthResponse, SmartHomeApiResult } from '../../common/SmartHomeApi';
 
 interface MyLoginRouteParams {
   isNight?: boolean;
@@ -12,9 +13,13 @@ struct MyLoginPage {
   @State agreed: boolean = true;
   @State networkFailed: boolean = false;
   @State loginSuccess: boolean = false;
+  @State loginLoading: boolean = false;
   @State passwordFocused: boolean = false;
   @State isNight: boolean = false;
   @StorageLink('lumiUserSignedIn') signedIn: boolean = false;
+  @StorageLink('lumiAuthToken') authToken: string = '';
+  @StorageLink('lumiUserPhone') signedPhone: string = '';
+  @StorageLink('lumiUserName') signedName: string = '';
 
   aboutToAppear(): void {
     const params = safeGetParams(this.getUIContext().getRouter()) as MyLoginRouteParams | undefined;
@@ -48,13 +53,26 @@ struct MyLoginPage {
   }
 
   private canLogin(): boolean {
-    return this.agreed && this.phone.trim().length >= 6 && this.password.length >= 6 && !this.networkFailed;
+    return this.agreed && this.phone.trim().length >= 6 && this.password.length >= 6 && !this.networkFailed && !this.loginLoading;
   }
 
-  private handleLogin(): void {
+  private async handleLogin(): Promise<void> {
     if (!this.canLogin()) {
       return;
     }
+    this.loginLoading = true;
+    let result: SmartHomeApiResult<SmartHomeAuthResponse> = await loginSmartHome(this.phone.trim(), this.password);
+    if (!result.ok && result.statusCode === 401) {
+      result = await registerSmartHome(this.phone.trim(), this.password, 'Lumi 用户');
+    }
+    this.loginLoading = false;
+    if (!result.ok || result.data === undefined) {
+      this.networkFailed = true;
+      return;
+    }
+    this.authToken = result.data.token;
+    this.signedPhone = result.data.user.phone;
+    this.signedName = result.data.user.displayName;
     this.signedIn = true;
     this.loginSuccess = true;
   }
@@ -231,7 +249,7 @@ struct MyLoginPage {
       .width('100%')
       .margin({ top: 16 })
 
-      Button('登录并同步')
+      Button(this.loginLoading ? '正在同步...' : '登录并同步')
         .width('100%')
         .height(46)
         .fontSize(15)

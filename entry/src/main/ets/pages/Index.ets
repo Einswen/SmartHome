@@ -1,4 +1,11 @@
 ﻿import { safeGetParams, safePushUrl } from '../common/SafeRouter';
+import {
+  fetchHomeState,
+  SmartHomeState,
+  submitDeviceAction,
+  updateHomeSection,
+  updateRoomDevices
+} from '../common/SmartHomeApi';
 import { DeviceDetailPages } from '../components/DeviceDetailPages';
 import { P31_StoreHome } from './store/storehome';
 import { P21_MyProfile } from './my/myprofile';
@@ -79,6 +86,25 @@ interface DynamicDeviceStateSpec {
   pointId: string;
   on: boolean;
   value: number;
+}
+
+interface BackendRoomPayload {
+  id?: string;
+  name?: string;
+  subtitle?: string;
+  templateId?: string;
+  preset?: boolean;
+}
+
+interface BackendRoomDevicesPayload {
+  roomId?: string;
+  pointIds?: string[];
+}
+
+interface BackendDeviceStatePayload {
+  pointId?: string;
+  on?: boolean;
+  value?: number;
 }
 
 interface IndexRouteParams {
@@ -286,6 +312,7 @@ struct Index {
   @State livingRobotOn: boolean = false;
   @State bedroomRobotOn: boolean = false;
   @State bedroomDoorLocked: boolean = true;
+  @StorageLink('lumiAuthToken') authToken: string = '';
   private clockTimer: number = -1;
 
   aboutToAppear(): void {
@@ -308,6 +335,7 @@ struct Index {
     } catch {
       this.clockTimer = -1;
     }
+    this.loadBackendState();
   }
 
   aboutToDisappear(): void {
@@ -318,6 +346,108 @@ struct Index {
       }
       this.clockTimer = -1;
     }
+  }
+
+  private async loadBackendState(): Promise<void> {
+    if (this.authToken.trim().length === 0) {
+      return;
+    }
+    const result = await fetchHomeState(this.authToken);
+    if (!result.ok || result.data === undefined) {
+      return;
+    }
+    this.applyBackendState(result.data);
+  }
+
+  private applyBackendState(state: SmartHomeState): void {
+    const rooms = this.backendRooms(state.rooms);
+    if (rooms.length > 0) {
+      this.rooms = rooms;
+    }
+    const roomDevices = this.backendRoomDevices(state.roomDevices);
+    if (roomDevices.length > 0) {
+      this.roomDevices = roomDevices;
+    }
+    const deviceStates = this.backendDeviceStates(state.deviceStates);
+    if (deviceStates.length > 0) {
+      this.dynamicDeviceStates = deviceStates;
+    }
+    this.scenes = state.scenes as SceneSpec[];
+    this.automations = state.automations as AutomationSpec[];
+    this.agentRecords = state.agentRecords as AgentRecordSpec[];
+    this.chatMessages = state.agentMessages as AgentMessageSpec[];
+    this.activeRoomId = state.activeRoomId;
+    this.activeSceneId = state.activeSceneId;
+    this.isNight = state.isNight;
+    this.manualPeriod = state.manualPeriod;
+    this.homeRoomSwiperIndex = this.roomIndexById(this.activeRoomId);
+    this.selectionVersion++;
+  }
+
+  private backendRooms(payload: Object[]): RoomSpec[] {
+    const rooms: RoomSpec[] = [];
+    for (let i = 0; i < payload.length; i++) {
+      const item = payload[i] as BackendRoomPayload;
+      if (item.id === undefined || item.name === undefined) {
+        continue;
+      }
+      const presetRoom = this.presetRoomById(item.id);
+      rooms.push({
+        id: item.id,
+        name: item.name,
+        subtitle: item.subtitle === undefined ? presetRoom.subtitle : item.subtitle,
+        templateId: item.templateId === undefined ? presetRoom.templateId : item.templateId,
+        images: presetRoom.images,
+        preset: item.preset === undefined ? presetRoom.preset : item.preset
+      });
+    }
+    return rooms;
+  }
+
+  private presetRoomById(roomId: string): RoomSpec {
+    for (let i = 0; i < ROOMS.length; i++) {
+      if (ROOMS[i].id === roomId) {
+        return ROOMS[i];
+      }
+    }
+    return {
+      id: roomId,
+      name: roomId,
+      subtitle: '自定义房间',
+      templateId: 'custom',
+      preset: false
+    };
+  }
+
+  private backendRoomDevices(payload: Object[]): RoomDeviceState[] {
+    const roomDevices: RoomDeviceState[] = [];
+    for (let i = 0; i < payload.length; i++) {
+      const item = payload[i] as BackendRoomDevicesPayload;
+      if (item.roomId === undefined || item.pointIds === undefined) {
+        continue;
+      }
+      roomDevices.push({
+        roomId: item.roomId,
+        pointIds: item.pointIds
+      });
+    }
+    return roomDevices;
+  }
+
+  private backendDeviceStates(payload: Object[]): DynamicDeviceStateSpec[] {
+    const states: DynamicDeviceStateSpec[] = [];
+    for (let i = 0; i < payload.length; i++) {
+      const item = payload[i] as BackendDeviceStatePayload;
+      if (item.pointId === undefined) {
+        continue;
+      }
+      states.push({
+        pointId: item.pointId,
+        on: item.on === undefined ? true : item.on,
+        value: item.value === undefined ? 0 : item.value
+      });
+    }
+    return states;
   }
 
   private applyAutoPeriod(): void {
@@ -1683,17 +1813,47 @@ struct Index {
     const point = this.pointById(pointId);
     if (point.action === 'temperature') {
       this.adjustPoint(point.id, 1);
+      this.syncDeviceAction(point.id, 'temperature');
       return;
     }
     if (point.action === 'curtain') {
       this.setDetailValue(point, this.detailValue(point) >= 100 ? 0 : 100);
+      this.syncDeviceAction(point.id, 'curtain');
       return;
     }
     if (point.action === 'light' || point.action === 'toggle') {
       this.togglePoint(point.id);
+      this.syncDeviceAction(point.id, point.action);
       return;
     }
     this.openPointDetail(point.id);
+  }
+
+  private async syncDeviceAction(pointId: string, actionType: string): Promise<void> {
+    if (this.authToken.trim().length === 0) {
+      return;
+    }
+    const point = this.pointById(pointId);
+    await submitDeviceAction(this.authToken, {
+      pointId: pointId,
+      actionType: actionType,
+      on: this.backendPointOn(point),
+      value: this.detailValue(point),
+      command: actionType
+    });
+  }
+
+  private backendPointOn(point: PointSpec): boolean {
+    if (point.id.indexOf('@') >= 0) {
+      return this.dynamicState(point.id).on;
+    }
+    if (point.action === 'light') {
+      return this.lightOnForRoom(point.roomId);
+    }
+    if (point.action === 'toggle') {
+      return this.sharedToggleOn(point);
+    }
+    return true;
   }
 
   private mapSummary(): string {
@@ -2117,6 +2277,7 @@ struct Index {
       this.setDynamicState(this.dynamicStateDefault(this.pointSpecForRoom(roomId, nextPointId)));
     }
     this.selectionVersion++;
+    this.syncRoomDevices(roomId);
   }
 
   private removeDeviceFromActiveRoom(pointId: string): void {
@@ -2134,6 +2295,14 @@ struct Index {
       this.detailPointId = '';
     }
     this.selectionVersion++;
+    this.syncRoomDevices(roomId);
+  }
+
+  private async syncRoomDevices(roomId: string): Promise<void> {
+    if (this.authToken.trim().length === 0) {
+      return;
+    }
+    await updateRoomDevices(this.authToken, roomId, this.installedPointIds(roomId));
   }
 
   private devicePanelPoints(): PointSpec[] {
@@ -2189,6 +2358,7 @@ struct Index {
         meta: meta
       }
     ];
+    this.syncHomeSection('agentMessages', this.chatMessages);
   }
 
   private appendAgentRecord(title: string, detail: string, status: string): void {
@@ -2204,6 +2374,14 @@ struct Index {
       },
       ...this.agentRecords
     ];
+    this.syncHomeSection('agentRecords', this.agentRecords);
+  }
+
+  private async syncHomeSection(section: string, value: Object): Promise<void> {
+    if (this.authToken.trim().length === 0) {
+      return;
+    }
+    await updateHomeSection(this.authToken, section, value);
   }
 
   private applyAgentSuggestion(prompt: string): void {
@@ -2253,6 +2431,7 @@ struct Index {
           },
           ...this.automations
         ];
+        this.syncHomeSection('automations', this.automations);
       }
       const recordDetail = reply.draft !== undefined ? reply.draft.action : reply.detail;
       const recordStatus = reply.ok ? (reply.mode === 'llm' ? '回答' : '已执行') : '未连接';
@@ -2305,6 +2484,7 @@ struct Index {
       },
       ...this.automations
     ];
+    this.syncHomeSection('automations', this.automations);
     this.appendAgentRecord('手动自动化已创建', `${title} · ${trigger}`, '已执行');
     this.pushChatMessage('agent', `已创建脚本“${title}”，触发条件是“${trigger}”。你现在可以在上方脚本板块里继续启用或调整它。`, '脚本已保存');
     this.automationTitle = '';
@@ -2334,6 +2514,7 @@ struct Index {
       }
     }
     this.automations = nextAutomations;
+    this.syncHomeSection('automations', this.automations);
   }
 
   private enabledAutomationCount(): number {
