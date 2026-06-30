@@ -48,6 +48,7 @@ const MY_SERVICES: MyServiceSpec[] = [
 @Component
 export struct P21_MyProfile {
   @Prop isNight: boolean;
+  @Prop transparentBg: boolean = false;
   @State pressedKey: string = '';
   @State activeHomeIndex: number = 0;
   @StorageLink('lumiUserSignedIn') signedIn: boolean = false;
@@ -62,6 +63,9 @@ export struct P21_MyProfile {
   }
 
   private bgColor(): string {
+    if (this.transparentBg) {
+      return '#00000000';
+    }
     return this.isNight ? '#060709' : '#F2F4F8';
   }
 
@@ -70,7 +74,7 @@ export struct P21_MyProfile {
   }
 
   private softPanelColor(): string {
-    return this.isNight ? '#661E2530' : '#F0F4FA';
+    return this.isNight ? '#73161A20' : '#B8EFF2F7';
   }
 
   private lineColor(): string {
