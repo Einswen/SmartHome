@@ -16,16 +16,16 @@ interface CartItemSpec {
 }
 
 const CART_ITEMS: CartItemSpec[] = [
-  { id: 'gateway_m2', title: 'Lumi 网关 M2', desc: '全屋中枢，适配蓝牙 Mesh / Zigbee', price: '¥369', count: 1, image: $r('app.media.device_lumi_gateway') },
-  { id: 'light_module', title: '智能照明模块', desc: '适配客厅主灯与氛围灯联动', price: '¥129', count: 2, image: $r('app.media.device_living_light') }
+  { id: 'gateway_m2', title: 'Lumi 网关 M2', desc: '全屋中枢，适配蓝牙 Mesh / Zigbee', price: '¥369', count: 1, image: $r('app.media.store_gateway_m2') },
+  { id: 'light_module', title: '智能照明模块', desc: '适配客厅主灯与氛围灯联动', price: '¥129', count: 2, image: $r('app.media.store_light_module') }
 ];
 
 const CART_CATALOG: CartItemSpec[] = [
-  { id: 'sensor_pro', title: '环境传感器 Pro', desc: '温湿度、光照、人体存在三合一', price: '¥199', count: 1, image: $r('app.media.device_environment_sensor') },
-  { id: 'light_module', title: '智能照明模块', desc: '适配客厅主灯与氛围灯联动', price: '¥129', count: 1, image: $r('app.media.device_living_light') },
-  { id: 'gesture_panel', title: '手势控制面板', desc: '无接触切换家庭场景', price: '¥299', count: 1, image: $r('app.media.device_gesture_sensor') },
-  { id: 'robot_pack', title: '清洁维护套装', desc: '主刷、边刷、滤网组合装', price: '¥89', count: 1, image: $r('app.media.device_living_robot') },
-  { id: 'gateway_m2', title: 'Lumi 网关 M2', desc: '全屋中枢，适配蓝牙 Mesh / Zigbee', price: '¥369', count: 1, image: $r('app.media.device_lumi_gateway') },
+  { id: 'sensor_pro', title: '环境传感器 Pro', desc: '温湿度、光照、人体存在三合一', price: '¥199', count: 1, image: $r('app.media.store_sensor_pro') },
+  { id: 'light_module', title: '智能照明模块', desc: '适配客厅主灯与氛围灯联动', price: '¥129', count: 1, image: $r('app.media.store_light_module') },
+  { id: 'gesture_panel', title: '手势控制面板', desc: '无接触切换家庭场景', price: '¥299', count: 1, image: $r('app.media.store_gesture_panel') },
+  { id: 'robot_pack', title: '清洁维护套装', desc: '主刷、边刷、滤网组合装', price: '¥89', count: 1, image: $r('app.media.store_robot_pack') },
+  { id: 'gateway_m2', title: 'Lumi 网关 M2', desc: '全屋中枢，适配蓝牙 Mesh / Zigbee', price: '¥369', count: 1, image: $r('app.media.store_gateway_m2') },
   { id: 'filter', title: '净化器滤芯', desc: '适配空气净化器，建议 6 个月更换', price: '¥159', count: 1, image: $r('app.media.device_living_purifier') },
   { id: 'living_curtain_motor', title: '智能窗帘电机', desc: '接入日照跟随和观影联动', price: '¥249', count: 1, image: $r('app.media.device_living_curtain') },
   { id: 'bedroom_air_guard', title: '睡眠空调伴侣', desc: '夜间降噪和温度曲线控制', price: '¥169', count: 1, image: $r('app.media.device_bedroom_air') },

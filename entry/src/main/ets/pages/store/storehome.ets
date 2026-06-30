@@ -38,7 +38,7 @@ const STORE_PRODUCTS: StoreProductSpec[] = [
     price: '¥199',
     tag: '套装推荐',
     categoryId: 'sensor',
-    image: $r('app.media.device_environment_sensor'),
+    image: $r('app.media.store_sensor_pro'),
     stock: '现货',
     fit: '客厅 / 卧室'
   },
@@ -49,7 +49,7 @@ const STORE_PRODUCTS: StoreProductSpec[] = [
     price: '¥129',
     tag: '热卖',
     categoryId: 'light',
-    image: $r('app.media.device_living_light'),
+    image: $r('app.media.store_light_module'),
     stock: '次日达',
     fit: '客厅主灯'
   },
@@ -60,7 +60,7 @@ const STORE_PRODUCTS: StoreProductSpec[] = [
     price: '¥299',
     tag: '新品',
     categoryId: 'security',
-    image: $r('app.media.device_gesture_sensor'),
+    image: $r('app.media.store_gesture_panel'),
     stock: '少量',
     fit: '玄关 / 客厅'
   },
@@ -71,7 +71,7 @@ const STORE_PRODUCTS: StoreProductSpec[] = [
     price: '¥89',
     tag: '耗材',
     categoryId: 'clean',
-    image: $r('app.media.device_living_robot'),
+    image: $r('app.media.store_robot_pack'),
     stock: '现货',
     fit: '扫地机器人'
   },
@@ -82,7 +82,7 @@ const STORE_PRODUCTS: StoreProductSpec[] = [
     price: '¥369',
     tag: '中枢',
     categoryId: 'security',
-    image: $r('app.media.device_lumi_gateway'),
+    image: $r('app.media.store_gateway_m2'),
     stock: '现货',
     fit: '全屋中枢'
   },
