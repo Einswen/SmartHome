@@ -101,7 +101,8 @@ const SCENE_TEMPLATES: SceneSpec[] = [
   { id: 'morning', label: '早安', detail: '开帘与日间', badge: '晨', baseId: 'morning' },
   { id: 'arrive', label: '回家', detail: '灯光与空气', badge: '家', baseId: 'arrive' },
   { id: 'movie', label: '观影', detail: '客厅联动', badge: '影', baseId: 'movie' },
-  { id: 'sleep', label: '睡眠', detail: '夜间静音', badge: '夜', baseId: 'sleep' }
+  { id: 'sleep', label: '睡眠', detail: '夜间静音', badge: '夜', baseId: 'sleep' },
+  { id: 'pet', label: '宠物模式', detail: '看护与通风', badge: '宠', baseId: 'pet' }
 ];
 
 const INITIAL_SCENES: SceneSpec[] = SCENE_TEMPLATES;
@@ -1468,6 +1469,9 @@ struct Index {
     if (baseId === 'movie') {
       return '#7F9CFF';
     }
+    if (baseId === 'pet') {
+      return '#5FBF9A';
+    }
     return '#78A9FF';
   }
 
@@ -1495,6 +1499,8 @@ struct Index {
       this.isNight = false;
     } else if (baseId === 'movie') {
       this.isNight = true;
+    } else if (baseId === 'pet') {
+      this.isNight = false;
     } else {
       this.isNight = true;
     }
@@ -1683,6 +1689,15 @@ struct Index {
         { pointId: 'living_tv', on: true, value: 100 },
         { pointId: 'living_light', on: true, value: 22 },
         { pointId: 'living_curtain', on: true, value: 16 }
+      ];
+    }
+    if (baseId === 'pet') {
+      return [
+        { pointId: 'living_air', on: true, value: 24 },
+        { pointId: 'living_purifier', on: true, value: 100 },
+        { pointId: 'living_curtain', on: true, value: 42 },
+        { pointId: 'living_robot', on: false, value: 0 },
+        { pointId: 'bedroom_door', on: true, value: 100 }
       ];
     }
     return [
@@ -3629,51 +3644,10 @@ struct Index {
               .fontWeight(FontWeight.Bold)
               .fontColor(this.primaryText())
 
-            Text('自己命名场景，并选择它的基础风格。')
+            Text('自己命名场景，并补充一段说明。')
               .fontSize(12)
               .fontColor(this.secondaryText())
               .margin({ top: 4 })
-
-            Scroll() {
-              Row() {
-                ForEach(SCENE_TEMPLATES, (scene: SceneSpec) => {
-                  Column() {
-                    this.ToneBadge(scene.badge, this.sceneTint(scene.id), 30)
-
-                    Text(scene.label)
-                      .fontSize(12)
-                      .fontWeight(FontWeight.Bold)
-                      .fontColor(this.selectedSceneTemplateId === scene.id ? this.inverseText() : this.primaryText())
-                      .margin({ top: 8 })
-                  }
-                  .width(96)
-                  .height(86)
-                  .justifyContent(FlexAlign.Center)
-                  .alignItems(HorizontalAlign.Center)
-                  .backgroundColor(this.selectedSceneTemplateId === scene.id ? this.translucentInverseBg() : this.glassShellColor())
-                  .border({
-                    width: 1,
-                    color: this.selectedSceneTemplateId === scene.id ? this.glassBorderColor() : this.lineColor()
-                  })
-                  .borderRadius(18)
-                  .margin({ right: 10 })
-                  .scale(this.buttonScale(`scene_template_${scene.id}`))
-                  .opacity(this.buttonOpacity(`scene_template_${scene.id}`))
-                  .animation({ duration: 120, curve: Curve.EaseOut })
-                  .onTouch((event: TouchEvent) => {
-                    this.handlePressState(`scene_template_${scene.id}`, event);
-                  })
-                  .onClick(() => {
-                    this.selectedSceneTemplateId = scene.id;
-                  })
-                }, (scene: SceneSpec) => scene.id)
-              }
-              .padding({ right: 8 })
-            }
-            .width('100%')
-            .scrollBar(BarState.Off)
-            .scrollable(ScrollDirection.Horizontal)
-            .margin({ top: 14 })
 
             TextInput({ placeholder: '场景名称，例如：晚餐模式', text: this.customSceneName })
               .width('100%')
@@ -3688,7 +3662,7 @@ struct Index {
               })
               .borderRadius(18)
               .padding({ left: 16, right: 16 })
-              .margin({ top: 16 })
+              .margin({ top: 14 })
               .onChange((value: string) => {
                 this.customSceneName = value;
               })
