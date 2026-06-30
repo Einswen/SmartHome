@@ -788,28 +788,27 @@ struct Index {
   }
 
   private translucentPanelColor(): string {
-    return this.isNight ? '#8C171A1F' : '#BFEFF2F7';
+    return this.isNight ? '#80171A1F' : '#B8EFF2F7';
   }
 
   private translucentCardColor(): string {
-    return this.isNight ? '#661F232A' : '#B8FFFFFF';
+    return this.isNight ? '#731F232A' : '#B8FFFFFF';
   }
 
   private translucentInverseBg(): string {
-    // 只调整白天浮层主按钮高亮，夜间颜色保持组长已定的原样。
-    return this.isNight ? '#D9324763' : '#E05F7DFF';
+    return this.isNight ? '#C9324763' : '#CC5F7DFF';
   }
 
   private glassShellColor(): string {
-    return this.isNight ? '#73161A20' : '#A6FFFFFF';
+    return this.isNight ? '#73161A20' : '#B8FFFFFF';
   }
 
   private glassStrongColor(): string {
-    return this.isNight ? '#A61A1E25' : '#D9FFFFFF';
+    return this.isNight ? '#8C1A1E25' : '#C2FFFFFF';
   }
 
   private glassBorderColor(): string {
-    return this.isNight ? '#20FFFFFF' : '#73FFFFFF';
+    return this.isNight ? '#24FFFFFF' : '#5CFFFFFF';
   }
 
   private softDividerColor(): string {
@@ -2988,7 +2987,7 @@ struct Index {
     }
     .height(220)
     .padding({ left: 16, right: 16, top: 16, bottom: 16 })
-    .backgroundColor(this.glassStrongColor())
+    .backgroundColor(this.glassShellColor())
     .border({
       width: 1,
       color: this.glassBorderColor()
@@ -3234,7 +3233,7 @@ struct Index {
     }
     .width('100%')
     .padding({ left: 14, right: 14, top: 14, bottom: 14 })
-    .backgroundColor(this.glassStrongColor())
+    .backgroundColor(this.glassShellColor())
     .border({
       width: 1,
       color: this.glassBorderColor()
@@ -3379,8 +3378,12 @@ struct Index {
           .height(44)
           .fontSize(14)
           .fontWeight(FontWeight.Bold)
-          .fontColor(this.inverseText())
-          .backgroundColor(this.translucentInverseBg())
+          .fontColor(this.primaryText())
+          .backgroundColor(this.glassShellColor())
+          .border({
+            width: 1,
+            color: this.glassBorderColor()
+          })
           .borderRadius(22)
           .margin({ left: 10 })
           .opacity(this.canRemoveDeviceInRoom(roomId) ? this.buttonOpacity(`device_remove_entry_${roomId}`) : 0.36)
@@ -4651,10 +4654,10 @@ struct Index {
     .width('100%')
     .height(58)
     .padding({ left: 12, right: 12 })
-    .backgroundColor(this.panelColor())
+    .backgroundColor(this.glassShellColor())
     .border({
       width: 1,
-      color: title === '智能助手' ? '#336C86FF' : '#10000000'
+      color: title === '智能助手' ? this.glassBorderColor() : this.lineColor()
     })
     .borderRadius(18)
     .margin({ top: 8 })
@@ -4695,7 +4698,7 @@ struct Index {
     }
     .width('100%')
     .padding({ left: 14, right: 14, top: 14, bottom: 14 })
-    .backgroundColor('#E8FFFFFF')
+    .backgroundColor(this.glassStrongColor())
     .border({
       width: 1,
       color: this.glassBorderColor()
@@ -4812,10 +4815,10 @@ struct Index {
           .fontSize(11)
           .fontWeight(FontWeight.Bold)
           .fontColor(this.primaryText())
-          .backgroundColor(this.panelColor())
+          .backgroundColor(this.glassShellColor())
           .border({
             width: 1,
-            color: '#12000000'
+            color: this.glassBorderColor()
           })
           .borderRadius(20)
           .padding({ left: 14, right: 14 })
@@ -4835,7 +4838,7 @@ struct Index {
           .fontSize(14)
           .fontColor(this.primaryText())
           .placeholderColor(this.secondaryText())
-          .backgroundColor(this.panelColor())
+          .backgroundColor(this.glassShellColor())
           .borderRadius(20)
           .padding({ left: 14, right: 14 })
           .margin({ left: 8 })
@@ -4848,7 +4851,11 @@ struct Index {
           .fontSize(11)
           .fontWeight(FontWeight.Bold)
           .fontColor(this.inverseText())
-          .backgroundColor('#6C86FF')
+          .backgroundColor(this.translucentInverseBg())
+          .border({
+            width: 1,
+            color: this.glassBorderColor()
+          })
           .borderRadius(20)
           .padding({ left: 16, right: 16 })
           .margin({ left: 8 })
@@ -4865,17 +4872,17 @@ struct Index {
       .width('100%')
       .height(58)
       .padding({ left: 8, right: 8 })
-      .backgroundColor('#FDFEFF')
+      .backgroundColor(this.glassShellColor())
       .border({
         width: 1,
-        color: '#14000000'
+        color: this.glassBorderColor()
       })
       .borderRadius(29)
       .alignItems(VerticalAlign.Center)
     }
     .width('100%')
     .padding({ left: 10, right: 10, top: 8, bottom: 8 })
-    .backgroundColor('#EFFFFFFF')
+    .backgroundColor(this.glassStrongColor())
     .border({
       width: 1,
       color: this.glassBorderColor()
@@ -4920,10 +4927,10 @@ struct Index {
         .fontSize(18)
         .fontWeight(FontWeight.Bold)
         .fontColor(this.primaryText())
-        .backgroundColor(this.panelColor())
+        .backgroundColor(this.glassShellColor())
         .border({
           width: 1,
-          color: '#12000000'
+          color: this.glassBorderColor()
         })
         .borderRadius(18)
         .padding({ left: 0, right: 0 })
