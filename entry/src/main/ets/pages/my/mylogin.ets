@@ -10,7 +10,6 @@ struct MyLoginPage {
   @State phone: string = '13888888888';
   @State password: string = '123456';
   @State agreed: boolean = true;
-  @State networkFailed: boolean = false;
   @State loginSuccess: boolean = false;
   @State passwordFocused: boolean = false;
   @State isNight: boolean = false;
@@ -32,23 +31,23 @@ struct MyLoginPage {
   }
 
   private bgColor(): string {
-    return this.isNight ? '#070A0F' : '#F4F6FA';
+    return this.isNight ? '#060709' : '#F2F4F8';
   }
 
   private cardColor(): string {
-    return this.isNight ? '#171D27' : '#FFFFFF';
+    return this.isNight ? '#731F232A' : '#B8FFFFFF';
   }
 
   private softColor(): string {
-    return this.isNight ? '#232B38' : '#F0F4FA';
+    return this.isNight ? '#73161A20' : '#B8EFF2F7';
   }
 
   private lineColor(): string {
-    return this.isNight ? '#24FFFFFF' : '#12000000';
+    return this.isNight ? '#24FFFFFF' : '#5CFFFFFF';
   }
 
   private canLogin(): boolean {
-    return this.agreed && this.phone.trim().length >= 6 && this.password.length >= 6 && !this.networkFailed;
+    return this.agreed && this.phone.trim().length >= 6 && this.password.length >= 6;
   }
 
   private handleLogin(): void {
@@ -63,21 +62,17 @@ struct MyLoginPage {
     Stack() {
       Column() {
         this.TopBar()
-        if (this.networkFailed) {
-          this.NetworkState()
-        } else {
-          Scroll() {
-            Column() {
-              this.Hero()
-              this.FormCard()
-              this.SecurityTips()
-            }
-            .width('100%')
-            .padding({ left: 18, right: 18, bottom: 28 })
+        Scroll() {
+          Column() {
+            this.Hero()
+            this.FormCard()
+            this.SecurityTips()
           }
-          .layoutWeight(1)
-          .scrollBar(BarState.Off)
+          .width('100%')
+          .padding({ left: 18, right: 18, bottom: 28 })
         }
+        .layoutWeight(1)
+        .scrollBar(BarState.Off)
       }
       .width('100%')
       .height('100%')
@@ -148,7 +143,7 @@ struct MyLoginPage {
     .padding({ top: 30, bottom: 26 })
     .linearGradient({
       angle: 135,
-      colors: this.isNight ? [['#1B2432', 0.0], ['#111820', 0.62], ['#23342D', 1.0]] : [['#EAF2FF', 0.0], ['#FFFFFF', 0.62], ['#EAF8F4', 1.0]]
+      colors: this.isNight ? [['#1B2432', 0.0], ['#111820', 0.62], ['#23342D', 1.0]] : [['#EAF2FF', 0.0], ['#B8FFFFFF', 0.62], ['#EAF8F4', 1.0]]
     })
     .borderRadius(28)
   }
@@ -317,38 +312,6 @@ struct MyLoginPage {
       .backgroundColor(this.softColor())
       .borderRadius(15)
       .margin({ right: 8 })
-  }
-
-  @Builder
-  NetworkState() {
-    Column() {
-      Blank().height(86)
-      Text('登录服务不可用')
-        .fontSize(23)
-        .fontWeight(FontWeight.Bold)
-        .fontColor(this.primaryText())
-      Text('当前网络异常，暂时无法校验账号密码。你仍可返回查看本地缓存家庭。')
-        .fontSize(13)
-        .lineHeight(21)
-        .fontColor(this.secondaryText())
-        .textAlign(TextAlign.Center)
-        .margin({ left: 36, right: 36, top: 10 })
-      Button('重试')
-        .height(42)
-        .fontSize(14)
-        .fontWeight(FontWeight.Bold)
-        .fontColor('#FFFFFF')
-        .backgroundColor('#5E8CFF')
-        .borderRadius(21)
-        .padding({ left: 24, right: 24 })
-        .margin({ top: 22 })
-        .onClick(() => {
-          this.networkFailed = false;
-        })
-    }
-    .layoutWeight(1)
-    .width('100%')
-    .alignItems(HorizontalAlign.Center)
   }
 
   @Builder

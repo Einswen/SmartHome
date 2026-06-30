@@ -32,7 +32,6 @@ const PRIVACY_ROWS: SettingRowSpec[] = [
 @Entry
 @Component
 struct MySettingsPage {
-  @State networkFailed: boolean = false;
   @State activeTab: string = 'security';
   @StorageLink('myPrefPushEnabled') pushEnabled: boolean = true;
   @StorageLink('myPrefAutoUpgrade') autoUpgrade: boolean = false;
@@ -56,15 +55,15 @@ struct MySettingsPage {
   }
 
   private bgColor(): string {
-    return this.isNight ? '#070A0F' : '#F4F6FA';
+    return this.isNight ? '#060709' : '#F2F4F8';
   }
 
   private cardColor(): string {
-    return this.isNight ? '#D9151A22' : '#FFFFFF';
+    return this.isNight ? '#731F232A' : '#B8FFFFFF';
   }
 
   private softColor(): string {
-    return this.isNight ? '#661F2632' : '#F0F4FA';
+    return this.isNight ? '#73161A20' : '#B8EFF2F7';
   }
 
   private rows(): SettingRowSpec[] {
@@ -106,22 +105,18 @@ struct MySettingsPage {
     Column() {
       this.TopBar()
 
-      if (this.networkFailed) {
-        this.NetworkState()
-      } else {
-        Scroll() {
-          Column() {
-            this.SecurityCard()
-            this.TabBar()
-            this.SettingList()
-            this.PreferenceCard()
-          }
-          .width('100%')
-          .padding({ left: 18, right: 18, bottom: 28 })
+      Scroll() {
+        Column() {
+          this.SecurityCard()
+          this.TabBar()
+          this.SettingList()
+          this.PreferenceCard()
         }
-        .layoutWeight(1)
-        .scrollBar(BarState.Off)
+        .width('100%')
+        .padding({ left: 18, right: 18, bottom: 28 })
       }
+      .layoutWeight(1)
+      .scrollBar(BarState.Off)
     }
     .width('100%')
     .height('100%')
@@ -189,7 +184,7 @@ struct MySettingsPage {
     }
     .width('100%')
     .padding({ left: 20, right: 20, top: 22, bottom: 22 })
-    .linearGradient({ angle: 135, colors: this.isNight ? [['#1B2432', 0.0], ['#111820', 0.62], ['#251C33', 1.0]] : [['#EFEAFF', 0.0], ['#FFFFFF', 0.62], ['#EAF8F4', 1.0]] })
+    .linearGradient({ angle: 135, colors: this.isNight ? [['#1B2432', 0.0], ['#111820', 0.62], ['#251C33', 1.0]] : [['#EFEAFF', 0.0], ['#B8FFFFFF', 0.62], ['#EAF8F4', 1.0]] })
     .borderRadius(26)
   }
 
@@ -268,7 +263,7 @@ struct MySettingsPage {
         .width('100%')
         .margin({ bottom: 12 })
 
-      this.SwitchRow('重要告警推送', '断网、漏水、门锁异常立即提醒', 'push')
+      this.SwitchRow('重要告警推送', '漏水、门锁异常立即提醒', 'push')
       this.SwitchRow('夜间自动升级', '低峰时段静默升级设备固件', 'upgrade')
       this.SwitchRow('跟随家庭关灯', '夜间模式同步商城和我的页面深色视觉', 'dark')
       this.SwitchRow('商城服务提醒', '订单、耗材和售后工单低频提醒', 'mall')
@@ -316,35 +311,4 @@ struct MySettingsPage {
     })
   }
 
-  @Builder
-  NetworkState() {
-    Column() {
-      Blank().height(86)
-      Text('设置同步失败')
-        .fontSize(23)
-        .fontWeight(FontWeight.Bold)
-        .fontColor(this.primaryText())
-      Text('当前展示的是本地缓存，账号安全和授权状态暂时无法更新。')
-        .fontSize(13)
-        .lineHeight(21)
-        .fontColor(this.secondaryText())
-        .textAlign(TextAlign.Center)
-        .margin({ left: 36, right: 36, top: 10 })
-      Button('重新同步')
-        .height(42)
-        .fontSize(14)
-        .fontWeight(FontWeight.Bold)
-        .fontColor('#FFFFFF')
-        .backgroundColor('#7F72F2')
-        .borderRadius(21)
-        .padding({ left: 24, right: 24 })
-        .margin({ top: 22 })
-        .onClick(() => {
-          this.networkFailed = false;
-        })
-    }
-    .layoutWeight(1)
-    .width('100%')
-    .alignItems(HorizontalAlign.Center)
-  }
 }

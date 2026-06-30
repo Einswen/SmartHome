@@ -23,7 +23,6 @@ const MESSAGE_LIST: MessageSpec[] = [
 @Component
 struct MyMessagesPage {
   @State showEmpty: boolean = false;
-  @State networkFailed: boolean = false;
   @StorageLink('homeNightMode') isNight: boolean = false;
 
   aboutToAppear(): void {
@@ -42,15 +41,15 @@ struct MyMessagesPage {
   }
 
   private bgColor(): string {
-    return this.isNight ? '#070A0F' : '#F4F6FA';
+    return this.isNight ? '#060709' : '#F2F4F8';
   }
 
   private cardColor(): string {
-    return this.isNight ? '#D9151A22' : '#FFFFFF';
+    return this.isNight ? '#731F232A' : '#B8FFFFFF';
   }
 
   private softColor(): string {
-    return this.isNight ? '#661F2632' : '#F0F4FA';
+    return this.isNight ? '#73161A20' : '#B8EFF2F7';
   }
 
   private messages(): MessageSpec[] {
@@ -61,28 +60,24 @@ struct MyMessagesPage {
     Column() {
       this.TopBar()
 
-      if (this.networkFailed) {
-        this.NetworkState()
-      } else {
-        Scroll() {
-          Column() {
-            this.Summary()
-            this.MessageHeader()
+      Scroll() {
+        Column() {
+          this.Summary()
+          this.MessageHeader()
 
-            if (this.messages().length === 0) {
-              this.EmptyState()
-            } else {
-              ForEach(this.messages(), (message: MessageSpec) => {
-                this.MessageCard(message)
-              }, (message: MessageSpec) => message.id)
-            }
+          if (this.messages().length === 0) {
+            this.EmptyState()
+          } else {
+            ForEach(this.messages(), (message: MessageSpec) => {
+              this.MessageCard(message)
+            }, (message: MessageSpec) => message.id)
           }
-          .width('100%')
-          .padding({ left: 18, right: 18, bottom: 28 })
         }
-        .layoutWeight(1)
-        .scrollBar(BarState.Off)
+        .width('100%')
+        .padding({ left: 18, right: 18, bottom: 28 })
       }
+      .layoutWeight(1)
+      .scrollBar(BarState.Off)
     }
     .width('100%')
     .height('100%')
@@ -139,7 +134,7 @@ struct MyMessagesPage {
     }
     .width('100%')
     .padding({ left: 20, right: 20, top: 22, bottom: 22 })
-    .linearGradient({ angle: 135, colors: this.isNight ? [['#1B2432', 0.0], ['#111820', 0.62], ['#332B1C', 1.0]] : [['#E6EEFF', 0.0], ['#FFFFFF', 0.62], ['#FFF2D7', 1.0]] })
+    .linearGradient({ angle: 135, colors: this.isNight ? [['#1B2432', 0.0], ['#111820', 0.62], ['#332B1C', 1.0]] : [['#E6EEFF', 0.0], ['#B8FFFFFF', 0.62], ['#FFF2D7', 1.0]] })
     .borderRadius(26)
   }
 
@@ -252,36 +247,5 @@ struct MyMessagesPage {
     .borderRadius(24)
   }
 
-  @Builder
-  NetworkState() {
-    Column() {
-      Blank().height(86)
-      Text('消息加载失败')
-        .fontSize(23)
-        .fontWeight(FontWeight.Bold)
-        .fontColor(this.primaryText())
-      Text('当前网络不可用，暂时无法同步最新告警。')
-        .fontSize(13)
-        .lineHeight(21)
-        .fontColor(this.secondaryText())
-        .textAlign(TextAlign.Center)
-        .margin({ left: 36, right: 36, top: 10 })
-      Button('重试')
-        .height(42)
-        .fontSize(14)
-        .fontWeight(FontWeight.Bold)
-        .fontColor('#FFFFFF')
-        .backgroundColor('#5E8CFF')
-        .borderRadius(21)
-        .padding({ left: 24, right: 24 })
-        .margin({ top: 22 })
-        .onClick(() => {
-          this.networkFailed = false;
-        })
-    }
-    .layoutWeight(1)
-    .width('100%')
-    .alignItems(HorizontalAlign.Center)
-  }
 }
 

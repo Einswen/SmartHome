@@ -5526,9 +5526,9 @@ struct Index {
       } else if (this.activeTab === 'smart') {
         this.SmartPage()
       } else if (this.activeTab === 'store') {
-        P31_StoreHome({ isNight: this.isNight })
+        P31_StoreHome({ isNight: this.isNight, transparentBg: true })
       } else if (this.activeTab === 'profile') {
-        P21_MyProfile({ isNight: this.isNight })
+        P21_MyProfile({ isNight: this.isNight, transparentBg: true })
       } else {
         this.EmptyPage()
       }
