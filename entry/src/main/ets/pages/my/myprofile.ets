@@ -1,14 +1,5 @@
 ﻿import { safePushUrl } from '../../common/SafeRouter';
 
-interface HomeBriefSpec {
-  id: string;
-  name: string;
-  role: string;
-  deviceCount: string;
-  health: string;
-  index: number;
-}
-
 interface MyFeatureSpec {
   id: string;
   title: string;
@@ -24,12 +15,6 @@ interface MyServiceSpec {
   tag: string;
   route: string;
 }
-
-const MY_HOMES: HomeBriefSpec[] = [
-  { id: 'home_main', name: '幸福之家', role: '当前家庭', deviceCount: '6 台设备', health: '96%', index: 0 },
-  { id: 'home_parents', name: '父母家', role: '远程照看', deviceCount: '4 台设备', health: '91%', index: 1 },
-  { id: 'home_office', name: '工作室', role: '共享空间', deviceCount: '3 台设备', health: '88%', index: 2 }
-];
 
 const MY_FEATURES: MyFeatureSpec[] = [
   { id: 'devices', title: '设备中心', desc: '与首页客厅设备同步，支持扩展设备管理', route: 'pages/my/mydevices', accent: '#5E8CFF' },
@@ -50,7 +35,6 @@ export struct P21_MyProfile {
   @Prop isNight: boolean;
   @Prop transparentBg: boolean = false;
   @State pressedKey: string = '';
-  @State activeHomeIndex: number = 0;
   @StorageLink('lumiUserSignedIn') signedIn: boolean = false;
   @StorageLink('homeLivingDeviceCount') livingDeviceCount: number = 6;
 
@@ -85,15 +69,8 @@ export struct P21_MyProfile {
     return this.isNight ? '#66000000' : '#14151C20';
   }
 
-  private activeHome(): HomeBriefSpec {
-    return MY_HOMES[this.activeHomeIndex];
-  }
-
   private activeDeviceCount(): string {
-    if (this.activeHomeIndex === 0) {
-      return `${this.livingDeviceCount} 台设备`;
-    }
-    return this.activeHome().deviceCount;
+    return `${this.livingDeviceCount} 台设备`;
   }
 
   private handlePressState(key: string, event: TouchEvent): void {
@@ -118,7 +95,6 @@ export struct P21_MyProfile {
     Scroll() {
       Column() {
         this.ProfileHeader()
-        this.HomeSwitcher()
         this.CommonFeatureBoard()
         this.HealthSummary()
         this.ServiceGrid()
@@ -188,66 +164,6 @@ export struct P21_MyProfile {
     }
     .width('100%')
     .alignItems(VerticalAlign.Center)
-  }
-
-  @Builder
-  HomeSwitcher() {
-    Column() {
-      Row() {
-        Column() {
-          Text(this.activeHome().name)
-            .fontSize(22)
-            .fontWeight(FontWeight.Bold)
-            .fontColor(this.primaryText())
-            .maxLines(1)
-
-          Text(`${this.activeDeviceCount()} · 健康度 ${this.activeHome().health}`)
-            .fontSize(12)
-            .fontColor(this.secondaryText())
-            .margin({ top: 6 })
-            .maxLines(1)
-        }
-        .alignItems(HorizontalAlign.Start)
-        .layoutWeight(1)
-
-        Text(this.activeHome().role)
-          .fontSize(12)
-          .fontWeight(FontWeight.Bold)
-          .fontColor('#FFFFFF')
-          .padding({ left: 12, right: 12, top: 7, bottom: 7 })
-          .backgroundColor('#5E8CFF')
-          .borderRadius(16)
-      }
-      .width('100%')
-
-      Row() {
-        ForEach(MY_HOMES, (item: HomeBriefSpec) => {
-          Text(item.name)
-            .fontSize(12)
-            .fontWeight(this.activeHomeIndex === item.index ? FontWeight.Bold : FontWeight.Medium)
-            .fontColor(this.activeHomeIndex === item.index ? (this.isNight ? '#11151D' : '#FFFFFF') : this.primaryText())
-            .padding({ left: 13, right: 13, top: 9, bottom: 9 })
-            .backgroundColor(this.activeHomeIndex === item.index ? (this.isNight ? '#F5F7FB' : '#11151D') : this.softPanelColor())
-            .borderRadius(17)
-            .margin({ right: 8 })
-            .onClick(() => {
-              this.activeHomeIndex = item.index;
-            })
-        }, (item: HomeBriefSpec) => item.id)
-      }
-      .width('100%')
-      .margin({ top: 18 })
-    }
-    .width('100%')
-    .padding({ left: 20, right: 20, top: 20, bottom: 18 })
-    .linearGradient({
-      angle: 135,
-      colors: this.isNight ? [['#192332', 0.0], ['#10151E', 0.66], ['#1A2D2B', 1.0]] : [['#E6EEFF', 0.0], ['#B8FFFFFF', 0.56], ['#EAF8F4', 1.0]]
-    })
-    .border({ width: 1, color: this.lineColor() })
-    .borderRadius(26)
-    .shadow({ radius: 22, color: this.shadowColor(), offsetY: 10 })
-    .margin({ top: 20 })
   }
 
   @Builder
@@ -358,11 +274,11 @@ export struct P21_MyProfile {
       .width('100%')
 
       Row() {
-        this.HealthMetric('在线率', this.activeHome().health, '#35D27A')
+        this.HealthMetric('在线率', '96%', '#35D27A')
         Blank().width(8)
-        this.HealthMetric('异常设备', this.activeHomeIndex === 0 ? '0' : '1', '#F3A33A')
+        this.HealthMetric('异常设备', '0', '#F3A33A')
         Blank().width(8)
-        this.HealthMetric('自动化', this.activeHomeIndex === 0 ? '26' : '12', '#5E8CFF')
+        this.HealthMetric('自动化', '26', '#5E8CFF')
       }
       .width('100%')
       .margin({ top: 14 })

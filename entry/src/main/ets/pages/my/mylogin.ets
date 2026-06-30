@@ -70,6 +70,9 @@ struct MyLoginPage {
         Scroll() {
           Column() {
             this.Hero()
+            if (this.loginSuccess) {
+              this.LoginSuccessBanner()
+            }
             if (this.signedIn) {
               this.AccountStateCard()
             }
@@ -85,10 +88,6 @@ struct MyLoginPage {
       .width('100%')
       .height('100%')
       .backgroundColor(this.bgColor())
-
-      if (this.loginSuccess) {
-        this.SuccessDialog()
-      }
     }
     .width('100%')
     .height('100%')
@@ -378,61 +377,51 @@ struct MyLoginPage {
   }
 
   @Builder
-  SuccessDialog() {
-    Stack() {
-      Column()
-        .width('100%')
-        .height('100%')
-        .backgroundColor(this.isNight ? '#99000000' : '#66000000')
-
-      Column() {
-        Stack() {
-          Circle()
-            .width(64)
-            .height(64)
-            .fill('#F3A33A')
-          Text('√')
-            .fontSize(31)
-            .fontWeight(FontWeight.Bold)
-            .fontColor('#FFFFFF')
-        }
-        .width(64)
-        .height(64)
-
-        Text('登录成功')
-          .fontSize(23)
-          .fontWeight(FontWeight.Bold)
-          .fontColor(this.primaryText())
-          .margin({ top: 16 })
-
-        Text('Lumi 家庭数据已同步，设备、购物车、订单与授权偏好已更新。')
-          .fontSize(13)
-          .lineHeight(21)
-          .fontColor(this.secondaryText())
-          .textAlign(TextAlign.Center)
-          .margin({ left: 12, right: 12, top: 10 })
-
-        Button('进入我的')
-          .width('100%')
-          .height(44)
-          .fontSize(15)
+  LoginSuccessBanner() {
+    Row() {
+      Stack() {
+        Circle()
+          .width(34)
+          .height(34)
+          .fill('#35D27A')
+        Text('√')
+          .fontSize(17)
           .fontWeight(FontWeight.Bold)
           .fontColor('#FFFFFF')
-          .backgroundColor('#11151D')
-          .borderRadius(22)
-          .margin({ top: 22 })
-          .onClick(() => {
-            safeBack(this.getUIContext().getRouter());
-          })
       }
-      .width('82%')
-      .padding({ left: 22, right: 22, top: 26, bottom: 22 })
-      .backgroundColor(this.cardColor())
-      .borderRadius(28)
-      .alignItems(HorizontalAlign.Center)
-      .shadow({ radius: 28, color: '#55000000', offsetY: 12 })
+      .width(34)
+      .height(34)
+
+      Column() {
+        Text('登录成功')
+          .fontSize(16)
+          .fontWeight(FontWeight.Bold)
+          .fontColor(this.primaryText())
+        Text('家庭、设备、购物车和授权偏好已同步')
+          .fontSize(12)
+          .fontColor(this.secondaryText())
+          .margin({ top: 4 })
+      }
+      .alignItems(HorizontalAlign.Start)
+      .layoutWeight(1)
+      .margin({ left: 12 })
+
+      Button('完成')
+        .height(34)
+        .fontSize(12)
+        .fontWeight(FontWeight.Bold)
+        .fontColor(this.isNight ? '#11151D' : '#FFFFFF')
+        .backgroundColor(this.isNight ? '#F5F7FB' : '#11151D')
+        .borderRadius(17)
+        .padding({ left: 14, right: 14 })
+        .onClick(() => {
+          safeBack(this.getUIContext().getRouter());
+        })
     }
     .width('100%')
-    .height('100%')
+    .padding({ left: 16, right: 16, top: 14, bottom: 14 })
+    .backgroundColor(this.cardColor())
+    .borderRadius(22)
+    .margin({ top: 16 })
   }
 }
