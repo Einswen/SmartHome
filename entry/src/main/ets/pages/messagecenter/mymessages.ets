@@ -210,6 +210,10 @@ struct MyMessagesPage {
     return NOTICE_LIST[0];
   }
 
+  private backToHome(): void {
+    router.replaceUrl({ url: 'pages/Index', params: { isNight: this.isNight, activeTab: 'home' } });
+  }
+
   build() {
     Column() {
       this.PageTitle()
@@ -243,7 +247,7 @@ struct MyMessagesPage {
             if (this.selectedNoticeId !== '') {
               this.selectedNoticeId = '';
             } else {
-              router.back();
+              this.backToHome();
             }
           })
 
