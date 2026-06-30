@@ -29,14 +29,15 @@ interface ProductShotSpec {
   offsetY: number;
   bgStart: string;
   bgEnd: string;
+  image?: Resource;
 }
 
 const PRODUCT_LIST: ProductSpec[] = [
-  { id: 'sensor_pro', title: '环境传感器 Pro', desc: '温湿度、光照、人体存在三合一，可触发空调、窗帘与灯光联动。', price: '¥199', image: $r('app.media.device_environment_sensor'), tag: '套装推荐', scene: '客厅 / 卧室' },
-  { id: 'light_module', title: '智能照明模块', desc: '支持亮度、色温与场景联动，适合全屋灯光升级。', price: '¥129', image: $r('app.media.device_living_light'), tag: '热卖', scene: '客厅主灯' },
-  { id: 'gesture_panel', title: '手势控制面板', desc: '无接触切换回家、观影、睡眠等高频场景。', price: '¥299', image: $r('app.media.device_gesture_sensor'), tag: '新品', scene: '玄关 / 客厅' },
-  { id: 'robot_pack', title: '清洁维护套装', desc: '扫地机器人主刷、边刷、滤网组合装。', price: '¥89', image: $r('app.media.device_living_robot'), tag: '耗材', scene: '扫地机器人' },
-  { id: 'gateway_m2', title: 'Lumi 网关 M2', desc: '蓝牙 Mesh 与 Zigbee 双协议接入，覆盖主流智能设备。', price: '¥369', image: $r('app.media.device_lumi_gateway'), tag: '中枢', scene: '全屋' },
+  { id: 'sensor_pro', title: '环境传感器 Pro', desc: '温湿度、光照、人体存在三合一，可触发空调、窗帘与灯光联动。', price: '¥199', image: $r('app.media.store_sensor_pro'), tag: '套装推荐', scene: '客厅 / 卧室' },
+  { id: 'light_module', title: '智能照明模块', desc: '支持亮度、色温与场景联动，适合全屋灯光升级。', price: '¥129', image: $r('app.media.store_light_module'), tag: '热卖', scene: '客厅主灯' },
+  { id: 'gesture_panel', title: '手势控制面板', desc: '无接触切换回家、观影、睡眠等高频场景。', price: '¥299', image: $r('app.media.store_gesture_panel'), tag: '新品', scene: '玄关 / 客厅' },
+  { id: 'robot_pack', title: '清洁维护套装', desc: '扫地机器人主刷、边刷、滤网组合装。', price: '¥89', image: $r('app.media.store_robot_pack'), tag: '耗材', scene: '扫地机器人' },
+  { id: 'gateway_m2', title: 'Lumi 网关 M2', desc: '蓝牙 Mesh 与 Zigbee 双协议接入，覆盖主流智能设备。', price: '¥369', image: $r('app.media.store_gateway_m2'), tag: '中枢', scene: '全屋' },
   { id: 'filter', title: '净化器滤芯', desc: '高效过滤颗粒物和异味，建议每 6 个月更换。', price: '¥159', image: $r('app.media.device_living_purifier'), tag: '订阅省 15%', scene: '空气净化器' }
   ,
   { id: 'living_curtain_motor', title: '智能窗帘电机', desc: '适配客厅西侧窗帘，可接入日照跟随和观影联动。', price: '¥249', image: $r('app.media.device_living_curtain'), tag: '联动', scene: '客厅窗帘' },
@@ -87,18 +88,52 @@ struct StoreProductPage {
   }
 
   private bgColor(): string {
-    return this.isNight ? '#070A0F' : '#F4F6FA';
+    return this.isNight ? '#060709' : '#F2F4F8';
   }
 
   private cardColor(): string {
-    return this.isNight ? '#D9151A22' : '#FFFFFF';
+    return this.isNight ? '#731F232A' : '#B8FFFFFF';
   }
 
   private softColor(): string {
-    return this.isNight ? '#661F2632' : '#F0F4FA';
+    return this.isNight ? '#73161A20' : '#B8EFF2F7';
   }
 
   private productShots(product: ProductSpec): ProductShotSpec[] {
+    if (product.id === 'robot_pack') {
+      return [
+        {
+          id: `${product.id}_full`,
+          mode: 3,
+          imageSize: 188,
+          offsetX: 0,
+          offsetY: -2,
+          bgStart: '#FFF2D7',
+          bgEnd: '#EAF2FF',
+          image: $r('app.media.store_robot_pack_full')
+        },
+        {
+          id: `${product.id}_brush`,
+          mode: 4,
+          imageSize: 188,
+          offsetX: 0,
+          offsetY: -4,
+          bgStart: '#EAF0FF',
+          bgEnd: '#FFF8EC',
+          image: $r('app.media.store_robot_pack_brush')
+        },
+        {
+          id: `${product.id}_filter`,
+          mode: 5,
+          imageSize: 196,
+          offsetX: 0,
+          offsetY: 4,
+          bgStart: '#FFF6E8',
+          bgEnd: '#EAF8F4',
+          image: $r('app.media.store_robot_pack_filter')
+        }
+      ];
+    }
     const shots: ProductShotSpec[] = [
       {
         id: `${product.id}_front`,
@@ -225,17 +260,6 @@ struct StoreProductPage {
           safePushUrl(this.getUIContext().getRouter(), { url: 'pages/store/storecart', params: this.routeParams() });
         })
 
-      Button(this.networkFailed ? '恢复' : '断网')
-        .height(34)
-        .fontSize(12)
-        .fontWeight(FontWeight.Bold)
-        .fontColor(this.networkFailed ? '#FFFFFF' : this.primaryText())
-        .backgroundColor(this.networkFailed ? '#F3A33A' : this.cardColor())
-        .borderRadius(17)
-        .padding({ left: 12, right: 12 })
-        .onClick(() => {
-          this.networkFailed = !this.networkFailed;
-        })
     }
     .width('100%')
     .padding({ left: 18, right: 18, top: 28, bottom: 14 })
@@ -297,7 +321,7 @@ struct StoreProductPage {
     .width('100%')
     .alignItems(HorizontalAlign.Center)
     .padding({ top: 24, bottom: 24 })
-    .linearGradient({ angle: 135, colors: this.isNight ? [['#1B2432', 0.0], ['#111820', 0.62], ['#23342D', 1.0]] : [['#FFF2D7', 0.0], ['#FFFFFF', 0.62], ['#EAF2FF', 1.0]] })
+    .linearGradient({ angle: 135, colors: this.isNight ? [['#1B2432', 0.0], ['#111820', 0.62], ['#23342D', 1.0]] : [['#FFF2D7', 0.0], ['#B8FFFFFF', 0.62], ['#EAF2FF', 1.0]] })
     .borderRadius(28)
   }
 
@@ -309,7 +333,7 @@ struct StoreProductPage {
         .height(176)
         .linearGradient({
           angle: 135,
-          colors: this.isNight ? [['#202A38', 0.0], ['#111820', 0.62], ['#27313A', 1.0]] : [[shot.bgStart, 0.0], ['#FFFFFF', 0.58], [shot.bgEnd, 1.0]]
+          colors: [['#FFFFFF', 0.0], ['#FFFFFF', 0.58], ['#FFFFFF', 1.0]]
         })
         .borderRadius(28)
 
@@ -323,7 +347,7 @@ struct StoreProductPage {
         Column()
           .width(54)
           .height(118)
-          .linearGradient({ angle: 90, colors: this.isNight ? [['#303947', 0.0], ['#1A2029', 1.0]] : [['#FFFFFF', 0.0], ['#DDE6F3', 1.0]] })
+          .linearGradient({ angle: 90, colors: [['#FFFFFF', 0.0], ['#FFFFFF', 1.0]] })
           .borderRadius(16)
           .opacity(0.72)
           .translate({ x: -56, y: 0 })
@@ -337,7 +361,7 @@ struct StoreProductPage {
         Column()
           .width(54)
           .height(118)
-          .linearGradient({ angle: 90, colors: this.isNight ? [['#1A2029', 0.0], ['#303947', 1.0]] : [['#DDE6F3', 0.0], ['#FFFFFF', 1.0]] })
+          .linearGradient({ angle: 90, colors: [['#FFFFFF', 0.0], ['#FFFFFF', 1.0]] })
           .borderRadius(16)
           .opacity(0.72)
           .translate({ x: 56, y: 0 })
@@ -349,7 +373,7 @@ struct StoreProductPage {
           .translate({ x: shot.offsetX, y: shot.offsetY })
       } else if (shot.mode === 3) {
         Stack({ alignContent: Alignment.Center }) {
-          Image(product.image)
+          Image(shot.image !== undefined ? shot.image : product.image)
             .width(shot.imageSize)
             .height(shot.imageSize)
             .objectFit(ImageFit.Contain)
@@ -359,14 +383,40 @@ struct StoreProductPage {
         .height(176)
         .clip(true)
         .borderRadius(28)
+      } else if (shot.mode === 4) {
+        Column()
+          .width(62)
+          .height(126)
+          .linearGradient({ angle: 90, colors: [['#FFFFFF', 0.0], ['#FFFFFF', 1.0]] })
+          .borderRadius(20)
+          .opacity(0.78)
+          .translate({ x: 58, y: -4 })
+        Image(shot.image !== undefined ? shot.image : product.image)
+          .width(shot.imageSize)
+          .height(shot.imageSize)
+          .objectFit(ImageFit.Contain)
+          .translate({ x: shot.offsetX, y: shot.offsetY })
+      } else if (shot.mode === 5) {
+        Column()
+          .width(62)
+          .height(126)
+          .linearGradient({ angle: 90, colors: [['#FFFFFF', 0.0], ['#FFFFFF', 1.0]] })
+          .borderRadius(20)
+          .opacity(0.78)
+          .translate({ x: -58, y: -4 })
+        Image(shot.image !== undefined ? shot.image : product.image)
+          .width(shot.imageSize)
+          .height(shot.imageSize)
+          .objectFit(ImageFit.Contain)
+          .translate({ x: shot.offsetX, y: shot.offsetY })
       } else {
         Circle()
           .width(130)
           .height(130)
-          .fill(this.isNight ? '#262C36' : '#F8FAFD')
+          .fill('#FFFFFF')
           .opacity(0.72)
           .translate({ x: 0, y: 32 })
-        Image(product.image)
+        Image(shot.image !== undefined ? shot.image : product.image)
           .width(shot.imageSize)
           .height(shot.imageSize)
           .objectFit(ImageFit.Contain)
@@ -526,7 +576,7 @@ struct StoreProductPage {
       .fontWeight(FontWeight.Bold)
       .fontColor(color)
       .padding({ left: 12, right: 12, top: 7, bottom: 7 })
-      .backgroundColor(this.softColor())
+      .backgroundColor('#FFFFFF')
       .borderRadius(16)
       .margin({ right: 8 })
   }

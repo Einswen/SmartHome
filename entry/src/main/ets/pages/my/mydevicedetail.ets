@@ -31,7 +31,6 @@ const DEVICE_DETAIL_LIST: DeviceDetailSpec[] = [
 @Component
 struct MyDeviceDetailPage {
   @State deviceId: string = 'living_air';
-  @State networkFailed: boolean = false;
   @State deviceEnabled: boolean = true;
   @State level: number = 62;
   @State isNight: boolean = false;
@@ -64,36 +63,32 @@ struct MyDeviceDetailPage {
   }
 
   private bgColor(): string {
-    return this.isNight ? '#070A0F' : '#F4F6FA';
+    return this.isNight ? '#060709' : '#F2F4F8';
   }
 
   private cardColor(): string {
-    return this.isNight ? '#D9151A22' : '#FFFFFF';
+    return this.isNight ? '#731F232A' : '#B8FFFFFF';
   }
 
   private softColor(): string {
-    return this.isNight ? '#661F2632' : '#F0F4FA';
+    return this.isNight ? '#73161A20' : '#B8EFF2F7';
   }
 
   build() {
     Column() {
       this.TopBar()
 
-      if (this.networkFailed) {
-        this.NetworkState()
-      } else {
-        Scroll() {
-          Column() {
-            this.HeroCard(this.page())
-            this.ControlCard(this.page())
-            this.HealthCard(this.page())
-          }
-          .width('100%')
-          .padding({ left: 18, right: 18, bottom: 28 })
+      Scroll() {
+        Column() {
+          this.HeroCard(this.page())
+          this.ControlCard(this.page())
+          this.HealthCard(this.page())
         }
-        .layoutWeight(1)
-        .scrollBar(BarState.Off)
+        .width('100%')
+        .padding({ left: 18, right: 18, bottom: 28 })
       }
+      .layoutWeight(1)
+      .scrollBar(BarState.Off)
     }
     .width('100%')
     .height('100%')
@@ -121,17 +116,6 @@ struct MyDeviceDetailPage {
         .margin({ left: 14 })
         .layoutWeight(1)
 
-      Button(this.networkFailed ? '恢复' : '断网')
-        .height(34)
-        .fontSize(12)
-        .fontWeight(FontWeight.Bold)
-        .fontColor(this.networkFailed ? '#FFFFFF' : this.primaryText())
-        .backgroundColor(this.networkFailed ? '#5E8CFF' : this.cardColor())
-        .borderRadius(17)
-        .padding({ left: 12, right: 12 })
-        .onClick(() => {
-          this.networkFailed = !this.networkFailed;
-        })
     }
     .width('100%')
     .padding({ left: 18, right: 18, top: 28, bottom: 14 })
@@ -173,7 +157,7 @@ struct MyDeviceDetailPage {
     }
     .width('100%')
     .padding({ left: 20, right: 12, top: 22, bottom: 22 })
-    .linearGradient({ angle: 135, colors: this.isNight ? [['#1B2432', 0.0], ['#111820', 0.62], ['#23342D', 1.0]] : [['#E6EEFF', 0.0], ['#FFFFFF', 0.62], ['#EAF8F4', 1.0]] })
+    .linearGradient({ angle: 135, colors: this.isNight ? [['#1B2432', 0.0], ['#111820', 0.62], ['#23342D', 1.0]] : [['#E6EEFF', 0.0], ['#B8FFFFFF', 0.62], ['#EAF8F4', 1.0]] })
     .borderRadius(26)
   }
 
@@ -289,35 +273,4 @@ struct MyDeviceDetailPage {
     .borderRadius(18)
   }
 
-  @Builder
-  NetworkState() {
-    Column() {
-      Blank().height(86)
-      Text('设备详情同步失败')
-        .fontSize(23)
-        .fontWeight(FontWeight.Bold)
-        .fontColor(this.primaryText())
-      Text('当前网络不可用，控制指令会在恢复连接后再下发。')
-        .fontSize(13)
-        .lineHeight(21)
-        .fontColor(this.secondaryText())
-        .textAlign(TextAlign.Center)
-        .margin({ left: 36, right: 36, top: 10 })
-      Button('重试')
-        .height(42)
-        .fontSize(14)
-        .fontWeight(FontWeight.Bold)
-        .fontColor('#FFFFFF')
-        .backgroundColor('#5E8CFF')
-        .borderRadius(21)
-        .padding({ left: 24, right: 24 })
-        .margin({ top: 22 })
-        .onClick(() => {
-          this.networkFailed = false;
-        })
-    }
-    .layoutWeight(1)
-    .width('100%')
-    .alignItems(HorizontalAlign.Center)
-  }
 }

@@ -38,7 +38,7 @@ const STORE_PRODUCTS: StoreProductSpec[] = [
     price: '¥199',
     tag: '套装推荐',
     categoryId: 'sensor',
-    image: $r('app.media.device_environment_sensor'),
+    image: $r('app.media.store_sensor_pro'),
     stock: '现货',
     fit: '客厅 / 卧室'
   },
@@ -49,7 +49,7 @@ const STORE_PRODUCTS: StoreProductSpec[] = [
     price: '¥129',
     tag: '热卖',
     categoryId: 'light',
-    image: $r('app.media.device_living_light'),
+    image: $r('app.media.store_light_module'),
     stock: '次日达',
     fit: '客厅主灯'
   },
@@ -60,7 +60,7 @@ const STORE_PRODUCTS: StoreProductSpec[] = [
     price: '¥299',
     tag: '新品',
     categoryId: 'security',
-    image: $r('app.media.device_gesture_sensor'),
+    image: $r('app.media.store_gesture_panel'),
     stock: '少量',
     fit: '玄关 / 客厅'
   },
@@ -71,7 +71,7 @@ const STORE_PRODUCTS: StoreProductSpec[] = [
     price: '¥89',
     tag: '耗材',
     categoryId: 'clean',
-    image: $r('app.media.device_living_robot'),
+    image: $r('app.media.store_robot_pack'),
     stock: '现货',
     fit: '扫地机器人'
   },
@@ -82,7 +82,7 @@ const STORE_PRODUCTS: StoreProductSpec[] = [
     price: '¥369',
     tag: '中枢',
     categoryId: 'security',
-    image: $r('app.media.device_lumi_gateway'),
+    image: $r('app.media.store_gateway_m2'),
     stock: '现货',
     fit: '全屋中枢'
   },
@@ -146,6 +146,7 @@ const STORE_PRODUCTS: StoreProductSpec[] = [
 @Component
 export struct P31_StoreHome {
   @Prop isNight: boolean = false;
+  @Prop transparentBg: boolean = false;
   @State activeCategoryId: string = 'all';
   @State networkFailed: boolean = false;
   @State showEmpty: boolean = false;
@@ -160,19 +161,22 @@ export struct P31_StoreHome {
   }
 
   private bgColor(): string {
-    return this.isNight ? '#070A0F' : '#F4F6FA';
+    if (this.transparentBg) {
+      return '#00000000';
+    }
+    return this.isNight ? '#060709' : '#F2F4F8';
   }
 
   private cardColor(): string {
-    return this.isNight ? '#D9151A22' : '#FFFFFFFF';
+    return this.isNight ? '#731F232A' : '#B8FFFFFF';
   }
 
   private softColor(): string {
-    return this.isNight ? '#661F2632' : '#F0F4FA';
+    return this.isNight ? '#73161A20' : '#B8EFF2F7';
   }
 
   private lineColor(): string {
-    return this.isNight ? '#20FFFFFF' : '#12000000';
+    return this.isNight ? '#24FFFFFF' : '#5CFFFFFF';
   }
 
   private accent(): string {
@@ -266,18 +270,19 @@ export struct P31_StoreHome {
           safePushUrl(this.getUIContext().getRouter(), { url: 'pages/store/storecart', params: this.routeParams() });
         })
 
-      Button(this.networkFailed ? '恢复' : '断网')
+      Button('地址')
         .height(36)
         .fontSize(12)
         .fontWeight(FontWeight.Bold)
-        .fontColor(this.networkFailed ? '#FFFFFF' : this.primaryText())
-        .backgroundColor(this.networkFailed ? '#F3A33A' : this.cardColor())
+        .fontColor(this.primaryText())
+        .backgroundColor(this.cardColor())
         .border({ width: 1, color: this.lineColor() })
         .borderRadius(18)
-        .padding({ left: 13, right: 13 })
+        .padding({ left: 14, right: 14 })
         .onClick(() => {
-          this.networkFailed = !this.networkFailed;
+          safePushUrl(this.getUIContext().getRouter(), { url: 'pages/store/storeaddress', params: this.routeParams() });
         })
+
     }
     .width('100%')
     .padding({ left: 18, right: 18, top: 30, bottom: 14 })
@@ -360,7 +365,7 @@ export struct P31_StoreHome {
     .padding({ left: 20, right: 20, top: 22, bottom: 22 })
     .linearGradient({
       angle: 135,
-      colors: this.isNight ? [['#1B2432', 0.0], ['#111820', 0.62], ['#23342D', 1.0]] : [['#FFF2D7', 0.0], ['#FFFFFF', 0.62], ['#EAF2FF', 1.0]]
+      colors: this.isNight ? [['#1B2432', 0.0], ['#111820', 0.62], ['#23342D', 1.0]] : [['#FFF2D7', 0.0], ['#B8FFFFFF', 0.62], ['#EAF2FF', 1.0]]
     })
     .border({ width: 1, color: this.lineColor() })
     .borderRadius(26)
@@ -399,7 +404,7 @@ export struct P31_StoreHome {
       this.Entrance('分类', '按场景找设备', 'pages/store/storecategory', '#5E8CFF')
       this.Entrance('购物车', '2 件待确认', 'pages/store/storecart', '#19B7A4')
       this.Entrance('订单', '物流与订阅', 'pages/store/storeorders', '#F3A33A')
-      this.Entrance('售后', '保修与工单', 'pages/store/storeservice', '#7F72F2')
+      this.Entrance('地址', '配送与安装', 'pages/store/storeaddress', '#7F72F2')
     }
     .width('100%')
     .margin({ top: 16 })
@@ -483,7 +488,7 @@ export struct P31_StoreHome {
         .width(82)
         .height(82)
         .objectFit(ImageFit.Contain)
-        .backgroundColor(this.softColor())
+        .backgroundColor('#FFFFFF')
         .borderRadius(22)
 
       Column() {

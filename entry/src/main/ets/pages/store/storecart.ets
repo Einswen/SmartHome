@@ -16,16 +16,16 @@ interface CartItemSpec {
 }
 
 const CART_ITEMS: CartItemSpec[] = [
-  { id: 'gateway_m2', title: 'Lumi 网关 M2', desc: '全屋中枢，适配蓝牙 Mesh / Zigbee', price: '¥369', count: 1, image: $r('app.media.device_lumi_gateway') },
-  { id: 'light_module', title: '智能照明模块', desc: '适配客厅主灯与氛围灯联动', price: '¥129', count: 2, image: $r('app.media.device_living_light') }
+  { id: 'gateway_m2', title: 'Lumi 网关 M2', desc: '全屋中枢，适配蓝牙 Mesh / Zigbee', price: '¥369', count: 1, image: $r('app.media.store_gateway_m2') },
+  { id: 'light_module', title: '智能照明模块', desc: '适配客厅主灯与氛围灯联动', price: '¥129', count: 2, image: $r('app.media.store_light_module') }
 ];
 
 const CART_CATALOG: CartItemSpec[] = [
-  { id: 'sensor_pro', title: '环境传感器 Pro', desc: '温湿度、光照、人体存在三合一', price: '¥199', count: 1, image: $r('app.media.device_environment_sensor') },
-  { id: 'light_module', title: '智能照明模块', desc: '适配客厅主灯与氛围灯联动', price: '¥129', count: 1, image: $r('app.media.device_living_light') },
-  { id: 'gesture_panel', title: '手势控制面板', desc: '无接触切换家庭场景', price: '¥299', count: 1, image: $r('app.media.device_gesture_sensor') },
-  { id: 'robot_pack', title: '清洁维护套装', desc: '主刷、边刷、滤网组合装', price: '¥89', count: 1, image: $r('app.media.device_living_robot') },
-  { id: 'gateway_m2', title: 'Lumi 网关 M2', desc: '全屋中枢，适配蓝牙 Mesh / Zigbee', price: '¥369', count: 1, image: $r('app.media.device_lumi_gateway') },
+  { id: 'sensor_pro', title: '环境传感器 Pro', desc: '温湿度、光照、人体存在三合一', price: '¥199', count: 1, image: $r('app.media.store_sensor_pro') },
+  { id: 'light_module', title: '智能照明模块', desc: '适配客厅主灯与氛围灯联动', price: '¥129', count: 1, image: $r('app.media.store_light_module') },
+  { id: 'gesture_panel', title: '手势控制面板', desc: '无接触切换家庭场景', price: '¥299', count: 1, image: $r('app.media.store_gesture_panel') },
+  { id: 'robot_pack', title: '清洁维护套装', desc: '主刷、边刷、滤网组合装', price: '¥89', count: 1, image: $r('app.media.store_robot_pack') },
+  { id: 'gateway_m2', title: 'Lumi 网关 M2', desc: '全屋中枢，适配蓝牙 Mesh / Zigbee', price: '¥369', count: 1, image: $r('app.media.store_gateway_m2') },
   { id: 'filter', title: '净化器滤芯', desc: '适配空气净化器，建议 6 个月更换', price: '¥159', count: 1, image: $r('app.media.device_living_purifier') },
   { id: 'living_curtain_motor', title: '智能窗帘电机', desc: '接入日照跟随和观影联动', price: '¥249', count: 1, image: $r('app.media.device_living_curtain') },
   { id: 'bedroom_air_guard', title: '睡眠空调伴侣', desc: '夜间降噪和温度曲线控制', price: '¥169', count: 1, image: $r('app.media.device_bedroom_air') },
@@ -46,6 +46,7 @@ struct StoreCartPage {
   @StorageLink('cartAddedProductId') cartAddedProductId: string = '';
   @StorageLink('cartAddedCount') cartAddedCount: number = 0;
   @StorageLink('cartLinePayload') cartLinePayload: string = '';
+  @StorageLink('storePendingOrderPayload') pendingOrderPayload: string = '';
 
   aboutToAppear(): void {
     const params = safeGetParams(this.getUIContext().getRouter()) as CartRouteParams | undefined;
@@ -69,15 +70,15 @@ struct StoreCartPage {
   }
 
   private bgColor(): string {
-    return this.isNight ? '#070A0F' : '#F4F6FA';
+    return this.isNight ? '#060709' : '#F2F4F8';
   }
 
   private cardColor(): string {
-    return this.isNight ? '#D9151A22' : '#FFFFFF';
+    return this.isNight ? '#731F232A' : '#B8FFFFFF';
   }
 
   private softColor(): string {
-    return this.isNight ? '#661F2632' : '#F0F4FA';
+    return this.isNight ? '#73161A20' : '#B8EFF2F7';
   }
 
   private items(): CartItemSpec[] {
@@ -182,8 +183,11 @@ struct StoreCartPage {
     if (id === 'bedroom_air_guard') {
       return 169;
     }
-    if (id === 'door_lock_battery') {
-      return 69;
+    if (id === 'door_sensor') {
+      return 99;
+    }
+    if (id === 'robot_dock') {
+      return 139;
     }
     return 0;
   }
@@ -198,6 +202,15 @@ struct StoreCartPage {
       total += this.priceNumber(currentItems[i].id) * currentItems[i].count;
     }
     return `¥${total}`;
+  }
+
+  private savePendingOrder(): void {
+    const currentItems: CartItemSpec[] = this.items();
+    const parts: string[] = [];
+    for (let i = 0; i < currentItems.length; i++) {
+      parts.push(`${currentItems[i].id}:${currentItems[i].count}`);
+    }
+    this.pendingOrderPayload = parts.join(';');
   }
 
   build() {
@@ -252,17 +265,17 @@ struct StoreCartPage {
         .fontColor(this.primaryText())
         .margin({ left: 14 })
         .layoutWeight(1)
-      Button(this.networkFailed ? '恢复' : '断网')
+      Button('地址')
         .height(34)
         .fontSize(12)
         .fontWeight(FontWeight.Bold)
-        .fontColor(this.networkFailed ? '#FFFFFF' : this.primaryText())
-        .backgroundColor(this.networkFailed ? '#F3A33A' : this.cardColor())
+        .fontColor(this.primaryText())
+        .backgroundColor(this.cardColor())
         .borderRadius(17)
         .padding({ left: 12, right: 12 })
         .margin({ right: 8 })
         .onClick(() => {
-          this.networkFailed = !this.networkFailed;
+          safePushUrl(this.getUIContext().getRouter(), { url: 'pages/store/storeaddress', params: { isNight: this.isNight } });
         })
       Button(this.showEmpty ? '恢复' : '清空')
         .height(34)
@@ -305,7 +318,7 @@ struct StoreCartPage {
     }
     .width('100%')
     .padding({ left: 20, right: 20, top: 20, bottom: 20 })
-    .linearGradient({ angle: 135, colors: this.isNight ? [['#1B2432', 0.0], ['#111820', 0.62], ['#23342D', 1.0]] : [['#FFF2D7', 0.0], ['#FFFFFF', 0.64], ['#EAF8F4', 1.0]] })
+    .linearGradient({ angle: 135, colors: this.isNight ? [['#1B2432', 0.0], ['#111820', 0.62], ['#23342D', 1.0]] : [['#FFF2D7', 0.0], ['#B8FFFFFF', 0.64], ['#EAF8F4', 1.0]] })
     .borderRadius(26)
   }
 
@@ -341,7 +354,7 @@ struct StoreCartPage {
         .width(74)
         .height(74)
         .objectFit(ImageFit.Contain)
-        .backgroundColor(this.softColor())
+        .backgroundColor('#FFFFFF')
         .borderRadius(20)
         .margin({ left: 12 })
       Column() {
@@ -404,6 +417,7 @@ struct StoreCartPage {
         .padding({ left: 24, right: 24 })
         .onClick(() => {
           if (this.selectedAll && this.items().length > 0) {
+            this.savePendingOrder();
             this.checkoutDone = true;
           }
         })

@@ -32,9 +32,9 @@ const MY_HOMES: HomeBriefSpec[] = [
 ];
 
 const MY_FEATURES: MyFeatureSpec[] = [
-  { id: 'devices', title: '设备中心', desc: '与首页客厅首图 6 个点位一一对应', route: 'pages/my/mydevices', accent: '#5E8CFF' },
-  { id: 'family', title: '家庭管理', desc: '成员、二维码邀请、权限与家庭切换', route: 'pages/my/myfamily', accent: '#19B7A4' },
-  { id: 'messages', title: '消息中心', desc: '设备告警、自动化执行与服务通知', route: 'pages/messagecenter/mymessages', accent: '#F3A33A' },
+  { id: 'devices', title: '设备中心', desc: '与首页客厅设备同步，支持扩展设备管理', route: 'pages/my/mydevices', accent: '#5E8CFF' },
+  { id: 'family', title: '家庭管理', desc: '成员、邀请、权限与家庭切换', route: 'pages/my/myfamily', accent: '#19B7A4' },
+  { id: 'plans', title: '方案中心', desc: '全屋场景、节能模式与设备联动方案', route: 'pages/plancenter/plancenter', accent: '#F3A33A' },
   { id: 'settings', title: '授权中心', desc: '账号安全、隐私授权与通用偏好', route: 'pages/my/mysettings', accent: '#7F72F2' }
 ];
 
@@ -42,15 +42,17 @@ const MY_SERVICES: MyServiceSpec[] = [
   { id: 'login', title: 'Lumi 登录', desc: '手机号、密码与家庭身份', tag: '账号', route: 'pages/my/mylogin' },
   { id: 'after_sale', title: '售后支持', desc: '保修、工单与上门服务', tag: '2 小时响应', route: 'pages/store/storeservice' },
   { id: 'orders', title: '商城订单', desc: '耗材订阅与订单跟踪', tag: '3 单', route: 'pages/store/storeorders' },
-  { id: 'privacy', title: '通用偏好', desc: '通知、升级、第三方授权', tag: '可交互', route: 'pages/my/mysettings' }
+  { id: 'privacy', title: '通用偏好', desc: '通知、升级和第三方授权', tag: '可交互', route: 'pages/my/mysettings' }
 ];
 
 @Component
 export struct P21_MyProfile {
   @Prop isNight: boolean;
+  @Prop transparentBg: boolean = false;
   @State pressedKey: string = '';
   @State activeHomeIndex: number = 0;
   @StorageLink('lumiUserSignedIn') signedIn: boolean = false;
+  @StorageLink('homeLivingDeviceCount') livingDeviceCount: number = 6;
 
   private primaryText(): string {
     return this.isNight ? '#F7F9FD' : '#11151D';
@@ -61,19 +63,22 @@ export struct P21_MyProfile {
   }
 
   private bgColor(): string {
-    return this.isNight ? '#070A0F' : '#F4F6FA';
+    if (this.transparentBg) {
+      return '#00000000';
+    }
+    return this.isNight ? '#060709' : '#F2F4F8';
   }
 
   private panelColor(): string {
-    return this.isNight ? '#D9151A22' : '#FFFFFFFF';
+    return this.isNight ? '#731F232A' : '#B8FFFFFF';
   }
 
   private softPanelColor(): string {
-    return this.isNight ? '#661E2530' : '#F0F4FA';
+    return this.isNight ? '#73161A20' : '#B8EFF2F7';
   }
 
   private lineColor(): string {
-    return this.isNight ? '#20FFFFFF' : '#12000000';
+    return this.isNight ? '#24FFFFFF' : '#5CFFFFFF';
   }
 
   private shadowColor(): string {
@@ -82,6 +87,13 @@ export struct P21_MyProfile {
 
   private activeHome(): HomeBriefSpec {
     return MY_HOMES[this.activeHomeIndex];
+  }
+
+  private activeDeviceCount(): string {
+    if (this.activeHomeIndex === 0) {
+      return `${this.livingDeviceCount} 台设备`;
+    }
+    return this.activeHome().deviceCount;
   }
 
   private handlePressState(key: string, event: TouchEvent): void {
@@ -149,7 +161,7 @@ export struct P21_MyProfile {
           .fontColor(this.primaryText())
           .maxLines(1)
 
-        Text(this.signedIn ? '138 **** 8888 · 家庭拥有者' : '登录后同步家庭、订单和授权')
+        Text(this.signedIn ? 'Lumi 用户' : '未登录')
           .fontSize(13)
           .fontColor(this.secondaryText())
           .margin({ top: 7 })
@@ -185,7 +197,7 @@ export struct P21_MyProfile {
             .fontColor(this.primaryText())
             .maxLines(1)
 
-          Text(`${this.activeHome().deviceCount} · 健康度 ${this.activeHome().health}`)
+          Text(`${this.activeDeviceCount()} · 健康度 ${this.activeHome().health}`)
             .fontSize(12)
             .fontColor(this.secondaryText())
             .margin({ top: 6 })
@@ -226,7 +238,7 @@ export struct P21_MyProfile {
     .padding({ left: 20, right: 20, top: 20, bottom: 18 })
     .linearGradient({
       angle: 135,
-      colors: this.isNight ? [['#192332', 0.0], ['#10151E', 0.66], ['#1A2D2B', 1.0]] : [['#E6EEFF', 0.0], ['#FFFFFF', 0.56], ['#EAF8F4', 1.0]]
+      colors: this.isNight ? [['#192332', 0.0], ['#10151E', 0.66], ['#1A2D2B', 1.0]] : [['#E6EEFF', 0.0], ['#B8FFFFFF', 0.56], ['#EAF8F4', 1.0]]
     })
     .border({ width: 1, color: this.lineColor() })
     .borderRadius(26)
@@ -357,6 +369,9 @@ export struct P21_MyProfile {
     .border({ width: 1, color: this.lineColor() })
     .borderRadius(24)
     .margin({ top: 22 })
+    .onClick(() => {
+      safePushUrl(this.getUIContext().getRouter(), { url: 'pages/my/myhomehealth', params: { isNight: this.isNight } });
+    })
   }
 
   @Builder

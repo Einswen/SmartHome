@@ -18,22 +18,23 @@ interface DeviceCenterSpec {
 }
 
 const DEVICE_CENTER_LIST: DeviceCenterSpec[] = [
-  { id: 'living_air', name: '客厅空调', room: '客厅', type: '温控', detail: '首页北侧温控点，支持温度调节', image: $r('app.media.device_living_air'), point: '北侧温控点', x: 47, y: 14, accent: '#6CAEFF' },
-  { id: 'living_curtain', name: '客厅窗帘', room: '客厅', type: '遮阳', detail: '首页窗边遮阳点，支持开合比例', image: $r('app.media.device_living_curtain'), point: '窗边遮阳点', x: 31, y: 34, accent: '#D6A96D' },
-  { id: 'living_tv', name: '客厅电视', room: '客厅', type: '影音', detail: '首页影音点，联动观影场景', image: $r('app.media.device_living_tv'), point: '影音点', x: 73, y: 35, accent: '#7F9CFF' },
-  { id: 'living_purifier', name: '空气净化器', room: '客厅', type: '空气', detail: '首页空气点，自动净化与滤芯提醒', image: $r('app.media.device_living_purifier'), point: '空气点', x: 89, y: 59, accent: '#58D0BE' },
-  { id: 'living_robot', name: '扫地机器人', room: '客厅', type: '清洁', detail: '首页清洁点，支持开始和暂停清扫', image: $r('app.media.device_living_robot'), point: '清洁点', x: 18, y: 72, accent: '#8A96FF' },
-  { id: 'living_light', name: '客厅灯', room: '客厅', type: '照明', detail: '首页灯光点，开关会同步切换首图灯光', image: $r('app.media.device_living_light'), point: '灯光点', x: 31, y: 80, accent: '#F3A33A' }
+  { id: 'living_air', name: '客厅空调', room: '客厅', type: '温控', detail: '首页北侧温控点，支持温度调节。', image: $r('app.media.device_living_air'), point: '北侧温控点', x: 47, y: 14, accent: '#6CAEFF' },
+  { id: 'living_curtain', name: '客厅窗帘', room: '客厅', type: '遮阳', detail: '首页窗边遮阳点，支持开合比例。', image: $r('app.media.device_living_curtain'), point: '窗边遮阳点', x: 31, y: 34, accent: '#D6A96D' },
+  { id: 'living_tv', name: '客厅电视', room: '客厅', type: '影音', detail: '首页影音点，联动观影场景。', image: $r('app.media.device_living_tv'), point: '影音点', x: 73, y: 35, accent: '#7F9CFF' },
+  { id: 'living_purifier', name: '空气净化器', room: '客厅', type: '空气', detail: '首页空气点，自动净化与滤芯提醒。', image: $r('app.media.device_living_purifier'), point: '空气点', x: 89, y: 59, accent: '#58D0BE' },
+  { id: 'living_robot', name: '扫地机器人', room: '客厅', type: '清洁', detail: '首页清洁点，支持开始和暂停清扫。', image: $r('app.media.device_living_robot'), point: '清洁点', x: 18, y: 72, accent: '#8A96FF' },
+  { id: 'living_light', name: '客厅灯', room: '客厅', type: '照明', detail: '首页灯光点，开关会同步切换首图灯光。', image: $r('app.media.device_living_light'), point: '灯光点', x: 31, y: 80, accent: '#F3A33A' }
 ];
 
 @Entry
 @Component
 struct MyDevicesPage {
-  @State networkFailed: boolean = false;
   @State showEmpty: boolean = false;
   @State pressedKey: string = '';
   @State selectedDeviceId: string = 'living_light';
   @State isNight: boolean = false;
+  @StorageLink('homeLivingPointIds') livingPointIdsText: string = 'living_air|living_curtain|living_tv|living_purifier|living_robot|living_light';
+  @StorageLink('homeLivingDeviceCount') livingDeviceCount: number = 6;
   @StorageLink('homeLivingAirInstalled') livingAirInstalled: boolean = true;
   @StorageLink('homeLivingCurtainInstalled') livingCurtainInstalled: boolean = true;
   @StorageLink('homeLivingTvInstalled') livingTvInstalled: boolean = true;
@@ -63,15 +64,15 @@ struct MyDevicesPage {
   }
 
   private bgColor(): string {
-    return this.isNight ? '#070A0F' : '#F4F6FA';
+    return this.isNight ? '#060709' : '#F2F4F8';
   }
 
   private cardColor(): string {
-    return this.isNight ? '#D9151A22' : '#FFFFFF';
+    return this.isNight ? '#731F232A' : '#B8FFFFFF';
   }
 
   private softColor(): string {
-    return this.isNight ? '#661F2632' : '#F0F4FA';
+    return this.isNight ? '#73161A20' : '#B8EFF2F7';
   }
 
   private lineColor(): string {
@@ -142,37 +143,92 @@ struct MyDevicesPage {
     return this.livingLightInstalled;
   }
 
-  private installedCount(): number {
-    let count = 0;
+  private livingPointIds(): string[] {
+    if (this.livingPointIdsText.length <= 0) {
+      return [];
+    }
+    return this.livingPointIdsText.split('|').filter((id: string) => id.length > 0);
+  }
+
+  private pointBaseId(pointId: string): string {
+    const markerIndex = pointId.indexOf('@');
+    if (markerIndex >= 0) {
+      const nextMarkerIndex = pointId.indexOf('@', markerIndex + 1);
+      if (nextMarkerIndex >= 0) {
+        return pointId.substring(markerIndex + 1, nextMarkerIndex);
+      }
+      return pointId.substring(markerIndex + 1);
+    }
+    return pointId;
+  }
+
+  private specById(id: string): DeviceCenterSpec {
+    const baseId = this.pointBaseId(id);
     for (let i = 0; i < DEVICE_CENTER_LIST.length; i++) {
-      if (this.isInstalled(DEVICE_CENTER_LIST[i].id)) {
-        count++;
+      if (DEVICE_CENTER_LIST[i].id === baseId) {
+        return DEVICE_CENTER_LIST[i];
       }
     }
-    return count;
+    return DEVICE_CENTER_LIST[0];
+  }
+
+  private deviceSpecForPointId(pointId: string, index: number): DeviceCenterSpec {
+    const base = this.specById(pointId);
+    if (pointId === base.id) {
+      return base;
+    }
+    return {
+      id: pointId,
+      name: `${base.name} ${index + 1}`,
+      room: base.room,
+      type: base.type,
+      detail: `来自首页添加的扩展设备，继承${base.name}的控制能力。`,
+      image: base.image,
+      point: `扩展点位 ${index + 1}`,
+      x: Math.min(base.x + index * 4, 92),
+      y: Math.min(base.y + index * 3, 88),
+      accent: base.accent
+    };
+  }
+
+  private installedCount(): number {
+    const ids = this.livingPointIds();
+    return ids.length > 0 ? ids.length : this.livingDeviceCount;
   }
 
   private displayDevices(): DeviceCenterSpec[] {
     if (this.showEmpty) {
       return [];
     }
+    const ids = this.livingPointIds();
+    if (ids.length > 0) {
+      const items: DeviceCenterSpec[] = [];
+      for (let i = 0; i < ids.length; i++) {
+        const item = this.deviceSpecForPointId(ids[i], i);
+        if (this.isInstalled(this.pointBaseId(item.id))) {
+          items.push(item);
+        }
+      }
+      return items;
+    }
     return DEVICE_CENTER_LIST.filter((item: DeviceCenterSpec) => this.isInstalled(item.id));
   }
 
   private statusText(id: string): string {
-    if (id === 'living_air') {
+    const baseId = this.pointBaseId(id);
+    if (baseId === 'living_air') {
       return `${this.livingTemperature}°C`;
     }
-    if (id === 'living_curtain') {
+    if (baseId === 'living_curtain') {
       return `${this.livingCurtain}%`;
     }
-    if (id === 'living_tv') {
+    if (baseId === 'living_tv') {
       return this.livingTvOn ? '播放中' : '待机';
     }
-    if (id === 'living_purifier') {
+    if (baseId === 'living_purifier') {
       return this.livingPurifierOn ? '运行中' : '已关闭';
     }
-    if (id === 'living_robot') {
+    if (baseId === 'living_robot') {
       return this.livingRobotOn ? '清扫中' : '待命';
     }
     return this.livingLightOn ? '已开灯' : '已关灯';
@@ -200,23 +256,30 @@ struct MyDevicesPage {
   }
 
   private removeDevice(id: string): void {
-    if (id === 'living_air') {
+    const ids = this.livingPointIds().filter((pointId: string) => pointId !== id);
+    const baseId = this.pointBaseId(id);
+    const remainingBaseIds = ids.map((pointId: string) => this.pointBaseId(pointId));
+    this.livingPointIdsText = ids.join('|');
+    this.livingDeviceCount = ids.length;
+    if (baseId === 'living_air' && remainingBaseIds.indexOf('living_air') < 0) {
       this.livingAirInstalled = false;
-    } else if (id === 'living_curtain') {
+    } else if (baseId === 'living_curtain' && remainingBaseIds.indexOf('living_curtain') < 0) {
       this.livingCurtainInstalled = false;
-    } else if (id === 'living_tv') {
+    } else if (baseId === 'living_tv' && remainingBaseIds.indexOf('living_tv') < 0) {
       this.livingTvInstalled = false;
-    } else if (id === 'living_purifier') {
+    } else if (baseId === 'living_purifier' && remainingBaseIds.indexOf('living_purifier') < 0) {
       this.livingPurifierInstalled = false;
-    } else if (id === 'living_robot') {
+    } else if (baseId === 'living_robot' && remainingBaseIds.indexOf('living_robot') < 0) {
       this.livingRobotInstalled = false;
-    } else {
+    } else if (baseId === 'living_light' && remainingBaseIds.indexOf('living_light') < 0) {
       this.livingLightInstalled = false;
     }
   }
 
   private restoreDevices(): void {
     this.showEmpty = false;
+    this.livingPointIdsText = 'living_air|living_curtain|living_tv|living_purifier|living_robot|living_light';
+    this.livingDeviceCount = 6;
     this.livingAirInstalled = true;
     this.livingCurtainInstalled = true;
     this.livingTvInstalled = true;
@@ -226,22 +289,24 @@ struct MyDevicesPage {
   }
 
   private toggleDevice(id: string): void {
-    if (id === 'living_light') {
+    const baseId = this.pointBaseId(id);
+    if (baseId === 'living_light') {
       this.livingLightOn = !this.livingLightOn;
-    } else if (id === 'living_tv') {
+    } else if (baseId === 'living_tv') {
       this.livingTvOn = !this.livingTvOn;
-    } else if (id === 'living_purifier') {
+    } else if (baseId === 'living_purifier') {
       this.livingPurifierOn = !this.livingPurifierOn;
-    } else if (id === 'living_robot') {
+    } else if (baseId === 'living_robot') {
       this.livingRobotOn = !this.livingRobotOn;
     }
   }
 
   private runPreviewControl(item: DeviceCenterSpec): void {
     this.selectedDeviceId = item.id;
-    if (item.id === 'living_air') {
+    const baseId = this.pointBaseId(item.id);
+    if (baseId === 'living_air') {
       this.livingTemperature = this.livingTemperature >= 30 ? 16 : this.livingTemperature + 1;
-    } else if (item.id === 'living_curtain') {
+    } else if (baseId === 'living_curtain') {
       this.livingCurtain = this.livingCurtain >= 100 ? 0 : Math.min(this.livingCurtain + 10, 100);
     } else {
       this.toggleDevice(item.id);
@@ -252,29 +317,25 @@ struct MyDevicesPage {
     Column() {
       this.TopBar()
 
-      if (this.networkFailed) {
-        this.NetworkErrorState()
-      } else {
-        Scroll() {
-          Column() {
-            this.RoomPreview()
-            this.SummaryCard()
-            this.FilterBar()
+      Scroll() {
+        Column() {
+          this.RoomPreview()
+          this.SummaryCard()
+          this.FilterBar()
 
-            if (this.displayDevices().length === 0) {
-              this.EmptyState()
-            } else {
-              ForEach(this.displayDevices(), (item: DeviceCenterSpec) => {
-                this.DeviceCard(item)
-              }, (item: DeviceCenterSpec) => item.id)
-            }
+          if (this.displayDevices().length === 0) {
+            this.EmptyState()
+          } else {
+            ForEach(this.displayDevices(), (item: DeviceCenterSpec) => {
+              this.DeviceCard(item)
+            }, (item: DeviceCenterSpec) => item.id)
           }
-          .width('100%')
-          .padding({ left: 18, right: 18, bottom: 28 })
         }
-        .layoutWeight(1)
-        .scrollBar(BarState.Off)
+        .width('100%')
+        .padding({ left: 18, right: 18, bottom: 28 })
       }
+      .layoutWeight(1)
+      .scrollBar(BarState.Off)
     }
     .width('100%')
     .height('100%')
@@ -301,18 +362,6 @@ struct MyDevicesPage {
         .fontColor(this.primaryText())
         .margin({ left: 14 })
         .layoutWeight(1)
-
-      Button(this.networkFailed ? '在线' : '断网')
-        .height(34)
-        .fontSize(12)
-        .fontWeight(FontWeight.Bold)
-        .fontColor(this.networkFailed ? '#FFFFFF' : this.primaryText())
-        .backgroundColor(this.networkFailed ? '#5E8CFF' : this.cardColor())
-        .borderRadius(17)
-        .padding({ left: 12, right: 12 })
-        .onClick(() => {
-          this.networkFailed = !this.networkFailed;
-        })
     }
     .width('100%')
     .padding({ left: 18, right: 18, top: 28, bottom: 14 })
@@ -334,10 +383,8 @@ struct MyDevicesPage {
           .objectFit(ImageFit.Contain)
           .borderRadius(16)
 
-        ForEach(DEVICE_CENTER_LIST, (item: DeviceCenterSpec) => {
-          if (this.isInstalled(item.id)) {
-            this.PointDot(item)
-          }
+        ForEach(this.displayDevices(), (item: DeviceCenterSpec) => {
+          this.PointDot(item)
         }, (item: DeviceCenterSpec) => item.id)
       }
       .width('100%')
@@ -349,7 +396,7 @@ struct MyDevicesPage {
       .clip(true)
 
       Row() {
-        Text(`${this.installedCount()} / 6`)
+        Text(`${this.installedCount()} 台`)
           .fontSize(12)
           .fontWeight(FontWeight.Bold)
           .fontColor(this.primaryText())
@@ -414,7 +461,7 @@ struct MyDevicesPage {
         .fontColor(this.primaryText())
         .width('100%')
 
-      Text('这里和首页客厅首图使用同一组设备：删除会让点位从首图消失，开灯会切换首图灯光状态。')
+      Text('这里和首页客厅首图使用同一组设备；首页添加第 7 台设备后，这里会同步显示扩展设备。')
         .fontSize(13)
         .lineHeight(20)
         .fontColor(this.secondaryText())
@@ -431,7 +478,7 @@ struct MyDevicesPage {
     }
     .width('100%')
     .padding({ left: 20, right: 20, top: 20, bottom: 20 })
-    .linearGradient({ angle: 135, colors: this.isNight ? [['#1B2432', 0.0], ['#111820', 0.62], ['#23342D', 1.0]] : [['#E6EEFF', 0.0], ['#FFFFFF', 0.62], ['#E9F7F2', 1.0]] })
+    .linearGradient({ angle: 135, colors: this.isNight ? [['#1B2432', 0.0], ['#111820', 0.62], ['#23342D', 1.0]] : [['#E6EEFF', 0.0], ['#B8FFFFFF', 0.62], ['#E9F7F2', 1.0]] })
     .borderRadius(26)
     .margin({ top: 14 })
   }
@@ -542,7 +589,7 @@ struct MyDevicesPage {
   @Builder
   DeviceControls(item: DeviceCenterSpec) {
     Column() {
-      if (item.id === 'living_air') {
+      if (this.pointBaseId(item.id) === 'living_air') {
         Row() {
           this.SmallButton('-', item.accent, () => {
             this.livingTemperature = Math.max(this.livingTemperature - 1, 16);
@@ -559,7 +606,7 @@ struct MyDevicesPage {
         }
         .width('100%')
         .margin({ top: 14 })
-      } else if (item.id === 'living_curtain') {
+      } else if (this.pointBaseId(item.id) === 'living_curtain') {
         Row() {
           Text('开合')
             .fontSize(13)
@@ -650,7 +697,7 @@ struct MyDevicesPage {
         .fontSize(20)
         .fontWeight(FontWeight.Bold)
         .fontColor(this.primaryText())
-      Text('当前家庭还没有绑定设备。恢复示例后会重新显示与首页首图匹配的 6 台客厅设备。')
+      Text('当前家庭还没有绑定设备。恢复示例后会重新显示与首页首图匹配的客厅设备。')
         .fontSize(13)
         .lineHeight(20)
         .fontColor(this.secondaryText())
@@ -676,35 +723,4 @@ struct MyDevicesPage {
     .margin({ top: 10 })
   }
 
-  @Builder
-  NetworkErrorState() {
-    Column() {
-      Blank().height(78)
-      Text('网络连接异常')
-        .fontSize(23)
-        .fontWeight(FontWeight.Bold)
-        .fontColor(this.primaryText())
-      Text('无法同步设备状态，请检查网络后重试。本地缓存仍可查看上次设备列表。')
-        .fontSize(13)
-        .lineHeight(21)
-        .fontColor(this.secondaryText())
-        .textAlign(TextAlign.Center)
-        .margin({ left: 36, right: 36, top: 10 })
-      Button('重新连接')
-        .height(42)
-        .fontSize(14)
-        .fontWeight(FontWeight.Bold)
-        .fontColor('#FFFFFF')
-        .backgroundColor('#5E8CFF')
-        .borderRadius(21)
-        .padding({ left: 24, right: 24 })
-        .margin({ top: 22 })
-        .onClick(() => {
-          this.networkFailed = false;
-        })
-    }
-    .layoutWeight(1)
-    .width('100%')
-    .alignItems(HorizontalAlign.Center)
-  }
 }
