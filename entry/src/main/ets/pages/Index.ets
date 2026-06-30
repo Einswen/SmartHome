@@ -1,5 +1,7 @@
 import router from '@ohos.router';
+import promptAction from '@ohos.promptAction';
 import { DeviceDetailPages } from '../components/DeviceDetailPages';
+import { HuaweiCloudApi } from '../common/HuaweiCloudApi';
 import { P31_StoreHome } from './store/storehome';
 import { P21_MyProfile } from './my/myprofile';
 import {
@@ -250,6 +252,9 @@ struct Index {
   @State bedroomCurtain: number = 58;
   @State livingLightLevel: number = 68;
   @State bedroomLightLevel: number = 22;
+  @State livingAirOn: boolean = false;
+  @State bedroomAirOn: boolean = false;
+  @State cloudDebugMessage: string = '';
   @State livingTvOn: boolean = false;
   @State livingPurifierOn: boolean = true;
   @State livingRobotOn: boolean = false;
@@ -398,6 +403,18 @@ struct Index {
 
   private sharedTemperatureForRoom(roomId: string): number {
     return this.roomTemplateId(roomId) === 'living' ? this.livingTemperature : this.bedroomTemperature;
+  }
+
+  private sharedAirOnForRoom(roomId: string): boolean {
+    return this.roomTemplateId(roomId) === 'living' ? this.livingAirOn : this.bedroomAirOn;
+  }
+
+  private setSharedAirOnForRoom(roomId: string, value: boolean): void {
+    if (this.roomTemplateId(roomId) === 'living') {
+      this.livingAirOn = value;
+      return;
+    }
+    this.bedroomAirOn = value;
   }
 
   private setSharedTemperatureForRoom(roomId: string, value: number): void {
@@ -853,6 +870,41 @@ struct Index {
     return `${value}%`;
   }
 
+  private debugErrorText(err: Object | string | undefined): string {
+    if (err === undefined || err === null) {
+      return '未知错误';
+    }
+    if (typeof err === 'string') {
+      return err;
+    }
+    const error = err as Error;
+    if (error.message !== undefined && error.message.length > 0) {
+      return error.message;
+    }
+    return JSON.stringify(err);
+  }
+
+  private updateCloudDebug(message: string): void {
+    this.cloudDebugMessage = message;
+    console.info(`[CloudDebug] ${message}`);
+  }
+
+  private reportCloudError(message: string): void {
+    this.cloudDebugMessage = message;
+    console.error(`[CloudDebug] ${message}`);
+    try {
+      promptAction.showToast({
+        message: message,
+        duration: 4000
+      });
+    } catch {
+    }
+  }
+
+  private isCommandResponseTimeout(message: string): boolean {
+    return message.indexOf('Operation timeout') >= 0 || message.indexOf('23000028') >= 0;
+  }
+
   private pointStatus(point: PointSpec): string {
     const baseId = this.pointBaseId(point.id);
     if (point.id.indexOf('@') >= 0) {
@@ -884,10 +936,10 @@ struct Index {
       return this.lightOnForRoom(point.roomId) ? `已开 · ${this.lightLevelForRoom(point.roomId)}%` : '已关闭';
     }
     if (point.id === 'living_air') {
-      return `${this.livingTemperature}°C`;
+      return this.livingAirOn ? `运行中 · ${this.livingTemperature}°C` : `已关闭 · ${this.livingTemperature}°C`;
     }
     if (point.id === 'bedroom_air') {
-      return `${this.bedroomTemperature}°C`;
+      return this.bedroomAirOn ? `运行中 · ${this.bedroomTemperature}°C` : `已关闭 · ${this.bedroomTemperature}°C`;
     }
     if (point.id === 'living_curtain') {
       return `${this.livingCurtain}%`;
@@ -1198,6 +1250,41 @@ struct Index {
     this.setSharedToggleOn(point, !this.sharedToggleOn(point));
   }
 
+  private async toggleAirByMotor(point: PointSpec): Promise<void> {
+    const nextOn = !this.sharedAirOnForRoom(point.roomId);
+    const actionLabel = nextOn ? '开' : '关';
+    const command = nextOn ? 'ON' : 'OFF';
+    const label = `${point.name}${actionLabel}`;
+    this.updateCloudDebug(`准备下发：${label}，映射为电机控制 Motor=${command}`);
+    this.setSharedAirOnForRoom(point.roomId, nextOn);
+    try {
+      await HuaweiCloudApi.sendMotorCommand(command);
+      this.updateCloudDebug(`下发成功：${label}，华为云已接收电机控制 Motor=${command}`);
+      try {
+        promptAction.showToast({
+          message: `下发成功：${label}`,
+          duration: 2000
+        });
+      } catch {
+      }
+    } catch (err) {
+      const errorMessage = this.debugErrorText(err as Object);
+      if (this.isCommandResponseTimeout(errorMessage)) {
+        this.updateCloudDebug(`命令已发送但设备响应超时：${label}。串口若已收到 Motor=${command}，说明云端到板子已通，需要检查板子端命令响应/执行逻辑。原始错误：${errorMessage}`);
+        try {
+          promptAction.showToast({
+            message: `命令已发送：${label}，设备响应超时`,
+            duration: 4000
+          });
+        } catch {
+        }
+        return;
+      }
+      this.setSharedAirOnForRoom(point.roomId, !nextOn);
+      this.reportCloudError(`下发失败：${label}。${errorMessage}`);
+    }
+  }
+
   private adjustPoint(pointId: string, delta: number): void {
     const point = this.pointById(pointId);
     const baseId = this.pointBaseId(point.id);
@@ -1500,6 +1587,9 @@ struct Index {
 
   private deviceActionLabel(point: PointSpec): string {
     const baseId = this.pointBaseId(point.id);
+    if (baseId === 'living_air' || baseId === 'bedroom_air') {
+      return this.sharedAirOnForRoom(point.roomId) ? '关空调' : '开空调';
+    }
     if (point.action === 'temperature') {
       return '升温';
     }
@@ -1542,6 +1632,11 @@ struct Index {
 
   private runDeviceAction(pointId: string): void {
     const point = this.pointById(pointId);
+    const baseId = this.pointBaseId(point.id);
+    if (baseId === 'living_air' || baseId === 'bedroom_air') {
+      this.toggleAirByMotor(point);
+      return;
+    }
     if (point.action === 'temperature') {
       this.adjustPoint(point.id, 1);
       return;
@@ -3193,6 +3288,22 @@ struct Index {
         .fontSize(12)
         .fontColor(this.secondaryText())
         .margin({ top: 10 })
+
+      if (this.cloudDebugMessage.length > 0) {
+        Text(this.cloudDebugMessage)
+          .fontSize(11)
+          .lineHeight(17)
+          .fontColor(this.secondaryText())
+          .width('100%')
+          .padding({ left: 12, right: 12, top: 10, bottom: 10 })
+          .backgroundColor(this.glassShellColor())
+          .border({
+            width: 1,
+            color: this.glassBorderColor()
+          })
+          .borderRadius(12)
+          .margin({ top: 10 })
+      }
     }
     .width('100%')
   }
