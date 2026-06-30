@@ -14,6 +14,25 @@ interface OrderSpec {
   color: string;
 }
 
+interface OrderItemSpec {
+  id: string;
+  title: string;
+  price: number;
+}
+
+const ORDER_CATALOG: OrderItemSpec[] = [
+  { id: 'sensor_pro', title: '环境传感器 Pro', price: 199 },
+  { id: 'light_module', title: '智能照明模块', price: 129 },
+  { id: 'gesture_panel', title: '手势控制面板', price: 299 },
+  { id: 'robot_pack', title: '清洁维护套装', price: 89 },
+  { id: 'gateway_m2', title: 'Lumi 网关 M2', price: 369 },
+  { id: 'filter', title: '净化器滤芯', price: 159 },
+  { id: 'living_curtain_motor', title: '智能窗帘电机', price: 249 },
+  { id: 'bedroom_air_guard', title: '睡眠空调伴侣', price: 169 },
+  { id: 'door_sensor', title: '门窗安全传感器', price: 99 },
+  { id: 'robot_dock', title: '机器人回充底座', price: 139 }
+];
+
 const STORE_ORDERS: OrderSpec[] = [
   { id: 'order_1', title: '环境传感器 Pro', state: '运输中', desc: '预计明天 18:00 前送达，已到达上海分拨中心。', price: '¥199', time: '今天 10:20', color: '#5E8CFF' },
   { id: 'order_2', title: '净化器滤芯订阅', state: '下月扣款', desc: '每 6 个月自动补货一次，可随时暂停订阅。', price: '¥135', time: '06-20', color: '#19B7A4' },
@@ -27,11 +46,15 @@ struct StoreOrdersPage {
   @State networkFailed: boolean = false;
   @State expandedOrderId: string = 'order_1';
   @State isNight: boolean = false;
+  @StorageLink('storePendingOrderPayload') pendingOrderPayload: string = '';
 
   aboutToAppear(): void {
     const params = safeGetParams(this.getUIContext().getRouter()) as StoreOrdersRouteParams | undefined;
     if (params && params.isNight !== undefined) {
       this.isNight = params.isNight;
+    }
+    if (this.pendingOrderPayload.length > 0) {
+      this.expandedOrderId = 'pending_checkout';
     }
   }
 
@@ -52,10 +75,70 @@ struct StoreOrdersPage {
   }
 
   private orders(): OrderSpec[] {
-    return this.showEmpty ? [] : STORE_ORDERS;
+    if (this.showEmpty) {
+      return [];
+    }
+    const pending: OrderSpec | undefined = this.pendingOrder();
+    if (pending !== undefined) {
+      const result: OrderSpec[] = [pending];
+      for (let i = 0; i < STORE_ORDERS.length; i++) {
+        result.push(STORE_ORDERS[i]);
+      }
+      return result;
+    }
+    return STORE_ORDERS;
+  }
+
+  private catalogItem(id: string): OrderItemSpec | undefined {
+    for (let i = 0; i < ORDER_CATALOG.length; i++) {
+      if (ORDER_CATALOG[i].id === id) {
+        return ORDER_CATALOG[i];
+      }
+    }
+    return undefined;
+  }
+
+  private pendingOrder(): OrderSpec | undefined {
+    if (this.pendingOrderPayload.length === 0) {
+      return undefined;
+    }
+    const lines: string[] = this.pendingOrderPayload.split(';');
+    const names: string[] = [];
+    let total: number = 0;
+    let totalCount: number = 0;
+    for (let i = 0; i < lines.length; i++) {
+      const pair: string[] = lines[i].split(':');
+      if (pair.length !== 2 || pair[0].length === 0) {
+        continue;
+      }
+      const parsedCount: number = Number(pair[1]);
+      const count: number = isNaN(parsedCount) ? 0 : parsedCount;
+      const item: OrderItemSpec | undefined = this.catalogItem(pair[0]);
+      if (item === undefined || count <= 0) {
+        continue;
+      }
+      names.push(`${item.title} x${count}`);
+      total += item.price * count;
+      totalCount += count;
+    }
+    if (names.length === 0) {
+      return undefined;
+    }
+    return {
+      id: 'pending_checkout',
+      title: names.length === 1 ? names[0] : `${names[0]} 等 ${names.length} 种商品`,
+      state: '待支付',
+      desc: `本次购物车结算共 ${totalCount} 件：${names.join('、')}。`,
+      price: `¥${total}`,
+      time: '刚刚',
+      color: '#F3A33A'
+    };
   }
 
   private trackingMode(orderId: string): string {
+    if (orderId === 'pending_checkout') {
+      return 'logistics';
+    }
     if (orderId === 'order_2') {
       return 'subscription';
     }
@@ -134,7 +217,7 @@ struct StoreOrdersPage {
       }
       .alignItems(HorizontalAlign.Start)
       .layoutWeight(1)
-      Text('3 单')
+      Text(`${this.orders().length} 单`)
         .fontSize(13)
         .fontWeight(FontWeight.Bold)
         .fontColor('#FFFFFF')
@@ -255,7 +338,7 @@ struct StoreOrdersPage {
       .margin({ top: 14 })
 
       Row() {
-        Button(item.id === 'order_1' ? '查看物流' : item.id === 'order_2' ? '管理订阅' : '申请售后')
+        Button(item.id === 'pending_checkout' ? '继续支付' : item.id === 'order_1' ? '查看物流' : item.id === 'order_2' ? '管理订阅' : '申请售后')
           .layoutWeight(1)
           .height(36)
           .fontSize(12)

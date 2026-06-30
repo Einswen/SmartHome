@@ -151,7 +151,7 @@ struct StoreCategoryPage {
         .width(86)
         .height(86)
         .objectFit(ImageFit.Contain)
-        .backgroundColor(this.softColor())
+        .backgroundColor('#FFFFFF')
         .borderRadius(22)
     }
     .width('100%')

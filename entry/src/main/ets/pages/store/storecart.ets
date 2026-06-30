@@ -46,6 +46,7 @@ struct StoreCartPage {
   @StorageLink('cartAddedProductId') cartAddedProductId: string = '';
   @StorageLink('cartAddedCount') cartAddedCount: number = 0;
   @StorageLink('cartLinePayload') cartLinePayload: string = '';
+  @StorageLink('storePendingOrderPayload') pendingOrderPayload: string = '';
 
   aboutToAppear(): void {
     const params = safeGetParams(this.getUIContext().getRouter()) as CartRouteParams | undefined;
@@ -182,8 +183,11 @@ struct StoreCartPage {
     if (id === 'bedroom_air_guard') {
       return 169;
     }
-    if (id === 'door_lock_battery') {
-      return 69;
+    if (id === 'door_sensor') {
+      return 99;
+    }
+    if (id === 'robot_dock') {
+      return 139;
     }
     return 0;
   }
@@ -198,6 +202,15 @@ struct StoreCartPage {
       total += this.priceNumber(currentItems[i].id) * currentItems[i].count;
     }
     return `¥${total}`;
+  }
+
+  private savePendingOrder(): void {
+    const currentItems: CartItemSpec[] = this.items();
+    const parts: string[] = [];
+    for (let i = 0; i < currentItems.length; i++) {
+      parts.push(`${currentItems[i].id}:${currentItems[i].count}`);
+    }
+    this.pendingOrderPayload = parts.join(';');
   }
 
   build() {
@@ -341,7 +354,7 @@ struct StoreCartPage {
         .width(74)
         .height(74)
         .objectFit(ImageFit.Contain)
-        .backgroundColor(this.softColor())
+        .backgroundColor('#FFFFFF')
         .borderRadius(20)
         .margin({ left: 12 })
       Column() {
@@ -404,6 +417,7 @@ struct StoreCartPage {
         .padding({ left: 24, right: 24 })
         .onClick(() => {
           if (this.selectedAll && this.items().length > 0) {
+            this.savePendingOrder();
             this.checkoutDone = true;
           }
         })

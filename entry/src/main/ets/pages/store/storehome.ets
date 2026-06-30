@@ -207,10 +207,6 @@ export struct P31_StoreHome {
     return this.pressedKey === key ? { x: 0.97, y: 0.97 } : { x: 1, y: 1 };
   }
 
-  private useWhiteProductBackground(productId: string): boolean {
-    return productId === 'sensor_pro' || productId === 'light_module' || productId === 'gesture_panel' || productId === 'robot_pack' || productId === 'gateway_m2';
-  }
-
   build() {
     Column() {
       this.Header()
@@ -488,7 +484,7 @@ export struct P31_StoreHome {
         .width(82)
         .height(82)
         .objectFit(ImageFit.Contain)
-        .backgroundColor(this.useWhiteProductBackground(item.id) ? '#FFFFFF' : this.softColor())
+        .backgroundColor('#FFFFFF')
         .borderRadius(22)
 
       Column() {
