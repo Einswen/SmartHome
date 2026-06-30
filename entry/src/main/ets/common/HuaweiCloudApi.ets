@@ -299,4 +299,12 @@ export class HuaweiCloudApi {
       paras: { Motor: status } as MotorCmd
     });
   }
+
+  static async sendSceneCommand(scene: string): Promise<void> {
+    await HuaweiCloudApi.sendCommand<MotorCmd>('Scene command', {
+      service_id: "鏅烘収鍐滀笟",
+      command_name: "鐢垫満鎺у埗",
+      paras: { Motor: scene } as MotorCmd
+    });
+  }
 }

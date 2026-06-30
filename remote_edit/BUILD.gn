@@ -18,6 +18,7 @@ static_library("iot_cloud_ia_example") {
         "src/e53_intelligent_agriculture.c",
         "src/oc_mqtt.c",
         "src/oc_mqtt_profile_package.c",
+        "src/scene_pictures.c",
         "../b4_lcd/src/lcd.c",
     ]
 
@@ -30,6 +31,7 @@ static_library("iot_cloud_ia_example") {
         "//device/rockchip/rk2206/adapter/include",
         "//device/rockchip/rk2206/sdk_liteos/board/include",
         "include",
+        "src",
         "../b4_lcd/include",
     ]
 
