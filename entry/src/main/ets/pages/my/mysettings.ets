@@ -1,4 +1,4 @@
-import router from '@ohos.router';
+﻿import { safeBack, safeGetParams } from '../../common/SafeRouter';
 
 interface MySettingsRouteParams {
   isNight?: boolean;
@@ -41,7 +41,7 @@ struct MySettingsPage {
   @State isNight: boolean = false;
 
   aboutToAppear(): void {
-    const params = router.getParams() as MySettingsRouteParams | undefined;
+    const params = safeGetParams(this.getUIContext().getRouter()) as MySettingsRouteParams | undefined;
     if (params && params.isNight !== undefined) {
       this.isNight = params.isNight;
     }
@@ -139,7 +139,7 @@ struct MySettingsPage {
         .backgroundColor(this.cardColor())
         .borderRadius(20)
         .onClick(() => {
-          router.back();
+          safeBack(this.getUIContext().getRouter());
         })
 
       Text('授权中心')

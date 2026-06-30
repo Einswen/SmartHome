@@ -1,4 +1,4 @@
-import router from '@ohos.router';
+﻿import { safePushUrl } from '../../common/SafeRouter';
 
 interface HomeBriefSpec {
   id: string;
@@ -107,7 +107,7 @@ export struct P21_MyProfile {
   }
 
   private go(route: string): void {
-    router.pushUrl({ url: route, params: { isNight: this.isNight } });
+    safePushUrl(this.getUIContext().getRouter(), { url: route, params: { isNight: this.isNight } });
   }
 
   build() {
@@ -175,7 +175,7 @@ export struct P21_MyProfile {
         .borderRadius(18)
         .padding({ left: 14, right: 14 })
         .onClick(() => {
-          router.pushUrl({ url: 'pages/my/mylogin', params: { isNight: this.isNight } });
+          safePushUrl(this.getUIContext().getRouter(), { url: 'pages/my/mylogin', params: { isNight: this.isNight } });
         })
     }
     .width('100%')

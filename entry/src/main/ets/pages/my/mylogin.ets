@@ -1,4 +1,4 @@
-import router from '@ohos.router';
+﻿import { safeBack, safeGetParams } from '../../common/SafeRouter';
 
 interface MyLoginRouteParams {
   isNight?: boolean;
@@ -17,7 +17,7 @@ struct MyLoginPage {
   @StorageLink('lumiUserSignedIn') signedIn: boolean = false;
 
   aboutToAppear(): void {
-    const params = router.getParams() as MyLoginRouteParams | undefined;
+    const params = safeGetParams(this.getUIContext().getRouter()) as MyLoginRouteParams | undefined;
     if (params && params.isNight !== undefined) {
       this.isNight = params.isNight;
     }
@@ -103,7 +103,7 @@ struct MyLoginPage {
         .backgroundColor(this.cardColor())
         .borderRadius(20)
         .onClick(() => {
-          router.back();
+          safeBack(this.getUIContext().getRouter());
         })
       Text('Lumi 登录')
         .fontSize(22)
@@ -407,7 +407,7 @@ struct MyLoginPage {
           .borderRadius(22)
           .margin({ top: 22 })
           .onClick(() => {
-            router.back();
+            safeBack(this.getUIContext().getRouter());
           })
       }
       .width('82%')

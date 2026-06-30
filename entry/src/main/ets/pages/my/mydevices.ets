@@ -1,4 +1,4 @@
-import router from '@ohos.router';
+﻿import { safeBack, safeGetParams, safePushUrl } from '../../common/SafeRouter';
 
 interface MyDevicesRouteParams {
   isNight?: boolean;
@@ -50,7 +50,7 @@ struct MyDevicesPage {
   @StorageLink('homeLivingRobotOn') livingRobotOn: boolean = false;
 
   aboutToAppear(): void {
-    const params = router.getParams() as MyDevicesRouteParams | undefined;
+    const params = safeGetParams(this.getUIContext().getRouter()) as MyDevicesRouteParams | undefined;
     if (params && params.isNight !== undefined) {
       this.isNight = params.isNight;
     }
@@ -358,7 +358,7 @@ struct MyDevicesPage {
         .backgroundColor(this.cardColor())
         .borderRadius(20)
         .onClick(() => {
-          router.back();
+          safeBack(this.getUIContext().getRouter());
         })
 
       Text('设备中心')
@@ -673,7 +673,7 @@ struct MyDevicesPage {
           .borderRadius(17)
           .padding({ left: 14, right: 14 })
           .onClick(() => {
-            router.pushUrl({ url: 'pages/my/mydevicedetail', params: { deviceId: item.id, isNight: this.isNight } });
+            safePushUrl(this.getUIContext().getRouter(), { url: 'pages/my/mydevicedetail', params: { deviceId: item.id, isNight: this.isNight } });
           })
         Button('删除')
           .height(34)

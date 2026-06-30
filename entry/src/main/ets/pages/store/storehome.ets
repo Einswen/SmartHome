@@ -1,4 +1,4 @@
-import router from '@ohos.router';
+﻿import { safePushUrl } from '../../common/SafeRouter';
 
 interface StoreCategorySpec {
   id: string;
@@ -263,7 +263,7 @@ export struct P31_StoreHome {
         .padding({ left: 14, right: 14 })
         .margin({ right: 8 })
         .onClick(() => {
-          router.pushUrl({ url: 'pages/store/storecart', params: this.routeParams() });
+          safePushUrl(this.getUIContext().getRouter(), { url: 'pages/store/storecart', params: this.routeParams() });
         })
 
       Button(this.networkFailed ? '恢复' : '断网')
@@ -344,7 +344,7 @@ export struct P31_StoreHome {
           .backgroundColor(this.isNight ? '#F5F7FB' : '#11151D')
           .borderRadius(18)
           .onClick(() => {
-            router.pushUrl({ url: 'pages/store/storecategory', params: { categoryId: 'sensor', isNight: this.isNight } });
+            safePushUrl(this.getUIContext().getRouter(), { url: 'pages/store/storecategory', params: { categoryId: 'sensor', isNight: this.isNight } });
           })
       }
       .width('100%')
@@ -435,7 +435,7 @@ export struct P31_StoreHome {
     .borderRadius(18)
     .margin({ right: 8 })
     .onClick(() => {
-      router.pushUrl({ url: route, params: this.routeParams() });
+      safePushUrl(this.getUIContext().getRouter(), { url: route, params: this.routeParams() });
     })
   }
 
@@ -550,7 +550,7 @@ export struct P31_StoreHome {
       this.handlePressState(item.id, event);
     })
     .onClick(() => {
-      router.pushUrl({ url: 'pages/store/storeproduct', params: { productId: item.id, isNight: this.isNight } });
+      safePushUrl(this.getUIContext().getRouter(), { url: 'pages/store/storeproduct', params: { productId: item.id, isNight: this.isNight } });
     })
   }
 

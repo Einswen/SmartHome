@@ -1,4 +1,4 @@
-import router from '@ohos.router';
+﻿import { safeBack, safeGetParams } from '../../common/SafeRouter';
 
 interface StoreServiceRouteParams {
   isNight?: boolean;
@@ -14,7 +14,7 @@ struct StoreServicePage {
   @State serviceSubmitted: boolean = false;
 
   aboutToAppear(): void {
-    const params = router.getParams() as StoreServiceRouteParams | undefined;
+    const params = safeGetParams(this.getUIContext().getRouter()) as StoreServiceRouteParams | undefined;
     if (params && params.isNight !== undefined) {
       this.isNight = params.isNight;
     }
@@ -79,7 +79,7 @@ struct StoreServicePage {
         .backgroundColor(this.cardColor())
         .borderRadius(20)
         .onClick(() => {
-          router.back();
+          safeBack(this.getUIContext().getRouter());
         })
       Text('售后服务')
         .fontSize(22)

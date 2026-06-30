@@ -1,4 +1,4 @@
-import router from '@ohos.router';
+﻿import { safeBack, safeGetParams } from '../../common/SafeRouter';
 
 interface DeviceDetailRouteParams {
   deviceId?: string;
@@ -37,7 +37,7 @@ struct MyDeviceDetailPage {
   @State isNight: boolean = false;
 
   aboutToAppear(): void {
-    const params = router.getParams() as DeviceDetailRouteParams | undefined;
+    const params = safeGetParams(this.getUIContext().getRouter()) as DeviceDetailRouteParams | undefined;
     if (params && params.deviceId !== undefined) {
       this.deviceId = params.deviceId;
     }
@@ -111,7 +111,7 @@ struct MyDeviceDetailPage {
         .backgroundColor(this.cardColor())
         .borderRadius(20)
         .onClick(() => {
-          router.back();
+          safeBack(this.getUIContext().getRouter());
         })
 
       Text('设备详情')
