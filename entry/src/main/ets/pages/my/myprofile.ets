@@ -366,7 +366,7 @@ export struct P21_MyProfile {
     .borderRadius(24)
     .margin({ top: 22 })
     .onClick(() => {
-      router.pushUrl({ url: 'pages/my/myhomehealth', params: { isNight: this.isNight } });
+      safePushUrl(this.getUIContext().getRouter(), { url: 'pages/my/myhomehealth', params: { isNight: this.isNight } });
     })
   }
 

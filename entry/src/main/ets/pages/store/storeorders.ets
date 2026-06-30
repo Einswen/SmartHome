@@ -276,7 +276,7 @@ struct StoreOrdersPage {
           .borderRadius(18)
           .margin({ right: 8 })
           .onClick(() => {
-            router.pushUrl({ url: 'pages/store/storetracking', params: { orderId: item.id, mode: this.trackingMode(item.id), isNight: this.isNight } });
+            safePushUrl(this.getUIContext().getRouter(), { url: 'pages/store/storetracking', params: { orderId: item.id, mode: this.trackingMode(item.id), isNight: this.isNight } });
           })
         Button('售后支持')
           .layoutWeight(1)
