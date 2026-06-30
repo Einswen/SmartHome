@@ -287,7 +287,7 @@ struct MyHomeHealthPage {
           router.pushUrl({ url: 'pages/my/mydevices', params: { isNight: this.isNight } });
         })
 
-      Button('查看消息中心')
+      Button('查看方案中心')
         .width('100%')
         .height(42)
         .fontSize(13)

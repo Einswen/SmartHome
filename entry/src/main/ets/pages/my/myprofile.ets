@@ -34,7 +34,7 @@ const MY_HOMES: HomeBriefSpec[] = [
 const MY_FEATURES: MyFeatureSpec[] = [
   { id: 'devices', title: '设备中心', desc: '与首页客厅设备同步，支持扩展设备管理', route: 'pages/my/mydevices', accent: '#5E8CFF' },
   { id: 'family', title: '家庭管理', desc: '成员、邀请、权限与家庭切换', route: 'pages/my/myfamily', accent: '#19B7A4' },
-  { id: 'messages', title: '消息中心', desc: '设备告警、自动化执行与服务通知', route: 'pages/messagecenter/mymessages', accent: '#F3A33A' },
+  { id: 'messages', title: '方案中心', desc: '全屋场景、节能模式与设备联动方案', route: 'pages/messagecenter/mymessages', accent: '#F3A33A' },
   { id: 'settings', title: '授权中心', desc: '账号安全、隐私授权与通用偏好', route: 'pages/my/mysettings', accent: '#7F72F2' }
 ];
 

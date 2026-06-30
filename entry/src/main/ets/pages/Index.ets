@@ -4777,12 +4777,12 @@ struct Index {
   SmartPageTitle() {
     Row() {
       Column() {
-        Text('消息中心')
+        Text('方案中心')
           .fontSize(25)
           .fontWeight(FontWeight.Bold)
           .fontColor(this.primaryText())
 
-        Text('智能消息与助手入口')
+        Text('全屋方案与助手入口')
           .fontSize(11)
           .fontColor(this.secondaryText())
           .margin({ top: 4 })
