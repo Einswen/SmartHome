@@ -1,4 +1,5 @@
 ﻿import { safeBack, safeGetParams } from '../../common/SafeRouter';
+import { loginSmartHome, registerSmartHome, SmartHomeAuthResponse, SmartHomeApiResult } from '../../common/SmartHomeApi';
 
 interface MyLoginRouteParams {
   isNight?: boolean;
@@ -10,10 +11,15 @@ struct MyLoginPage {
   @State phone: string = '13888888888';
   @State password: string = '123456';
   @State agreed: boolean = true;
+  @State networkFailed: boolean = false;
   @State loginSuccess: boolean = false;
+  @State loginLoading: boolean = false;
   @State passwordFocused: boolean = false;
   @State isNight: boolean = false;
   @StorageLink('lumiUserSignedIn') signedIn: boolean = false;
+  @StorageLink('lumiAuthToken') authToken: string = '';
+  @StorageLink('lumiUserPhone') signedPhone: string = '';
+  @StorageLink('lumiUserName') signedName: string = '';
 
   aboutToAppear(): void {
     const params = safeGetParams(this.getUIContext().getRouter()) as MyLoginRouteParams | undefined;
@@ -47,13 +53,26 @@ struct MyLoginPage {
   }
 
   private canLogin(): boolean {
-    return this.agreed && this.phone.trim().length >= 6 && this.password.length >= 6;
+    return this.agreed && this.phone.trim().length >= 6 && this.password.length >= 6 && !this.networkFailed && !this.loginLoading;
   }
 
-  private handleLogin(): void {
+  private async handleLogin(): Promise<void> {
     if (!this.canLogin()) {
       return;
     }
+    this.loginLoading = true;
+    let result: SmartHomeApiResult<SmartHomeAuthResponse> = await loginSmartHome(this.phone.trim(), this.password);
+    if (!result.ok && result.statusCode === 401) {
+      result = await registerSmartHome(this.phone.trim(), this.password, 'Lumi 用户');
+    }
+    this.loginLoading = false;
+    if (!result.ok || result.data === undefined) {
+      this.networkFailed = true;
+      return;
+    }
+    this.authToken = result.data.token;
+    this.signedPhone = result.data.user.phone;
+    this.signedName = result.data.user.displayName;
     this.signedIn = true;
     this.loginSuccess = true;
   }
@@ -62,17 +81,21 @@ struct MyLoginPage {
     Stack() {
       Column() {
         this.TopBar()
-        Scroll() {
-          Column() {
-            this.Hero()
-            this.FormCard()
-            this.SecurityTips()
+        if (this.networkFailed) {
+          this.NetworkState()
+        } else {
+          Scroll() {
+            Column() {
+              this.Hero()
+              this.FormCard()
+              this.SecurityTips()
+            }
+            .width('100%')
+            .padding({ left: 18, right: 18, bottom: 28 })
           }
-          .width('100%')
-          .padding({ left: 18, right: 18, bottom: 28 })
+          .layoutWeight(1)
+          .scrollBar(BarState.Off)
         }
-        .layoutWeight(1)
-        .scrollBar(BarState.Off)
       }
       .width('100%')
       .height('100%')
@@ -215,7 +238,7 @@ struct MyLoginPage {
       .width('100%')
       .margin({ top: 16 })
 
-      Button('登录并同步')
+      Button(this.loginLoading ? '正在同步...' : '登录并同步')
         .width('100%')
         .height(46)
         .fontSize(15)
@@ -312,6 +335,38 @@ struct MyLoginPage {
       .backgroundColor(this.softColor())
       .borderRadius(15)
       .margin({ right: 8 })
+  }
+
+  @Builder
+  NetworkState() {
+    Column() {
+      Blank().height(86)
+      Text('登录服务不可用')
+        .fontSize(23)
+        .fontWeight(FontWeight.Bold)
+        .fontColor(this.primaryText())
+      Text('当前网络异常，暂时无法校验账号密码。你仍可返回查看本地缓存家庭。')
+        .fontSize(13)
+        .lineHeight(21)
+        .fontColor(this.secondaryText())
+        .textAlign(TextAlign.Center)
+        .margin({ left: 36, right: 36, top: 10 })
+      Button('重试')
+        .height(42)
+        .fontSize(14)
+        .fontWeight(FontWeight.Bold)
+        .fontColor('#FFFFFF')
+        .backgroundColor('#5E8CFF')
+        .borderRadius(21)
+        .padding({ left: 24, right: 24 })
+        .margin({ top: 22 })
+        .onClick(() => {
+          this.networkFailed = false;
+        })
+    }
+    .layoutWeight(1)
+    .width('100%')
+    .alignItems(HorizontalAlign.Center)
   }
 
   @Builder
