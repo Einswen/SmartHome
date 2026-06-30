@@ -1,4 +1,4 @@
-import router from '@ohos.router';
+﻿import { safeBack, safeGetParams } from '../../common/SafeRouter';
 import {
   AgentMessageSpec,
   AutomationSpec,
@@ -22,7 +22,7 @@ struct SmartDetailsPage {
   @State chatMessages: AgentMessageSpec[] = DEFAULT_AGENT_MESSAGES;
 
   aboutToAppear(): void {
-    const params = router.getParams() as SmartDetailRouteParams | undefined;
+    const params = safeGetParams(this.getUIContext().getRouter()) as SmartDetailRouteParams | undefined;
     if (params) {
       if (params.mode !== undefined) {
         this.mode = params.mode;
@@ -140,7 +140,7 @@ struct SmartDetailsPage {
         .borderRadius(20)
         .padding({ left: 0, right: 0 })
         .onClick(() => {
-          router.back();
+          safeBack(this.getUIContext().getRouter());
         })
 
       Column() {
