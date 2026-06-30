@@ -297,7 +297,7 @@ struct MyHomeHealthPage {
         .borderRadius(21)
         .margin({ top: 10 })
         .onClick(() => {
-          router.pushUrl({ url: 'pages/messagecenter/mymessages', params: { isNight: this.isNight } });
+          router.pushUrl({ url: 'pages/plancenter/plancenter', params: { isNight: this.isNight } });
         })
     }
     .width('100%')
