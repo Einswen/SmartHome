@@ -243,22 +243,31 @@ struct Index {
   @State roomDevices: RoomDeviceState[] = INITIAL_ROOM_DEVICES;
   @State isNight: boolean = false;
   @State manualPeriod: boolean = false;
-  @State livingLightOn: boolean = false;
+  @StorageLink('homeLivingPointIds') livingPointIdsText: string = 'living_air|living_curtain|living_tv|living_purifier|living_robot|living_light';
+  @StorageLink('homeLivingDeviceCount') livingDeviceCount: number = 6;
+  @StorageLink('homeLivingAirInstalled') livingAirInstalled: boolean = true;
+  @StorageLink('homeLivingCurtainInstalled') livingCurtainInstalled: boolean = true;
+  @StorageLink('homeLivingTvInstalled') livingTvInstalled: boolean = true;
+  @StorageLink('homeLivingPurifierInstalled') livingPurifierInstalled: boolean = true;
+  @StorageLink('homeLivingRobotInstalled') livingRobotInstalled: boolean = true;
+  @StorageLink('homeLivingLightInstalled') livingLightInstalled: boolean = true;
+  @StorageLink('homeLivingLightOn') livingLightOn: boolean = false;
   @State bedroomLightOn: boolean = false;
-  @State livingTemperature: number = 24;
+  @StorageLink('homeLivingTemperature') livingTemperature: number = 24;
   @State bedroomTemperature: number = 23;
-  @State livingCurtain: number = 46;
+  @StorageLink('homeLivingCurtain') livingCurtain: number = 46;
   @State bedroomCurtain: number = 58;
   @State livingLightLevel: number = 68;
   @State bedroomLightLevel: number = 22;
-  @State livingTvOn: boolean = false;
-  @State livingPurifierOn: boolean = true;
-  @State livingRobotOn: boolean = false;
+  @StorageLink('homeLivingTvOn') livingTvOn: boolean = false;
+  @StorageLink('homeLivingPurifierOn') livingPurifierOn: boolean = true;
+  @StorageLink('homeLivingRobotOn') livingRobotOn: boolean = false;
   @State bedroomRobotOn: boolean = false;
   @State bedroomDoorLocked: boolean = true;
   private clockTimer: number = -1;
 
   aboutToAppear(): void {
+    this.loadLivingDevicesFromStorage();
     const params = router.getParams() as IndexRouteParams | undefined;
     if (params && params.activeTab !== undefined) {
       this.activeTab = params.activeTab;
@@ -418,6 +427,37 @@ struct Index {
   private usesSharedTemplateState(roomId: string): boolean {
     const templateId = this.roomTemplateId(roomId);
     return roomId === templateId && (templateId === 'living' || templateId === 'bedroom');
+  }
+
+  private loadLivingDevicesFromStorage(): void {
+    if (this.livingPointIdsText.length <= 0) {
+      this.syncLivingDevicesToStorage();
+      return;
+    }
+    const storedIds = this.livingPointIdsText.split('|').filter((id: string) => id.length > 0);
+    if (storedIds.length > 0) {
+      this.setInstalledPointIds('living', storedIds);
+      this.syncLivingInstalledFlags(storedIds);
+    } else {
+      this.syncLivingDevicesToStorage();
+    }
+  }
+
+  private syncLivingDevicesToStorage(): void {
+    const livingIds = this.installedPointIds('living');
+    this.livingPointIdsText = livingIds.join('|');
+    this.livingDeviceCount = livingIds.length;
+    this.syncLivingInstalledFlags(livingIds);
+  }
+
+  private syncLivingInstalledFlags(pointIds: string[]): void {
+    const baseIds = pointIds.map((id: string) => this.pointBaseId(id));
+    this.livingAirInstalled = baseIds.indexOf('living_air') >= 0;
+    this.livingCurtainInstalled = baseIds.indexOf('living_curtain') >= 0;
+    this.livingTvInstalled = baseIds.indexOf('living_tv') >= 0;
+    this.livingPurifierInstalled = baseIds.indexOf('living_purifier') >= 0;
+    this.livingRobotInstalled = baseIds.indexOf('living_robot') >= 0;
+    this.livingLightInstalled = baseIds.indexOf('living_light') >= 0;
   }
 
   private hasStaticActionInRoom(roomId: string, action: string): boolean {
@@ -1966,6 +2006,9 @@ struct Index {
     const shouldCreateScopedInstance = this.usesScopedPointIds(this.activeRoomId) || installedBaseIds.indexOf(pointId) >= 0;
     const nextPointId = shouldCreateScopedInstance ? this.nextScopedPointId(this.activeRoomId, pointId) : pointId;
     this.setInstalledPointIds(this.activeRoomId, [...installedIds, nextPointId]);
+    if (this.activeRoomId === 'living') {
+      this.syncLivingDevicesToStorage();
+    }
     if (nextPointId.indexOf('@') >= 0) {
       this.setDynamicState(this.dynamicStateDefault(this.pointSpecForRoom(this.activeRoomId, nextPointId)));
     }
@@ -1975,6 +2018,9 @@ struct Index {
   private removeDeviceFromActiveRoom(pointId: string): void {
     const nextInstalledIds = this.installedPointIds(this.activeRoomId).filter((id: string) => id !== pointId);
     this.setInstalledPointIds(this.activeRoomId, nextInstalledIds);
+    if (this.activeRoomId === 'living') {
+      this.syncLivingDevicesToStorage();
+    }
     this.removeDynamicState(pointId);
     if (this.selectedPointId === pointId) {
       this.selectedPointId = '';

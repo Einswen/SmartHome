@@ -12,7 +12,7 @@ interface HealthTaskSpec {
 }
 
 const HEALTH_TASKS: HealthTaskSpec[] = [
-  { title: '客厅设备巡检', desc: '6 个点位响应正常，灯光和窗帘状态已同步首页', state: '正常', color: '#35D27A' },
+  { title: '客厅设备巡检', desc: '客厅点位响应正常，灯光和窗帘状态已同步首页', state: '正常', color: '#35D27A' },
   { title: '自动化脚本', desc: '回家、观影、睡眠场景最近 24 小时执行 26 次', state: '稳定', color: '#5E8CFF' },
   { title: '账号与权限', desc: '3 位家庭成员，访客权限未发现越权操作', state: '安全', color: '#7F72F2' },
   { title: '商城服务', desc: '1 个物流订单、1 个耗材订阅和 1 个售后保障记录', state: '跟进中', color: '#F3A33A' }
@@ -28,6 +28,7 @@ struct MyHomeHealthPage {
   @StorageLink('homeLivingPurifierInstalled') livingPurifierInstalled: boolean = true;
   @StorageLink('homeLivingRobotInstalled') livingRobotInstalled: boolean = true;
   @StorageLink('homeLivingLightInstalled') livingLightInstalled: boolean = true;
+  @StorageLink('homeLivingDeviceCount') livingDeviceCount: number = 6;
   @State networkFailed: boolean = false;
 
   aboutToAppear(): void {
@@ -38,6 +39,9 @@ struct MyHomeHealthPage {
   }
 
   private installedCount(): number {
+    if (this.livingDeviceCount > 0) {
+      return this.livingDeviceCount;
+    }
     let count = 0;
     if (this.livingAirInstalled) {
       count++;
@@ -166,7 +170,7 @@ struct MyHomeHealthPage {
         .fontColor(this.primaryText())
         .width('100%')
 
-      Text(`当前家庭已绑定 ${this.installedCount()} / 6 台客厅核心设备。设备中心移除设备后，这里和首页点位会同步更新。`)
+      Text(`当前家庭已绑定 ${this.installedCount()} 台客厅设备。首页添加或设备中心移除设备后，这里和首页点位会同步更新。`)
         .fontSize(13)
         .lineHeight(21)
         .fontColor(this.secondaryText())
@@ -293,7 +297,7 @@ struct MyHomeHealthPage {
         .borderRadius(21)
         .margin({ top: 10 })
         .onClick(() => {
-          router.pushUrl({ url: 'pages/my/mymessages', params: { isNight: this.isNight } });
+          router.pushUrl({ url: 'pages/messagecenter/mymessages', params: { isNight: this.isNight } });
         })
     }
     .width('100%')

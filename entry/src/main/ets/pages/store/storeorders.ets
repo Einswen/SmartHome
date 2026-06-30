@@ -15,9 +15,9 @@ interface OrderSpec {
 }
 
 const STORE_ORDERS: OrderSpec[] = [
-  { id: 'order_1', title: '环境传感器 Pro', state: '运输中', desc: '预计明天 18:00 前送达，已到达上海分拨中心', price: '¥199', time: '今天 10:20', color: '#5E8CFF' },
-  { id: 'order_2', title: '净化器滤芯订阅', state: '下月扣款', desc: '每 6 个月自动补货一次，可随时暂停订阅', price: '¥135', time: '06-20', color: '#19B7A4' },
-  { id: 'order_3', title: '智能照明模块', state: '已完成', desc: '已安装至客厅主灯线路，售后保障剩余 362 天', price: '¥129', time: '06-12', color: '#F3A33A' }
+  { id: 'order_1', title: '环境传感器 Pro', state: '运输中', desc: '预计明天 18:00 前送达，已到达上海分拨中心。', price: '¥199', time: '今天 10:20', color: '#5E8CFF' },
+  { id: 'order_2', title: '净化器滤芯订阅', state: '下月扣款', desc: '每 6 个月自动补货一次，可随时暂停订阅。', price: '¥135', time: '06-20', color: '#19B7A4' },
+  { id: 'order_3', title: '智能照明模块', state: '已完成', desc: '已安装至客厅主灯线路，售后保障剩余 362 天。', price: '¥129', time: '06-12', color: '#F3A33A' }
 ];
 
 @Entry
@@ -53,6 +53,16 @@ struct StoreOrdersPage {
 
   private orders(): OrderSpec[] {
     return this.showEmpty ? [] : STORE_ORDERS;
+  }
+
+  private trackingMode(orderId: string): string {
+    if (orderId === 'order_2') {
+      return 'subscription';
+    }
+    if (orderId === 'order_3') {
+      return 'after_sale';
+    }
+    return 'logistics';
   }
 
   build() {
@@ -265,6 +275,9 @@ struct StoreOrdersPage {
           .backgroundColor(this.isNight ? '#F5F7FB' : '#11151D')
           .borderRadius(18)
           .margin({ right: 8 })
+          .onClick(() => {
+            router.pushUrl({ url: 'pages/store/storetracking', params: { orderId: item.id, mode: this.trackingMode(item.id), isNight: this.isNight } });
+          })
         Button('售后支持')
           .layoutWeight(1)
           .height(36)
