@@ -14,8 +14,10 @@ struct MyLoginPage {
   @State networkFailed: boolean = false;
   @State authError: string = '';
   @State loginSuccess: boolean = false;
+  @State successMode: 'login' | 'register' = 'login';
   @State loginLoading: boolean = false;
   @State registerLoading: boolean = false;
+  @State validationDialog: string = '';
   @State passwordFocused: boolean = false;
   @State isNight: boolean = false;
   @StorageLink('lumiUserSignedIn') signedIn: boolean = false;
@@ -61,6 +63,35 @@ struct MyLoginPage {
     return this.agreed && this.phone.trim().length >= 6 && this.password.length >= 6 && !this.networkFailed && !this.loginLoading && !this.registerLoading;
   }
 
+  private isValidPhoneInput(): boolean {
+    const input = this.phone.trim();
+    return /^1[3-9]\d{9}$/.test(input) || /^test\d+$/i.test(input);
+  }
+
+  private showValidationDialog(message: string): void {
+    this.validationDialog = message;
+  }
+
+  private validateBeforeSubmit(): boolean {
+    if (!this.agreed) {
+      this.showValidationDialog('请先勾选用户协议与隐私政策');
+      return false;
+    }
+    if (this.phone.trim().length === 0) {
+      this.showValidationDialog('请输入手机号');
+      return false;
+    }
+    if (!this.isValidPhoneInput()) {
+      this.showValidationDialog('输入手机号不合法');
+      return false;
+    }
+    if (this.password.length < 6) {
+      this.showValidationDialog('请输入至少 6 位密码');
+      return false;
+    }
+    return true;
+  }
+
   private authFailureMessage(result: SmartHomeApiResult<SmartHomeAuthResponse>, fallback: string): string {
     if (result.statusCode === 401) {
       return '账号或密码错误';
@@ -74,7 +105,7 @@ struct MyLoginPage {
     return result.error !== undefined && result.error.length > 0 ? result.error : fallback;
   }
 
-  private saveAuthResponse(response: SmartHomeAuthResponse): void {
+  private saveAuthResponse(response: SmartHomeAuthResponse, mode: 'login' | 'register'): void {
     this.authToken = response.token;
     this.signedPhone = response.user.phone;
     this.signedName = response.user.displayName;
@@ -83,11 +114,12 @@ struct MyLoginPage {
     this.livingDeviceCount = 0;
     this.signedIn = true;
     this.loginSuccess = true;
+    this.successMode = mode;
     this.authError = '';
   }
 
   private async handleLogin(): Promise<void> {
-    if (!this.canLogin()) {
+    if (!this.canLogin() || !this.validateBeforeSubmit()) {
       return;
     }
     this.authError = '';
@@ -99,11 +131,11 @@ struct MyLoginPage {
       this.networkFailed = result.statusCode === 0;
       return;
     }
-    this.saveAuthResponse(result.data);
+    this.saveAuthResponse(result.data, 'login');
   }
 
   private async handleRegister(): Promise<void> {
-    if (!this.canLogin()) {
+    if (!this.canLogin() || !this.validateBeforeSubmit()) {
       return;
     }
     this.authError = '';
@@ -115,7 +147,7 @@ struct MyLoginPage {
       this.networkFailed = result.statusCode === 0;
       return;
     }
-    this.saveAuthResponse(result.data);
+    this.saveAuthResponse(result.data, 'register');
   }
 
   private handleLogout(): void {
@@ -129,6 +161,7 @@ struct MyLoginPage {
     this.signedName = '';
     this.networkFailed = false;
     this.authError = '';
+    this.validationDialog = '';
   }
 
   build() {
@@ -160,6 +193,10 @@ struct MyLoginPage {
 
       if (this.loginSuccess) {
         this.SuccessDialog()
+      }
+
+      if (this.validationDialog.length > 0) {
+        this.ValidationDialog()
       }
     }
     .width('100%')
@@ -532,13 +569,13 @@ struct MyLoginPage {
       .width(58)
       .height(58)
 
-        Text('登录成功')
+        Text(this.successMode === 'register' ? '注册成功' : '登录成功')
           .fontSize(22)
           .fontWeight(FontWeight.Bold)
           .fontColor(this.primaryText())
           .margin({ top: 16 })
 
-        Text('家庭、设备、购物车和授权偏好已同步')
+        Text(this.successMode === 'register' ? '账号已创建，家庭、设备和授权信息已同步' : '家庭、设备、购物车和授权偏好已同步')
           .fontSize(13)
           .lineHeight(21)
           .fontColor(this.secondaryText())
@@ -559,6 +596,52 @@ struct MyLoginPage {
           })
       }
       .width('78%')
+      .padding({ left: 22, right: 22, top: 24, bottom: 22 })
+      .backgroundColor(this.isNight ? '#D91A1E25' : '#EFFFFFFF')
+      .border({ width: 1, color: this.lineColor() })
+      .borderRadius(26)
+      .alignItems(HorizontalAlign.Center)
+      .shadow({ radius: 26, color: this.isNight ? '#AA000000' : '#33000000', offsetY: 12 })
+    }
+    .width('100%')
+    .height('100%')
+  }
+
+  @Builder
+  ValidationDialog() {
+    Stack({ alignContent: Alignment.Center }) {
+      Column()
+        .width('100%')
+        .height('100%')
+        .backgroundColor(this.isNight ? '#52000000' : '#26000000')
+
+      Column() {
+        Text('提示')
+          .fontSize(20)
+          .fontWeight(FontWeight.Bold)
+          .fontColor(this.primaryText())
+
+        Text(this.validationDialog)
+          .fontSize(14)
+          .lineHeight(22)
+          .fontColor(this.secondaryText())
+          .textAlign(TextAlign.Center)
+          .margin({ left: 8, right: 8, top: 12 })
+
+        Button('我知道了')
+          .width('100%')
+          .height(42)
+          .fontSize(14)
+          .fontWeight(FontWeight.Bold)
+          .fontColor(this.isNight ? '#11151D' : '#FFFFFF')
+          .backgroundColor(this.isNight ? '#F5F7FB' : '#11151D')
+          .borderRadius(21)
+          .margin({ top: 20 })
+          .onClick(() => {
+            this.validationDialog = '';
+          })
+      }
+      .width('74%')
       .padding({ left: 22, right: 22, top: 24, bottom: 22 })
       .backgroundColor(this.isNight ? '#D91A1E25' : '#EFFFFFFF')
       .border({ width: 1, color: this.lineColor() })

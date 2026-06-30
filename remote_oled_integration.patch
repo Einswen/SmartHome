@@ -1,0 +1,102 @@
+diff --git a/vendor/lockzhiner/rk2206/samples/d7_iot_cloud_intelligent_agriculture/BUILD.gn b/vendor/lockzhiner/rk2206/samples/d7_iot_cloud_intelligent_agriculture/BUILD.gn
+index 0000000..0000000 100644
+--- a/vendor/lockzhiner/rk2206/samples/d7_iot_cloud_intelligent_agriculture/BUILD.gn
++++ b/vendor/lockzhiner/rk2206/samples/d7_iot_cloud_intelligent_agriculture/BUILD.gn
+@@ -17,6 +17,7 @@ static_library("iot_cloud_ia_example") {
+         "src/e53_intelligent_agriculture.c",
+         "src/oc_mqtt.c",
+         "src/oc_mqtt_profile_package.c",
++        "../b5_oled/src/oled.c",
+     ]
+ 
+     include_dirs = [
+@@ -29,6 +30,7 @@ static_library("iot_cloud_ia_example") {
+         "//device/rockchip/rk2206/sdk_liteos/board/include",
+         "include",
++        "../b5_oled/include",
+     ]
+ 
+     deps = [
+diff --git a/vendor/lockzhiner/rk2206/samples/d7_iot_cloud_intelligent_agriculture/iot_cloud_ia_example.c b/vendor/lockzhiner/rk2206/samples/d7_iot_cloud_intelligent_agriculture/iot_cloud_ia_example.c
+index 0000000..0000000 100644
+--- a/vendor/lockzhiner/rk2206/samples/d7_iot_cloud_intelligent_agriculture/iot_cloud_ia_example.c
++++ b/vendor/lockzhiner/rk2206/samples/d7_iot_cloud_intelligent_agriculture/iot_cloud_ia_example.c
+@@ -20,6 +20,7 @@
+ #include "e53_intelligent_agriculture.h"
+ #include "lz_hardware.h"
+ #include "config_network.h"
++#include "oled.h"
+ 
+ #define ROUTE_SSID                      "C317"
+ #define ROUTE_PASSWORD                  "qwer1234"
+@@ -50,6 +51,25 @@ typedef struct
+ static unsigned int m_ia_MsgQueue;
+ static ia_status_t m_app_status;
+ 
++static void ia_oled_show_status(const char *line2, const char *line3)
++{
++    oled_clear();
++    oled_show_string(0, 0, (uint8_t *)"Smart Home", 16);
++    oled_show_string(0, 2, (uint8_t *)line2, 16);
++    oled_show_string(0, 4, (uint8_t *)line3, 16);
++}
++
++static void ia_oled_show_sensor(ia_report_t *report)
++{
++    char line[24];
++
++    oled_clear();
++    oled_show_string(0, 0, (uint8_t *)"Smart Home", 16);
++    snprintf(line, sizeof(line), "Temp:%dC Hum:%d", report->temp, report->hum);
++    oled_show_string(0, 2, (uint8_t *)line, 16);
++    snprintf(line, sizeof(line), "Light:%d", report->lum);
++    oled_show_string(0, 4, (uint8_t *)line, 16);
++}
++
+ /***************************************************************
+ * 函数名称: ia_deal_report_msg
+ * 说    明: 上报智慧农业模块数据到华为云上
+@@ -99,6 +119,7 @@ void ia_deal_report_msg(ia_report_t *report)
+     motor.nxt = NULL;
+ 
+     oc_mqtt_profile_propertyreport(USERNAME, &service);
++    ia_oled_show_sensor(report);
+ }
+ 
+ /***************************************************************
+@@ -189,7 +210,7 @@ void ia_deal_cmd_msg(cmd_t *cmd)
+     }
+     else if (0 == strcmp(cJSON_GetStringValue(obj_cmdname), "电机控制"))
+     {
+-        obj_paras = cJSON_GetObjectItem(obj_root, "Paras");
++        obj_paras = cJSON_GetObjectItem(obj_root, "paras");
+         if (obj_paras == NULL)
+         {
+             goto EXIT;
+@@ -206,6 +227,7 @@ void ia_deal_cmd_msg(cmd_t *cmd)
+             m_app_status.motor = 1;
+             motor_set_status(ON);
+             printf("Motor On\n");
++            ia_oled_show_status("Air ON", "Motor ON");
+         }
+         else
+         {
+@@ -213,6 +235,7 @@ void ia_deal_cmd_msg(cmd_t *cmd)
+             motor_set_status(OFF);
+             printf("Motor Off\n");
++            ia_oled_show_status("Air OFF", "Motor OFF");
+         }
+         cmdret = 0;
+     }
+@@ -337,6 +360,11 @@ void iot_cloud_ia_example()
+         return;
+     }
+ 
++    oled_init();
++    oled_clear();
++    oled_show_string(0, 0, (uint8_t *)"Smart Home", 16);
++    oled_show_string(0, 2, (uint8_t *)"Cloud Ready", 16);
++
+     task1.pfnTaskEntry = (TSK_ENTRY_FUNC)iot_cloud_ia_thread;
+     task1.uwStackSize = 10240;
+     task1.pcName = "iot_cloud_ia_thread";
