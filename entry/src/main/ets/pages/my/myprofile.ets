@@ -53,8 +53,10 @@ export struct P21_MyProfile {
   @State activeHomeIndex: number = 0;
   @StorageLink('lumiUserSignedIn') signedIn: boolean = false;
   @StorageLink('lumiAuthToken') authToken: string = '';
+  @StorageLink('lumiHomeState') homeStateText: string = '';
   @StorageLink('lumiUserPhone') signedPhone: string = '';
   @StorageLink('lumiUserName') signedName: string = '';
+  @StorageLink('homeLivingPointIds') livingPointIdsText: string = '';
   @StorageLink('homeLivingDeviceCount') livingDeviceCount: number = 6;
 
   private primaryText(): string {
@@ -184,6 +186,9 @@ export struct P21_MyProfile {
           if (this.signedIn) {
             this.signedIn = false;
             this.authToken = '';
+            this.homeStateText = '';
+            this.livingPointIdsText = '';
+            this.livingDeviceCount = 0;
             this.signedPhone = '';
             this.signedName = '';
           } else {

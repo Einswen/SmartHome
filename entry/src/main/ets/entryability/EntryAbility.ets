@@ -11,6 +11,13 @@ export default class EntryAbility extends UIAbility {
     } catch (err) {
       hilog.error(DOMAIN, 'testTag', 'Failed to set colorMode. Cause: %{public}s', JSON.stringify(err));
     }
+    PersistentStorage.persistProps([
+      { key: 'lumiUserSignedIn', defaultValue: false },
+      { key: 'lumiAuthToken', defaultValue: '' },
+      { key: 'lumiHomeState', defaultValue: '' },
+      { key: 'lumiUserPhone', defaultValue: '' },
+      { key: 'lumiUserName', defaultValue: '' }
+    ]);
     hilog.info(DOMAIN, 'testTag', '%{public}s', 'Ability onCreate');
   }
 

@@ -1,6 +1,6 @@
 import http from '@ohos.net.http';
 
-export const SMART_HOME_API_BASE_URL: string = 'http://10.110.47.149:18080/api';
+export const SMART_HOME_API_BASE_URL: string = 'http://192.168.5.158:18080/api';
 const API_TIMEOUT_MS: number = 8000;
 
 export interface SmartHomeUser {
@@ -39,6 +39,11 @@ export interface SmartHomeApiResult<T> {
   error?: string;
 }
 
+export interface SmartHomeAcceptedResponse {
+  accepted: boolean;
+  homeState: SmartHomeState;
+}
+
 export interface DeviceStatePatch {
   on?: boolean;
   value?: number;
@@ -49,6 +54,13 @@ export interface DeviceStatePatch {
 export interface DeviceActionPayload extends DeviceStatePatch {
   pointId: string;
   actionType: string;
+}
+
+export interface ActiveStatePatch {
+  activeRoomId?: string;
+  activeSceneId?: string;
+  isNight?: boolean;
+  manualPeriod?: boolean;
 }
 
 interface SmartHomeHeader {
@@ -168,6 +180,10 @@ export async function updateHomeSection(token: string, section: string, value: O
   return requestJson<SmartHomeState>(`/home/sections/${section}`, http.RequestMethod.PUT, token, body);
 }
 
+export async function updateActiveState(token: string, patch: ActiveStatePatch): Promise<SmartHomeApiResult<SmartHomeState>> {
+  return requestJson<SmartHomeState>('/home/active', http.RequestMethod.PUT, token, patch);
+}
+
 export async function updateRoomDevices(token: string, roomId: string, pointIds: string[]): Promise<SmartHomeApiResult<SmartHomeState>> {
   const body: RoomDevicesUpdateBody = {
     roomId: roomId,
@@ -180,6 +196,6 @@ export async function updateDeviceState(token: string, pointId: string, patch: D
   return requestJson<SmartHomeState>(`/home/device-states/${pointId}`, http.RequestMethod.PUT, token, patch);
 }
 
-export async function submitDeviceAction(token: string, payload: DeviceActionPayload): Promise<SmartHomeApiResult<Object>> {
-  return requestJson<Object>('/home/device-actions', http.RequestMethod.POST, token, payload);
+export async function submitDeviceAction(token: string, payload: DeviceActionPayload): Promise<SmartHomeApiResult<SmartHomeAcceptedResponse>> {
+  return requestJson<SmartHomeAcceptedResponse>('/home/device-actions', http.RequestMethod.POST, token, payload);
 }

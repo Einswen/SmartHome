@@ -8,18 +8,23 @@ interface MyLoginRouteParams {
 @Entry
 @Component
 struct MyLoginPage {
-  @State phone: string = '13888888888';
-  @State password: string = '123456';
+  @State phone: string = '';
+  @State password: string = '';
   @State agreed: boolean = true;
   @State networkFailed: boolean = false;
+  @State authError: string = '';
   @State loginSuccess: boolean = false;
   @State loginLoading: boolean = false;
+  @State registerLoading: boolean = false;
   @State passwordFocused: boolean = false;
   @State isNight: boolean = false;
   @StorageLink('lumiUserSignedIn') signedIn: boolean = false;
   @StorageLink('lumiAuthToken') authToken: string = '';
+  @StorageLink('lumiHomeState') homeStateText: string = '';
   @StorageLink('lumiUserPhone') signedPhone: string = '';
   @StorageLink('lumiUserName') signedName: string = '';
+  @StorageLink('homeLivingPointIds') livingPointIdsText: string = '';
+  @StorageLink('homeLivingDeviceCount') livingDeviceCount: number = 0;
 
   aboutToAppear(): void {
     const params = safeGetParams(this.getUIContext().getRouter()) as MyLoginRouteParams | undefined;
@@ -53,37 +58,77 @@ struct MyLoginPage {
   }
 
   private canLogin(): boolean {
-    return this.agreed && this.phone.trim().length >= 6 && this.password.length >= 6 && !this.networkFailed && !this.loginLoading;
+    return this.agreed && this.phone.trim().length >= 6 && this.password.length >= 6 && !this.networkFailed && !this.loginLoading && !this.registerLoading;
+  }
+
+  private authFailureMessage(result: SmartHomeApiResult<SmartHomeAuthResponse>, fallback: string): string {
+    if (result.statusCode === 401) {
+      return '账号或密码错误';
+    }
+    if (result.statusCode === 409) {
+      return '这个手机号已注册，请直接登录';
+    }
+    if (result.statusCode === 0) {
+      return '网络连接失败，请稍后重试';
+    }
+    return result.error !== undefined && result.error.length > 0 ? result.error : fallback;
+  }
+
+  private saveAuthResponse(response: SmartHomeAuthResponse): void {
+    this.authToken = response.token;
+    this.signedPhone = response.user.phone;
+    this.signedName = response.user.displayName;
+    this.homeStateText = JSON.stringify(response.homeState);
+    this.livingPointIdsText = '';
+    this.livingDeviceCount = 0;
+    this.signedIn = true;
+    this.loginSuccess = true;
+    this.authError = '';
   }
 
   private async handleLogin(): Promise<void> {
     if (!this.canLogin()) {
       return;
     }
+    this.authError = '';
     this.loginLoading = true;
-    let result: SmartHomeApiResult<SmartHomeAuthResponse> = await loginSmartHome(this.phone.trim(), this.password);
-    if (!result.ok && result.statusCode === 401) {
-      result = await registerSmartHome(this.phone.trim(), this.password, 'Lumi 用户');
-    }
+    const result: SmartHomeApiResult<SmartHomeAuthResponse> = await loginSmartHome(this.phone.trim(), this.password);
     this.loginLoading = false;
     if (!result.ok || result.data === undefined) {
-      this.networkFailed = true;
+      this.authError = this.authFailureMessage(result, '登录失败，请检查账号密码');
+      this.networkFailed = result.statusCode === 0;
       return;
     }
-    this.authToken = result.data.token;
-    this.signedPhone = result.data.user.phone;
-    this.signedName = result.data.user.displayName;
-    this.signedIn = true;
-    this.loginSuccess = true;
+    this.saveAuthResponse(result.data);
+  }
+
+  private async handleRegister(): Promise<void> {
+    if (!this.canLogin()) {
+      return;
+    }
+    this.authError = '';
+    this.registerLoading = true;
+    const result: SmartHomeApiResult<SmartHomeAuthResponse> = await registerSmartHome(this.phone.trim(), this.password, 'Lumi 用户');
+    this.registerLoading = false;
+    if (!result.ok || result.data === undefined) {
+      this.authError = this.authFailureMessage(result, '注册失败，请稍后重试');
+      this.networkFailed = result.statusCode === 0;
+      return;
+    }
+    this.saveAuthResponse(result.data);
   }
 
   private handleLogout(): void {
     this.signedIn = false;
     this.loginSuccess = false;
     this.authToken = '';
+    this.homeStateText = '';
+    this.livingPointIdsText = '';
+    this.livingDeviceCount = 0;
     this.signedPhone = '';
     this.signedName = '';
     this.networkFailed = false;
+    this.authError = '';
   }
 
   build() {
@@ -220,6 +265,7 @@ struct MyLoginPage {
         .margin({ top: 8 })
         .onChange((value: string) => {
           this.phone = value;
+          this.authError = '';
         })
 
       Row() {
@@ -257,7 +303,17 @@ struct MyLoginPage {
         })
         .onChange((value: string) => {
           this.password = value;
+          this.authError = '';
         })
+
+      if (this.authError.length > 0) {
+        Text(this.authError)
+          .fontSize(12)
+          .lineHeight(18)
+          .fontColor('#D35B4B')
+          .margin({ top: 10 })
+          .width('100%')
+      }
 
       Row() {
         this.AgreementCheck()
@@ -280,6 +336,24 @@ struct MyLoginPage {
         .margin({ top: 18 })
         .onClick(() => {
           this.handleLogin();
+        })
+
+      Button(this.registerLoading ? '正在注册...' : '注册 Lumi 账号')
+        .width('100%')
+        .height(44)
+        .fontSize(14)
+        .fontWeight(FontWeight.Bold)
+        .fontColor(this.primaryText())
+        .backgroundColor(this.softColor())
+        .border({
+          width: 1,
+          color: this.lineColor()
+        })
+        .borderRadius(22)
+        .margin({ top: 10 })
+        .opacity(this.canLogin() ? 1 : 0.5)
+        .onClick(() => {
+          this.handleRegister();
         })
 
       Row() {
