@@ -87,18 +87,6 @@ struct StoreCategoryPage {
         .fontColor(this.primaryText())
         .margin({ left: 14 })
         .layoutWeight(1)
-      Button(this.networkFailed ? '恢复' : '断网')
-        .height(34)
-        .fontSize(12)
-        .fontWeight(FontWeight.Bold)
-        .fontColor(this.networkFailed ? '#FFFFFF' : this.primaryText())
-        .backgroundColor(this.networkFailed ? '#F3A33A' : this.cardColor())
-        .borderRadius(17)
-        .padding({ left: 12, right: 12 })
-        .margin({ right: 8 })
-        .onClick(() => {
-          this.networkFailed = !this.networkFailed;
-        })
       Button(this.showEmpty ? '恢复' : '空数据')
         .height(34)
         .fontSize(12)

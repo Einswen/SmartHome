@@ -273,22 +273,31 @@ struct Index {
   @State roomDevices: RoomDeviceState[] = INITIAL_ROOM_DEVICES;
   @State isNight: boolean = false;
   @State manualPeriod: boolean = false;
-  @State livingLightOn: boolean = false;
+  @StorageLink('homeLivingPointIds') livingPointIdsText: string = 'living_air|living_curtain|living_tv|living_purifier|living_robot|living_light';
+  @StorageLink('homeLivingDeviceCount') livingDeviceCount: number = 6;
+  @StorageLink('homeLivingAirInstalled') livingAirInstalled: boolean = true;
+  @StorageLink('homeLivingCurtainInstalled') livingCurtainInstalled: boolean = true;
+  @StorageLink('homeLivingTvInstalled') livingTvInstalled: boolean = true;
+  @StorageLink('homeLivingPurifierInstalled') livingPurifierInstalled: boolean = true;
+  @StorageLink('homeLivingRobotInstalled') livingRobotInstalled: boolean = true;
+  @StorageLink('homeLivingLightInstalled') livingLightInstalled: boolean = true;
+  @StorageLink('homeLivingLightOn') livingLightOn: boolean = false;
   @State bedroomLightOn: boolean = false;
-  @State livingTemperature: number = 24;
+  @StorageLink('homeLivingTemperature') livingTemperature: number = 24;
   @State bedroomTemperature: number = 23;
-  @State livingCurtain: number = 46;
+  @StorageLink('homeLivingCurtain') livingCurtain: number = 46;
   @State bedroomCurtain: number = 58;
   @State livingLightLevel: number = 68;
   @State bedroomLightLevel: number = 22;
-  @State livingTvOn: boolean = false;
-  @State livingPurifierOn: boolean = true;
-  @State livingRobotOn: boolean = false;
+  @StorageLink('homeLivingTvOn') livingTvOn: boolean = false;
+  @StorageLink('homeLivingPurifierOn') livingPurifierOn: boolean = true;
+  @StorageLink('homeLivingRobotOn') livingRobotOn: boolean = false;
   @State bedroomRobotOn: boolean = false;
   @State bedroomDoorLocked: boolean = true;
   private clockTimer: number = -1;
 
   aboutToAppear(): void {
+    this.loadLivingDevicesFromStorage();
     const params = safeGetParams(this.getUIContext().getRouter()) as IndexRouteParams | undefined;
     if (params && params.activeTab !== undefined) {
       this.activeTab = params.activeTab;
@@ -465,6 +474,37 @@ struct Index {
   private usesSharedTemplateState(roomId: string): boolean {
     const templateId = this.roomTemplateId(roomId);
     return roomId === templateId && (templateId === 'living' || templateId === 'bedroom');
+  }
+
+  private loadLivingDevicesFromStorage(): void {
+    if (this.livingPointIdsText.length <= 0) {
+      this.syncLivingDevicesToStorage();
+      return;
+    }
+    const storedIds = this.livingPointIdsText.split('|').filter((id: string) => id.length > 0);
+    if (storedIds.length > 0) {
+      this.setInstalledPointIds('living', storedIds);
+      this.syncLivingInstalledFlags(storedIds);
+    } else {
+      this.syncLivingDevicesToStorage();
+    }
+  }
+
+  private syncLivingDevicesToStorage(): void {
+    const livingIds = this.installedPointIds('living');
+    this.livingPointIdsText = livingIds.join('|');
+    this.livingDeviceCount = livingIds.length;
+    this.syncLivingInstalledFlags(livingIds);
+  }
+
+  private syncLivingInstalledFlags(pointIds: string[]): void {
+    const baseIds = pointIds.map((id: string) => this.pointBaseId(id));
+    this.livingAirInstalled = baseIds.indexOf('living_air') >= 0;
+    this.livingCurtainInstalled = baseIds.indexOf('living_curtain') >= 0;
+    this.livingTvInstalled = baseIds.indexOf('living_tv') >= 0;
+    this.livingPurifierInstalled = baseIds.indexOf('living_purifier') >= 0;
+    this.livingRobotInstalled = baseIds.indexOf('living_robot') >= 0;
+    this.livingLightInstalled = baseIds.indexOf('living_light') >= 0;
   }
 
   private hasStaticActionInRoom(roomId: string, action: string): boolean {
@@ -644,6 +684,9 @@ struct Index {
   }
 
   private installedPointIds(roomId: string): string[] {
+    if (roomId === 'living') {
+      return this.livingPointIdsText.length > 0 ? this.livingPointIdsText.split('|').filter((id: string) => id.length > 0) : [];
+    }
     for (let i = 0; i < this.roomDevices.length; i++) {
       if (this.roomDevices[i].roomId === roomId) {
         return this.roomDevices[i].pointIds;
@@ -665,6 +708,11 @@ struct Index {
       return item;
     });
     this.roomDevices = matched ? nextRoomDevices : [...nextRoomDevices, { roomId: roomId, pointIds: pointIds }];
+    if (roomId === 'living') {
+      this.livingPointIdsText = pointIds.join('|');
+      this.livingDeviceCount = pointIds.length;
+      this.syncLivingInstalledFlags(pointIds);
+    }
   }
 
   private pointsForActiveRoom(): PointSpec[] {
@@ -2113,6 +2161,9 @@ struct Index {
     const shouldCreateScopedInstance = this.usesScopedPointIds(roomId) || installedBaseIds.indexOf(pointId) >= 0;
     const nextPointId = shouldCreateScopedInstance ? this.nextScopedPointId(roomId, pointId) : pointId;
     this.setInstalledPointIds(roomId, [...installedIds, nextPointId]);
+    if (roomId === 'living') {
+      this.syncLivingDevicesToStorage();
+    }
     if (nextPointId.indexOf('@') >= 0) {
       this.setDynamicState(this.dynamicStateDefault(this.pointSpecForRoom(roomId, nextPointId)));
     }
@@ -2126,6 +2177,9 @@ struct Index {
   private removeDeviceFromRoom(roomId: string, pointId: string): void {
     const nextInstalledIds = this.installedPointIds(roomId).filter((id: string) => id !== pointId);
     this.setInstalledPointIds(roomId, nextInstalledIds);
+    if (roomId === 'living') {
+      this.syncLivingDevicesToStorage();
+    }
     this.removeDynamicState(pointId);
     if (this.selectedPointId === pointId) {
       this.selectedPointId = '';
@@ -2430,7 +2484,7 @@ struct Index {
         .height(42)
         .margin({ left: 10 })
         .onClick(() => {
-          safePushUrl(this.getUIContext().getRouter(), { url: 'pages/messagecenter/mymessages', params: { isNight: this.isNight } });
+          safePushUrl(this.getUIContext().getRouter(), { url: 'pages/plancenter/plancenter', params: { isNight: this.isNight } });
         })
       }
       .alignItems(VerticalAlign.Center)
@@ -4894,12 +4948,12 @@ struct Index {
   SmartPageTitle() {
     Row() {
       Column() {
-        Text('消息中心')
+        Text('方案中心')
           .fontSize(25)
           .fontWeight(FontWeight.Bold)
           .fontColor(this.primaryText())
 
-        Text('智能消息与助手入口')
+        Text('全屋方案与助手入口')
           .fontSize(11)
           .fontColor(this.secondaryText())
           .margin({ top: 4 })
