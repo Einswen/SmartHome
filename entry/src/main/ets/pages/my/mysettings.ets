@@ -128,6 +128,7 @@ struct MySettingsPage {
         Scroll() {
           Column() {
             this.SecurityCard()
+            this.HardwareCloudCard()
             this.TabBar()
             this.SettingList()
             this.PreferenceCard()
@@ -179,6 +180,42 @@ struct MySettingsPage {
     }
     .width('100%')
     .padding({ left: 18, right: 18, top: 28, bottom: 14 })
+  }
+
+  @Builder
+  HardwareCloudCard() {
+    Row() {
+      Column() {
+        Text('硬件联调')
+          .fontSize(16)
+          .fontWeight(FontWeight.Bold)
+          .fontColor(this.primaryText())
+        Text('连接华为云 IoTDA，测试 IA01 灯、电机和设备影子。')
+          .fontSize(12)
+          .lineHeight(18)
+          .fontColor(this.secondaryText())
+          .margin({ top: 4 })
+      }
+      .alignItems(HorizontalAlign.Start)
+      .layoutWeight(1)
+
+      Button('打开')
+        .height(36)
+        .fontSize(13)
+        .fontWeight(FontWeight.Bold)
+        .fontColor('#FFFFFF')
+        .backgroundColor('#5E8CFF')
+        .borderRadius(18)
+        .padding({ left: 18, right: 18 })
+        .onClick(() => {
+          router.pushUrl({ url: 'pages/hardware/HuaweiCloudDemo', params: { isNight: this.isNight } });
+        })
+    }
+    .width('100%')
+    .padding({ left: 18, right: 18, top: 16, bottom: 16 })
+    .backgroundColor(this.cardColor())
+    .borderRadius(24)
+    .margin({ top: 16 })
   }
 
   @Builder
