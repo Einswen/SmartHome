@@ -100,6 +100,111 @@ struct StoreProductPage {
   }
 
   private productShots(product: ProductSpec): ProductShotSpec[] {
+    if (product.id === 'sensor_pro') {
+      return [
+        {
+          id: `${product.id}_front`,
+          mode: 0,
+          imageSize: 176,
+          offsetX: 0,
+          offsetY: 0,
+          bgStart: '#FFF2D7',
+          bgEnd: '#EAF2FF',
+          image: $r('app.media.store_sensor_pro')
+        },
+        {
+          id: `${product.id}_side`,
+          mode: 1,
+          imageSize: 178,
+          offsetX: 34,
+          offsetY: 2,
+          bgStart: '#EAF8F4',
+          bgEnd: '#F5F7FB',
+          image: $r('app.media.store_sensor_pro_side')
+        },
+        {
+          id: `${product.id}_angle`,
+          mode: 2,
+          imageSize: 178,
+          offsetX: -34,
+          offsetY: 2,
+          bgStart: '#EAF0FF',
+          bgEnd: '#FFF8EC',
+          image: $r('app.media.store_sensor_pro_angle')
+        }
+      ];
+    }
+
+    if (product.id === 'light_module') {
+      return [
+        {
+          id: `${product.id}_front`,
+          mode: 0,
+          imageSize: 176,
+          offsetX: 0,
+          offsetY: 0,
+          bgStart: '#FFF2D7',
+          bgEnd: '#EAF2FF',
+          image: $r('app.media.store_light_module')
+        },
+        {
+          id: `${product.id}_side`,
+          mode: 1,
+          imageSize: 178,
+          offsetX: 34,
+          offsetY: 2,
+          bgStart: '#EAF8F4',
+          bgEnd: '#F5F7FB',
+          image: $r('app.media.store_light_module_side')
+        },
+        {
+          id: `${product.id}_angle`,
+          mode: 2,
+          imageSize: 178,
+          offsetX: -34,
+          offsetY: 2,
+          bgStart: '#EAF0FF',
+          bgEnd: '#FFF8EC',
+          image: $r('app.media.store_light_module_angle')
+        }
+      ];
+    }
+
+    if (product.id === 'gesture_panel') {
+      return [
+        {
+          id: `${product.id}_front`,
+          mode: 0,
+          imageSize: 176,
+          offsetX: 0,
+          offsetY: 0,
+          bgStart: '#FFF2D7',
+          bgEnd: '#EAF2FF',
+          image: $r('app.media.store_gesture_panel')
+        },
+        {
+          id: `${product.id}_side`,
+          mode: 1,
+          imageSize: 178,
+          offsetX: 34,
+          offsetY: 2,
+          bgStart: '#EAF8F4',
+          bgEnd: '#F5F7FB',
+          image: $r('app.media.store_gesture_panel_side')
+        },
+        {
+          id: `${product.id}_angle`,
+          mode: 2,
+          imageSize: 178,
+          offsetX: -34,
+          offsetY: 2,
+          bgStart: '#EAF0FF',
+          bgEnd: '#FFF8EC',
+          image: $r('app.media.store_gesture_panel_angle')
+        }
+      ];
+    }
+
     if (product.id === 'robot_pack') {
       return [
         {
@@ -134,6 +239,42 @@ struct StoreProductPage {
         }
       ];
     }
+
+    if (product.id === 'gateway_m2') {
+      return [
+        {
+          id: `${product.id}_front`,
+          mode: 0,
+          imageSize: 176,
+          offsetX: 0,
+          offsetY: 0,
+          bgStart: '#FFF2D7',
+          bgEnd: '#EAF2FF',
+          image: $r('app.media.store_gateway_m2')
+        },
+        {
+          id: `${product.id}_side`,
+          mode: 1,
+          imageSize: 178,
+          offsetX: 34,
+          offsetY: 2,
+          bgStart: '#EAF8F4',
+          bgEnd: '#F5F7FB',
+          image: $r('app.media.store_gateway_m2_side')
+        },
+        {
+          id: `${product.id}_angle`,
+          mode: 2,
+          imageSize: 178,
+          offsetX: -34,
+          offsetY: 2,
+          bgStart: '#EAF0FF',
+          bgEnd: '#FFF8EC',
+          image: $r('app.media.store_gateway_m2_angle')
+        }
+      ];
+    }
+
     const shots: ProductShotSpec[] = [
       {
         id: `${product.id}_front`,
@@ -351,7 +492,7 @@ struct StoreProductPage {
           .borderRadius(16)
           .opacity(0.72)
           .translate({ x: -56, y: 0 })
-        Image(product.image)
+        Image(shot.image !== undefined ? shot.image : product.image)
           .width(shot.imageSize)
           .height(shot.imageSize)
           .objectFit(ImageFit.Contain)
@@ -365,7 +506,7 @@ struct StoreProductPage {
           .borderRadius(16)
           .opacity(0.72)
           .translate({ x: 56, y: 0 })
-        Image(product.image)
+        Image(shot.image !== undefined ? shot.image : product.image)
           .width(shot.imageSize)
           .height(shot.imageSize)
           .objectFit(ImageFit.Contain)

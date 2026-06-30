@@ -484,7 +484,7 @@ export struct P31_StoreHome {
         .width(82)
         .height(82)
         .objectFit(ImageFit.Contain)
-        .backgroundColor(this.softColor())
+        .backgroundColor('#00000000')
         .borderRadius(22)
 
       Column() {

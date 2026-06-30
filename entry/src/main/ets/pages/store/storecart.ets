@@ -341,7 +341,7 @@ struct StoreCartPage {
         .width(74)
         .height(74)
         .objectFit(ImageFit.Contain)
-        .backgroundColor(this.softColor())
+        .backgroundColor('#00000000')
         .borderRadius(20)
         .margin({ left: 12 })
       Column() {
