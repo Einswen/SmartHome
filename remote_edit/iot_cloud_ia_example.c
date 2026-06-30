@@ -21,6 +21,7 @@
 #include "lz_hardware.h"
 #include "config_network.h"
 #include "lcd.h"
+#include "scene_pictures.h"
 
 #define ROUTE_SSID                      "jackey"
 #define ROUTE_PASSWORD                  "19881988"
@@ -56,17 +57,51 @@ typedef struct
 static unsigned int m_ia_MsgQueue;
 static ia_status_t m_app_status;
 static int m_lcd_ready = 0;
+static int m_lcd_has_photo_bg = 0;
 
-static void ia_lcd_show_status(const char *line2, const char *line3)
+static void ia_lcd_clear_text_area(void)
+{
+    if (!m_lcd_has_photo_bg)
+    {
+        lcd_fill(0, 50, LCD_W, 160, LCD_WHITE);
+    }
+}
+
+static void ia_lcd_show_title(void)
+{
+    uint16_t color = m_lcd_has_photo_bg ? LCD_WHITE : LCD_BLUE;
+    uint8_t mode = m_lcd_has_photo_bg ? 1 : 0;
+
+    lcd_show_string(0, 20, (uint8_t *)"Smart Home", color, LCD_WHITE, 24, mode);
+}
+
+static void ia_lcd_show_scene(const uint8_t *picture, const char *line2, const char *line3)
 {
     if (!m_lcd_ready)
     {
         return;
     }
-    lcd_fill(0, 0, LCD_W, LCD_H, LCD_WHITE);
-    lcd_show_string(0, 20, (uint8_t *)"Smart Home", LCD_BLUE, LCD_WHITE, 24, 0);
-    lcd_show_string(0, 70, (uint8_t *)line2, LCD_RED, LCD_WHITE, 24, 0);
-    lcd_show_string(0, 120, (uint8_t *)line3, LCD_BLACK, LCD_WHITE, 24, 0);
+    lcd_show_picture(0, 0, SCENE_PIC_W, SCENE_PIC_H, picture);
+    m_lcd_has_photo_bg = 1;
+    ia_lcd_show_title();
+    lcd_show_string(0, 70, (uint8_t *)line2, LCD_WHITE, LCD_WHITE, 24, 1);
+    lcd_show_string(0, 120, (uint8_t *)line3, LCD_WHITE, LCD_WHITE, 24, 1);
+}
+
+static void ia_lcd_show_status(const char *line2, const char *line3)
+{
+    uint16_t color2 = m_lcd_has_photo_bg ? LCD_WHITE : LCD_RED;
+    uint16_t color3 = m_lcd_has_photo_bg ? LCD_WHITE : LCD_BLACK;
+    uint8_t mode = m_lcd_has_photo_bg ? 1 : 0;
+
+    if (!m_lcd_ready)
+    {
+        return;
+    }
+    ia_lcd_clear_text_area();
+    ia_lcd_show_title();
+    lcd_show_string(0, 70, (uint8_t *)line2, color2, LCD_WHITE, 24, mode);
+    lcd_show_string(0, 120, (uint8_t *)line3, color3, LCD_WHITE, 24, mode);
 }
 
 static void ia_lcd_show_sensor(ia_report_t *report)
@@ -77,8 +112,12 @@ static void ia_lcd_show_sensor(ia_report_t *report)
     {
         return;
     }
-    lcd_fill(0, 0, LCD_W, LCD_H, LCD_WHITE);
-    lcd_show_string(0, 20, (uint8_t *)"Smart Home", LCD_BLUE, LCD_WHITE, 24, 0);
+    if (m_lcd_has_photo_bg)
+    {
+        return;
+    }
+    ia_lcd_clear_text_area();
+    ia_lcd_show_title();
     snprintf(line, sizeof(line), "Temp:%dC Hum:%d", report->temp, report->hum);
     lcd_show_string(0, 70, (uint8_t *)line, LCD_BLACK, LCD_WHITE, 16, 0);
     snprintf(line, sizeof(line), "Light:%d", report->lum);
@@ -210,12 +249,14 @@ void ia_deal_cmd_msg(cmd_t *cmd)
             m_app_status.led = 1;
             light_set(ON);
             printf("Light On\n");
+            ia_lcd_show_scene(g_scene_morning_pic, "Good Morning", "Scene Ready");
         }
         else
         {
             m_app_status.led = 0;
             light_set(OFF);
             printf("Light Off\n");
+            ia_lcd_show_scene(g_scene_arrive_pic, "Welcome Home", "Scene Ready");
         }
         cmdret = 0;
     }
@@ -231,7 +272,17 @@ void ia_deal_cmd_msg(cmd_t *cmd)
         {
             goto EXIT;
         }
-        if (0 == strcmp(cJSON_GetStringValue(obj_para), "ON"))
+        if (0 == strcmp(cJSON_GetStringValue(obj_para), "MORNING_SCENE"))
+        {
+            printf("Scene Morning\n");
+            ia_lcd_show_scene(g_scene_morning_pic, "Good Morning", "Scene Ready");
+        }
+        else if (0 == strcmp(cJSON_GetStringValue(obj_para), "ARRIVE_SCENE"))
+        {
+            printf("Scene Arrive\n");
+            ia_lcd_show_scene(g_scene_arrive_pic, "Welcome Home", "Scene Ready");
+        }
+        else if (0 == strcmp(cJSON_GetStringValue(obj_para), "ON"))
         {
             m_app_status.motor = 1;
             motor_set_status(ON);

@@ -1658,6 +1658,36 @@ struct Index {
     for (let i = 0; i < presets.length; i++) {
       this.applyScenePreset(presets[i]);
     }
+    this.syncDeviceStates();
+    this.syncActiveState();
+    this.sendSceneToCloud(baseId);
+  }
+
+  private async sendSceneToCloud(baseId: string): Promise<void> {
+    let command = '';
+    let label = '';
+    if (baseId === 'morning') {
+      command = 'ON';
+      label = '早安场景';
+    } else if (baseId === 'arrive') {
+      command = 'OFF';
+      label = '回家场景';
+    } else {
+      return;
+    }
+
+    this.updateCloudDebug(`准备下发：${label}，复用紫光灯通道 Light=${command}`);
+    try {
+      await HuaweiCloudApi.sendLightCommand(command);
+      this.updateCloudDebug(`下发成功：${label}，Light=${command}`);
+    } catch (err) {
+      const errorMessage = this.debugErrorText(err as Object);
+      if (this.isCommandResponseTimeout(errorMessage)) {
+        this.updateCloudDebug(`命令已发送但设备响应超时：${label}。串口若已收到 Light=${command}，说明场景图片链路已通。原始错误：${errorMessage}`);
+        return;
+      }
+      this.reportCloudError(`场景下发失败：${label}，${errorMessage}`);
+    }
   }
 
   private pointBadge(point: PointSpec): string {
