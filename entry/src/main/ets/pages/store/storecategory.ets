@@ -50,10 +50,10 @@ struct StoreCategoryPage {
             if (this.showEmpty) {
               this.EmptyState()
             } else {
-              this.CategoryCard('传感与环境', '感知温湿度、光照、人体存在，用于精细化自动化。', $r('app.media.device_environment_sensor'), 'sensor_pro', '#19B7A4')
-              this.CategoryCard('灯光与氛围', '亮度、色温、场景联动，让客厅和卧室更舒适。', $r('app.media.device_living_light'), 'light_module', '#F3A33A')
-              this.CategoryCard('安防与控制', '网关、面板、门锁与异常告警服务。', $r('app.media.device_gesture_sensor'), 'gesture_panel', '#5E8CFF')
-              this.CategoryCard('清洁与耗材', '扫地机器人维护套装、净化器滤芯和电池。', $r('app.media.device_living_robot'), 'robot_pack', '#7F72F2')
+              this.CategoryCard('传感与环境', '感知温湿度、光照、人体存在，用于精细化自动化。', $r('app.media.store_sensor_pro'), 'sensor_pro', '#19B7A4')
+              this.CategoryCard('灯光与氛围', '亮度、色温、场景联动，让客厅和卧室更舒适。', $r('app.media.store_light_module'), 'light_module', '#F3A33A')
+              this.CategoryCard('安防与控制', '网关、面板、门锁与异常告警服务。', $r('app.media.store_gesture_panel'), 'gesture_panel', '#5E8CFF')
+              this.CategoryCard('清洁与耗材', '扫地机器人维护套装、净化器滤芯和电池。', $r('app.media.store_robot_pack'), 'robot_pack', '#7F72F2')
             }
           }
           .width('100%')

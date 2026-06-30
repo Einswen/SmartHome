@@ -10,7 +10,6 @@ struct MyLoginPage {
   @State phone: string = '13888888888';
   @State password: string = '123456';
   @State agreed: boolean = true;
-  @State networkFailed: boolean = false;
   @State loginSuccess: boolean = false;
   @State passwordFocused: boolean = false;
   @State isNight: boolean = false;
@@ -48,7 +47,7 @@ struct MyLoginPage {
   }
 
   private canLogin(): boolean {
-    return this.agreed && this.phone.trim().length >= 6 && this.password.length >= 6 && !this.networkFailed;
+    return this.agreed && this.phone.trim().length >= 6 && this.password.length >= 6;
   }
 
   private handleLogin(): void {
@@ -63,21 +62,17 @@ struct MyLoginPage {
     Stack() {
       Column() {
         this.TopBar()
-        if (this.networkFailed) {
-          this.NetworkState()
-        } else {
-          Scroll() {
-            Column() {
-              this.Hero()
-              this.FormCard()
-              this.SecurityTips()
-            }
-            .width('100%')
-            .padding({ left: 18, right: 18, bottom: 28 })
+        Scroll() {
+          Column() {
+            this.Hero()
+            this.FormCard()
+            this.SecurityTips()
           }
-          .layoutWeight(1)
-          .scrollBar(BarState.Off)
+          .width('100%')
+          .padding({ left: 18, right: 18, bottom: 28 })
         }
+        .layoutWeight(1)
+        .scrollBar(BarState.Off)
       }
       .width('100%')
       .height('100%')
@@ -317,38 +312,6 @@ struct MyLoginPage {
       .backgroundColor(this.softColor())
       .borderRadius(15)
       .margin({ right: 8 })
-  }
-
-  @Builder
-  NetworkState() {
-    Column() {
-      Blank().height(86)
-      Text('登录服务不可用')
-        .fontSize(23)
-        .fontWeight(FontWeight.Bold)
-        .fontColor(this.primaryText())
-      Text('当前网络异常，暂时无法校验账号密码。你仍可返回查看本地缓存家庭。')
-        .fontSize(13)
-        .lineHeight(21)
-        .fontColor(this.secondaryText())
-        .textAlign(TextAlign.Center)
-        .margin({ left: 36, right: 36, top: 10 })
-      Button('重试')
-        .height(42)
-        .fontSize(14)
-        .fontWeight(FontWeight.Bold)
-        .fontColor('#FFFFFF')
-        .backgroundColor('#5E8CFF')
-        .borderRadius(21)
-        .padding({ left: 24, right: 24 })
-        .margin({ top: 22 })
-        .onClick(() => {
-          this.networkFailed = false;
-        })
-    }
-    .layoutWeight(1)
-    .width('100%')
-    .alignItems(HorizontalAlign.Center)
   }
 
   @Builder

@@ -32,7 +32,6 @@ const PRIVACY_ROWS: SettingRowSpec[] = [
 @Entry
 @Component
 struct MySettingsPage {
-  @State networkFailed: boolean = false;
   @State activeTab: string = 'security';
   @StorageLink('myPrefPushEnabled') pushEnabled: boolean = true;
   @StorageLink('myPrefAutoUpgrade') autoUpgrade: boolean = false;
@@ -106,22 +105,18 @@ struct MySettingsPage {
     Column() {
       this.TopBar()
 
-      if (this.networkFailed) {
-        this.NetworkState()
-      } else {
-        Scroll() {
-          Column() {
-            this.SecurityCard()
-            this.TabBar()
-            this.SettingList()
-            this.PreferenceCard()
-          }
-          .width('100%')
-          .padding({ left: 18, right: 18, bottom: 28 })
+      Scroll() {
+        Column() {
+          this.SecurityCard()
+          this.TabBar()
+          this.SettingList()
+          this.PreferenceCard()
         }
-        .layoutWeight(1)
-        .scrollBar(BarState.Off)
+        .width('100%')
+        .padding({ left: 18, right: 18, bottom: 28 })
       }
+      .layoutWeight(1)
+      .scrollBar(BarState.Off)
     }
     .width('100%')
     .height('100%')
@@ -268,7 +263,7 @@ struct MySettingsPage {
         .width('100%')
         .margin({ bottom: 12 })
 
-      this.SwitchRow('重要告警推送', '断网、漏水、门锁异常立即提醒', 'push')
+      this.SwitchRow('重要告警推送', '漏水、门锁异常立即提醒', 'push')
       this.SwitchRow('夜间自动升级', '低峰时段静默升级设备固件', 'upgrade')
       this.SwitchRow('跟随家庭关灯', '夜间模式同步商城和我的页面深色视觉', 'dark')
       this.SwitchRow('商城服务提醒', '订单、耗材和售后工单低频提醒', 'mall')
@@ -316,35 +311,4 @@ struct MySettingsPage {
     })
   }
 
-  @Builder
-  NetworkState() {
-    Column() {
-      Blank().height(86)
-      Text('设置同步失败')
-        .fontSize(23)
-        .fontWeight(FontWeight.Bold)
-        .fontColor(this.primaryText())
-      Text('当前展示的是本地缓存，账号安全和授权状态暂时无法更新。')
-        .fontSize(13)
-        .lineHeight(21)
-        .fontColor(this.secondaryText())
-        .textAlign(TextAlign.Center)
-        .margin({ left: 36, right: 36, top: 10 })
-      Button('重新同步')
-        .height(42)
-        .fontSize(14)
-        .fontWeight(FontWeight.Bold)
-        .fontColor('#FFFFFF')
-        .backgroundColor('#7F72F2')
-        .borderRadius(21)
-        .padding({ left: 24, right: 24 })
-        .margin({ top: 22 })
-        .onClick(() => {
-          this.networkFailed = false;
-        })
-    }
-    .layoutWeight(1)
-    .width('100%')
-    .alignItems(HorizontalAlign.Center)
-  }
 }

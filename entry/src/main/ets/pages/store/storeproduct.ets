@@ -29,14 +29,15 @@ interface ProductShotSpec {
   offsetY: number;
   bgStart: string;
   bgEnd: string;
+  image?: Resource;
 }
 
 const PRODUCT_LIST: ProductSpec[] = [
-  { id: 'sensor_pro', title: '环境传感器 Pro', desc: '温湿度、光照、人体存在三合一，可触发空调、窗帘与灯光联动。', price: '¥199', image: $r('app.media.device_environment_sensor'), tag: '套装推荐', scene: '客厅 / 卧室' },
-  { id: 'light_module', title: '智能照明模块', desc: '支持亮度、色温与场景联动，适合全屋灯光升级。', price: '¥129', image: $r('app.media.device_living_light'), tag: '热卖', scene: '客厅主灯' },
-  { id: 'gesture_panel', title: '手势控制面板', desc: '无接触切换回家、观影、睡眠等高频场景。', price: '¥299', image: $r('app.media.device_gesture_sensor'), tag: '新品', scene: '玄关 / 客厅' },
-  { id: 'robot_pack', title: '清洁维护套装', desc: '扫地机器人主刷、边刷、滤网组合装。', price: '¥89', image: $r('app.media.device_living_robot'), tag: '耗材', scene: '扫地机器人' },
-  { id: 'gateway_m2', title: 'Lumi 网关 M2', desc: '蓝牙 Mesh 与 Zigbee 双协议接入，覆盖主流智能设备。', price: '¥369', image: $r('app.media.device_lumi_gateway'), tag: '中枢', scene: '全屋' },
+  { id: 'sensor_pro', title: '环境传感器 Pro', desc: '温湿度、光照、人体存在三合一，可触发空调、窗帘与灯光联动。', price: '¥199', image: $r('app.media.store_sensor_pro'), tag: '套装推荐', scene: '客厅 / 卧室' },
+  { id: 'light_module', title: '智能照明模块', desc: '支持亮度、色温与场景联动，适合全屋灯光升级。', price: '¥129', image: $r('app.media.store_light_module'), tag: '热卖', scene: '客厅主灯' },
+  { id: 'gesture_panel', title: '手势控制面板', desc: '无接触切换回家、观影、睡眠等高频场景。', price: '¥299', image: $r('app.media.store_gesture_panel'), tag: '新品', scene: '玄关 / 客厅' },
+  { id: 'robot_pack', title: '清洁维护套装', desc: '扫地机器人主刷、边刷、滤网组合装。', price: '¥89', image: $r('app.media.store_robot_pack'), tag: '耗材', scene: '扫地机器人' },
+  { id: 'gateway_m2', title: 'Lumi 网关 M2', desc: '蓝牙 Mesh 与 Zigbee 双协议接入，覆盖主流智能设备。', price: '¥369', image: $r('app.media.store_gateway_m2'), tag: '中枢', scene: '全屋' },
   { id: 'filter', title: '净化器滤芯', desc: '高效过滤颗粒物和异味，建议每 6 个月更换。', price: '¥159', image: $r('app.media.device_living_purifier'), tag: '订阅省 15%', scene: '空气净化器' }
   ,
   { id: 'living_curtain_motor', title: '智能窗帘电机', desc: '适配客厅西侧窗帘，可接入日照跟随和观影联动。', price: '¥249', image: $r('app.media.device_living_curtain'), tag: '联动', scene: '客厅窗帘' },
@@ -99,6 +100,40 @@ struct StoreProductPage {
   }
 
   private productShots(product: ProductSpec): ProductShotSpec[] {
+    if (product.id === 'robot_pack') {
+      return [
+        {
+          id: `${product.id}_full`,
+          mode: 3,
+          imageSize: 188,
+          offsetX: 0,
+          offsetY: -2,
+          bgStart: '#FFF2D7',
+          bgEnd: '#EAF2FF',
+          image: $r('app.media.store_robot_pack_full')
+        },
+        {
+          id: `${product.id}_brush`,
+          mode: 4,
+          imageSize: 188,
+          offsetX: 0,
+          offsetY: -4,
+          bgStart: '#EAF0FF',
+          bgEnd: '#FFF8EC',
+          image: $r('app.media.store_robot_pack_brush')
+        },
+        {
+          id: `${product.id}_filter`,
+          mode: 5,
+          imageSize: 196,
+          offsetX: 0,
+          offsetY: 4,
+          bgStart: '#FFF6E8',
+          bgEnd: '#EAF8F4',
+          image: $r('app.media.store_robot_pack_filter')
+        }
+      ];
+    }
     const shots: ProductShotSpec[] = [
       {
         id: `${product.id}_front`,
@@ -338,7 +373,7 @@ struct StoreProductPage {
           .translate({ x: shot.offsetX, y: shot.offsetY })
       } else if (shot.mode === 3) {
         Stack({ alignContent: Alignment.Center }) {
-          Image(product.image)
+          Image(shot.image !== undefined ? shot.image : product.image)
             .width(shot.imageSize)
             .height(shot.imageSize)
             .objectFit(ImageFit.Contain)
@@ -348,6 +383,32 @@ struct StoreProductPage {
         .height(176)
         .clip(true)
         .borderRadius(28)
+      } else if (shot.mode === 4) {
+        Column()
+          .width(62)
+          .height(126)
+          .linearGradient({ angle: 90, colors: this.isNight ? [['#273241', 0.0], ['#131A22', 1.0]] : [['#EEF3FF', 0.0], ['#FFFFFF', 1.0]] })
+          .borderRadius(20)
+          .opacity(0.78)
+          .translate({ x: 58, y: -4 })
+        Image(shot.image !== undefined ? shot.image : product.image)
+          .width(shot.imageSize)
+          .height(shot.imageSize)
+          .objectFit(ImageFit.Contain)
+          .translate({ x: shot.offsetX, y: shot.offsetY })
+      } else if (shot.mode === 5) {
+        Column()
+          .width(62)
+          .height(126)
+          .linearGradient({ angle: 90, colors: this.isNight ? [['#131A22', 0.0], ['#273241', 1.0]] : [['#FFFFFF', 0.0], ['#EEF3FF', 1.0]] })
+          .borderRadius(20)
+          .opacity(0.78)
+          .translate({ x: -58, y: -4 })
+        Image(shot.image !== undefined ? shot.image : product.image)
+          .width(shot.imageSize)
+          .height(shot.imageSize)
+          .objectFit(ImageFit.Contain)
+          .translate({ x: shot.offsetX, y: shot.offsetY })
       } else {
         Circle()
           .width(130)
@@ -355,7 +416,7 @@ struct StoreProductPage {
           .fill(this.isNight ? '#262C36' : '#F8FAFD')
           .opacity(0.72)
           .translate({ x: 0, y: 32 })
-        Image(product.image)
+        Image(shot.image !== undefined ? shot.image : product.image)
           .width(shot.imageSize)
           .height(shot.imageSize)
           .objectFit(ImageFit.Contain)
