@@ -52,6 +52,9 @@ export struct P21_MyProfile {
   @State pressedKey: string = '';
   @State activeHomeIndex: number = 0;
   @StorageLink('lumiUserSignedIn') signedIn: boolean = false;
+  @StorageLink('lumiAuthToken') authToken: string = '';
+  @StorageLink('lumiUserPhone') signedPhone: string = '';
+  @StorageLink('lumiUserName') signedName: string = '';
   @StorageLink('homeLivingDeviceCount') livingDeviceCount: number = 6;
 
   private primaryText(): string {
@@ -118,7 +121,6 @@ export struct P21_MyProfile {
     Scroll() {
       Column() {
         this.ProfileHeader()
-        this.HomeSwitcher()
         this.CommonFeatureBoard()
         this.HealthSummary()
         this.ServiceGrid()
@@ -170,16 +172,23 @@ export struct P21_MyProfile {
       .alignItems(HorizontalAlign.Start)
       .layoutWeight(1)
 
-      Button(this.signedIn ? '已登录' : '登录')
+      Button(this.signedIn ? '退出登录' : '登录')
         .height(36)
         .fontSize(12)
         .fontWeight(FontWeight.Bold)
-        .fontColor(this.signedIn ? this.secondaryText() : '#FFFFFF')
-        .backgroundColor(this.signedIn ? this.softPanelColor() : '#11151D')
+        .fontColor(this.signedIn ? '#D35B4B' : '#FFFFFF')
+        .backgroundColor(this.signedIn ? (this.isNight ? '#33D35B4B' : '#FFF1EF') : '#11151D')
         .borderRadius(18)
         .padding({ left: 14, right: 14 })
         .onClick(() => {
-          safePushUrl(this.getUIContext().getRouter(), { url: 'pages/my/mylogin', params: { isNight: this.isNight } });
+          if (this.signedIn) {
+            this.signedIn = false;
+            this.authToken = '';
+            this.signedPhone = '';
+            this.signedName = '';
+          } else {
+            safePushUrl(this.getUIContext().getRouter(), { url: 'pages/my/mylogin', params: { isNight: this.isNight } });
+          }
         })
     }
     .width('100%')
@@ -354,11 +363,11 @@ export struct P21_MyProfile {
       .width('100%')
 
       Row() {
-        this.HealthMetric('在线率', this.activeHome().health, '#35D27A')
+        this.HealthMetric('在线率', '96%', '#35D27A')
         Blank().width(8)
-        this.HealthMetric('异常设备', this.activeHomeIndex === 0 ? '0' : '1', '#F3A33A')
+        this.HealthMetric('异常设备', '0', '#F3A33A')
         Blank().width(8)
-        this.HealthMetric('自动化', this.activeHomeIndex === 0 ? '26' : '12', '#5E8CFF')
+        this.HealthMetric('自动化', '26', '#5E8CFF')
       }
       .width('100%')
       .margin({ top: 14 })

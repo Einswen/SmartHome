@@ -77,6 +77,15 @@ struct MyLoginPage {
     this.loginSuccess = true;
   }
 
+  private handleLogout(): void {
+    this.signedIn = false;
+    this.loginSuccess = false;
+    this.authToken = '';
+    this.signedPhone = '';
+    this.signedName = '';
+    this.networkFailed = false;
+  }
+
   build() {
     Stack() {
       Column() {
@@ -87,6 +96,9 @@ struct MyLoginPage {
           Scroll() {
             Column() {
               this.Hero()
+              if (this.signedIn) {
+                this.AccountStateCard()
+              }
               this.FormCard()
               this.SecurityTips()
             }
@@ -174,6 +186,25 @@ struct MyLoginPage {
   @Builder
   FormCard() {
     Column() {
+      if (this.signedIn) {
+        Text('当前账号')
+          .fontSize(13)
+          .fontWeight(FontWeight.Bold)
+          .fontColor(this.primaryText())
+          .width('100%')
+        Text(this.phone)
+          .fontSize(18)
+          .fontWeight(FontWeight.Bold)
+          .fontColor(this.primaryText())
+          .margin({ top: 8 })
+          .width('100%')
+        Text('退出后将停止同步家庭、设备、商城订单和授权偏好。')
+          .fontSize(12)
+          .lineHeight(19)
+          .fontColor(this.secondaryText())
+          .margin({ top: 8 })
+          .width('100%')
+      } else {
       Text('手机号')
         .fontSize(13)
         .fontWeight(FontWeight.Bold)
@@ -263,6 +294,7 @@ struct MyLoginPage {
       }
       .width('100%')
       .margin({ top: 14 })
+      }
     }
     .width('100%')
     .padding({ left: 18, right: 18, top: 18, bottom: 18 })
@@ -270,6 +302,41 @@ struct MyLoginPage {
     .borderRadius(24)
     .margin({ top: 16 })
     .shadow({ radius: 18, color: this.isNight ? '#66000000' : '#12151C20', offsetY: 8 })
+  }
+
+  @Builder
+  AccountStateCard() {
+    Row() {
+      Column() {
+        Text('已登录')
+          .fontSize(18)
+          .fontWeight(FontWeight.Bold)
+          .fontColor(this.primaryText())
+        Text('Lumi 家庭数据正在同步')
+          .fontSize(12)
+          .fontColor(this.secondaryText())
+          .margin({ top: 6 })
+      }
+      .alignItems(HorizontalAlign.Start)
+      .layoutWeight(1)
+
+      Button('退出登录')
+        .height(36)
+        .fontSize(12)
+        .fontWeight(FontWeight.Bold)
+        .fontColor('#D35B4B')
+        .backgroundColor(this.isNight ? '#33D35B4B' : '#FFF1EF')
+        .borderRadius(18)
+        .padding({ left: 14, right: 14 })
+        .onClick(() => {
+          this.handleLogout();
+        })
+    }
+    .width('100%')
+    .padding({ left: 18, right: 18, top: 16, bottom: 16 })
+    .backgroundColor(this.cardColor())
+    .borderRadius(24)
+    .margin({ top: 16 })
   }
 
   @Builder
@@ -371,33 +438,33 @@ struct MyLoginPage {
 
   @Builder
   SuccessDialog() {
-    Stack() {
+    Stack({ alignContent: Alignment.Center }) {
       Column()
         .width('100%')
         .height('100%')
-        .backgroundColor(this.isNight ? '#99000000' : '#66000000')
+        .backgroundColor(this.isNight ? '#52000000' : '#26000000')
 
       Column() {
-        Stack() {
-          Circle()
-            .width(64)
-            .height(64)
-            .fill('#F3A33A')
-          Text('√')
-            .fontSize(31)
-            .fontWeight(FontWeight.Bold)
-            .fontColor('#FFFFFF')
-        }
-        .width(64)
-        .height(64)
+      Stack() {
+        Circle()
+          .width(58)
+          .height(58)
+          .fill('#35D27A')
+        Text('√')
+          .fontSize(28)
+          .fontWeight(FontWeight.Bold)
+          .fontColor('#FFFFFF')
+      }
+      .width(58)
+      .height(58)
 
         Text('登录成功')
-          .fontSize(23)
+          .fontSize(22)
           .fontWeight(FontWeight.Bold)
           .fontColor(this.primaryText())
           .margin({ top: 16 })
 
-        Text('Lumi 家庭数据已同步，设备、购物车、订单与授权偏好已更新。')
+        Text('家庭、设备、购物车和授权偏好已同步')
           .fontSize(13)
           .lineHeight(21)
           .fontColor(this.secondaryText())
@@ -406,23 +473,24 @@ struct MyLoginPage {
 
         Button('进入我的')
           .width('100%')
-          .height(44)
-          .fontSize(15)
+          .height(42)
+          .fontSize(14)
           .fontWeight(FontWeight.Bold)
-          .fontColor('#FFFFFF')
-          .backgroundColor('#11151D')
-          .borderRadius(22)
-          .margin({ top: 22 })
+          .fontColor(this.isNight ? '#11151D' : '#FFFFFF')
+          .backgroundColor(this.isNight ? '#F5F7FB' : '#11151D')
+          .borderRadius(21)
+          .margin({ top: 20 })
           .onClick(() => {
             safeBack(this.getUIContext().getRouter());
           })
       }
-      .width('82%')
-      .padding({ left: 22, right: 22, top: 26, bottom: 22 })
-      .backgroundColor(this.cardColor())
-      .borderRadius(28)
+      .width('78%')
+      .padding({ left: 22, right: 22, top: 24, bottom: 22 })
+      .backgroundColor(this.isNight ? '#D91A1E25' : '#EFFFFFFF')
+      .border({ width: 1, color: this.lineColor() })
+      .borderRadius(26)
       .alignItems(HorizontalAlign.Center)
-      .shadow({ radius: 28, color: '#55000000', offsetY: 12 })
+      .shadow({ radius: 26, color: this.isNight ? '#AA000000' : '#33000000', offsetY: 12 })
     }
     .width('100%')
     .height('100%')
