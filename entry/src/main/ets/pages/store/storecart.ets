@@ -46,7 +46,6 @@ struct StoreCartPage {
   @StorageLink('cartAddedProductId') cartAddedProductId: string = '';
   @StorageLink('cartAddedCount') cartAddedCount: number = 0;
   @StorageLink('cartLinePayload') cartLinePayload: string = '';
-  @StorageLink('storePendingOrderPayload') pendingOrderPayload: string = '';
 
   aboutToAppear(): void {
     const params = safeGetParams(this.getUIContext().getRouter()) as CartRouteParams | undefined;
@@ -70,15 +69,15 @@ struct StoreCartPage {
   }
 
   private bgColor(): string {
-    return this.isNight ? '#060709' : '#F2F4F8';
+    return this.isNight ? '#070A0F' : '#F4F6FA';
   }
 
   private cardColor(): string {
-    return this.isNight ? '#731F232A' : '#B8FFFFFF';
+    return this.isNight ? '#D9151A22' : '#FFFFFF';
   }
 
   private softColor(): string {
-    return this.isNight ? '#73161A20' : '#B8EFF2F7';
+    return this.isNight ? '#661F2632' : '#F0F4FA';
   }
 
   private items(): CartItemSpec[] {
@@ -183,11 +182,8 @@ struct StoreCartPage {
     if (id === 'bedroom_air_guard') {
       return 169;
     }
-    if (id === 'door_sensor') {
-      return 99;
-    }
-    if (id === 'robot_dock') {
-      return 139;
+    if (id === 'door_lock_battery') {
+      return 69;
     }
     return 0;
   }
@@ -202,15 +198,6 @@ struct StoreCartPage {
       total += this.priceNumber(currentItems[i].id) * currentItems[i].count;
     }
     return `¥${total}`;
-  }
-
-  private savePendingOrder(): void {
-    const currentItems: CartItemSpec[] = this.items();
-    const parts: string[] = [];
-    for (let i = 0; i < currentItems.length; i++) {
-      parts.push(`${currentItems[i].id}:${currentItems[i].count}`);
-    }
-    this.pendingOrderPayload = parts.join(';');
   }
 
   build() {
@@ -318,7 +305,7 @@ struct StoreCartPage {
     }
     .width('100%')
     .padding({ left: 20, right: 20, top: 20, bottom: 20 })
-    .linearGradient({ angle: 135, colors: this.isNight ? [['#1B2432', 0.0], ['#111820', 0.62], ['#23342D', 1.0]] : [['#FFF2D7', 0.0], ['#B8FFFFFF', 0.64], ['#EAF8F4', 1.0]] })
+    .linearGradient({ angle: 135, colors: this.isNight ? [['#1B2432', 0.0], ['#111820', 0.62], ['#23342D', 1.0]] : [['#FFF2D7', 0.0], ['#FFFFFF', 0.64], ['#EAF8F4', 1.0]] })
     .borderRadius(26)
   }
 
@@ -354,7 +341,7 @@ struct StoreCartPage {
         .width(74)
         .height(74)
         .objectFit(ImageFit.Contain)
-        .backgroundColor('#FFFFFF')
+        .backgroundColor('#00000000')
         .borderRadius(20)
         .margin({ left: 12 })
       Column() {
@@ -417,7 +404,6 @@ struct StoreCartPage {
         .padding({ left: 24, right: 24 })
         .onClick(() => {
           if (this.selectedAll && this.items().length > 0) {
-            this.savePendingOrder();
             this.checkoutDone = true;
           }
         })
