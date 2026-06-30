@@ -1,4 +1,14 @@
 ﻿import { safeGetParams, safePushUrl } from '../common/SafeRouter';
+import {
+  fetchHomeState,
+  SmartHomeApiResult,
+  SmartHomeState,
+  submitDeviceAction,
+  updateActiveState,
+  updateDeviceState,
+  updateHomeSection,
+  updateRoomDevices
+} from '../common/SmartHomeApi';
 import { DeviceDetailPages } from '../components/DeviceDetailPages';
 import { P31_StoreHome } from './store/storehome';
 import { P21_MyProfile } from './my/myprofile';
@@ -79,6 +89,25 @@ interface DynamicDeviceStateSpec {
   pointId: string;
   on: boolean;
   value: number;
+}
+
+interface BackendRoomPayload {
+  id?: string;
+  name?: string;
+  subtitle?: string;
+  templateId?: string;
+  preset?: boolean;
+}
+
+interface BackendRoomDevicesPayload {
+  roomId?: string;
+  pointIds?: string[];
+}
+
+interface BackendDeviceStatePayload {
+  pointId?: string;
+  on?: boolean;
+  value?: number;
 }
 
 interface IndexRouteParams {
@@ -294,10 +323,12 @@ struct Index {
   @StorageLink('homeLivingRobotOn') livingRobotOn: boolean = false;
   @State bedroomRobotOn: boolean = false;
   @State bedroomDoorLocked: boolean = true;
+  @StorageLink('lumiAuthToken') authToken: string = '';
+  @StorageLink('lumiHomeState') homeStateText: string = '';
   private clockTimer: number = -1;
+  private appliedHomeStateText: string = '';
 
   aboutToAppear(): void {
-    this.loadLivingDevicesFromStorage();
     const params = safeGetParams(this.getUIContext().getRouter()) as IndexRouteParams | undefined;
     if (params && params.activeTab !== undefined) {
       this.activeTab = params.activeTab;
@@ -317,6 +348,12 @@ struct Index {
     } catch {
       this.clockTimer = -1;
     }
+    this.loadBackendState();
+  }
+
+  onPageShow(): void {
+    this.applyStoredHomeState();
+    this.loadBackendState();
   }
 
   aboutToDisappear(): void {
@@ -327,6 +364,139 @@ struct Index {
       }
       this.clockTimer = -1;
     }
+  }
+
+  private async loadBackendState(): Promise<void> {
+    this.applyStoredHomeState();
+    if (this.authToken.trim().length === 0) {
+      return;
+    }
+    const result = await fetchHomeState(this.authToken);
+    if (!result.ok || result.data === undefined) {
+      return;
+    }
+    this.rememberBackendState(result.data);
+    this.applyBackendState(result.data);
+  }
+
+  private rememberBackendState(state: SmartHomeState): void {
+    const stateText = JSON.stringify(state);
+    this.appliedHomeStateText = stateText;
+    this.homeStateText = stateText;
+  }
+
+  private rememberSyncedState(result: SmartHomeApiResult<SmartHomeState>): void {
+    if (result.ok && result.data !== undefined) {
+      this.rememberBackendState(result.data);
+    }
+  }
+
+  private applyStoredHomeState(): void {
+    if (this.homeStateText.length === 0 || this.homeStateText === this.appliedHomeStateText) {
+      return;
+    }
+    try {
+      const state = JSON.parse(this.homeStateText) as SmartHomeState;
+      this.appliedHomeStateText = this.homeStateText;
+      this.applyBackendState(state);
+    } catch {
+    }
+  }
+
+  private applyBackendState(state: SmartHomeState): void {
+    const rooms = this.backendRooms(state.rooms);
+    if (rooms.length > 0) {
+      this.rooms = rooms;
+    }
+    const roomDevices = this.backendRoomDevices(state.roomDevices);
+    if (roomDevices.length > 0) {
+      this.roomDevices = roomDevices;
+    }
+    const deviceStates = this.backendDeviceStates(state.deviceStates);
+    if (deviceStates.length > 0) {
+      this.dynamicDeviceStates = deviceStates;
+    }
+    if (state.scenes.length > 0) {
+      this.scenes = state.scenes as SceneSpec[];
+    }
+    if (state.automations.length > 0) {
+      this.automations = state.automations as AutomationSpec[];
+    }
+    this.agentRecords = state.agentRecords as AgentRecordSpec[];
+    this.chatMessages = state.agentMessages as AgentMessageSpec[];
+    this.activeRoomId = state.activeRoomId;
+    this.activeSceneId = state.activeSceneId;
+    this.isNight = state.isNight;
+    this.manualPeriod = state.manualPeriod;
+    this.homeRoomSwiperIndex = this.roomIndexById(this.activeRoomId);
+    this.syncLivingDevicesToStorage();
+    this.selectionVersion++;
+  }
+
+  private backendRooms(payload: Object[]): RoomSpec[] {
+    const rooms: RoomSpec[] = [];
+    for (let i = 0; i < payload.length; i++) {
+      const item = payload[i] as BackendRoomPayload;
+      if (item.id === undefined || item.name === undefined) {
+        continue;
+      }
+      const presetRoom = this.presetRoomById(item.id);
+      rooms.push({
+        id: item.id,
+        name: item.name,
+        subtitle: item.subtitle === undefined ? presetRoom.subtitle : item.subtitle,
+        templateId: item.templateId === undefined ? presetRoom.templateId : item.templateId,
+        images: presetRoom.images,
+        preset: item.preset === undefined ? presetRoom.preset : item.preset
+      });
+    }
+    return rooms;
+  }
+
+  private presetRoomById(roomId: string): RoomSpec {
+    for (let i = 0; i < ROOMS.length; i++) {
+      if (ROOMS[i].id === roomId) {
+        return ROOMS[i];
+      }
+    }
+    return {
+      id: roomId,
+      name: roomId,
+      subtitle: '自定义房间',
+      templateId: 'custom',
+      preset: false
+    };
+  }
+
+  private backendRoomDevices(payload: Object[]): RoomDeviceState[] {
+    const roomDevices: RoomDeviceState[] = [];
+    for (let i = 0; i < payload.length; i++) {
+      const item = payload[i] as BackendRoomDevicesPayload;
+      if (item.roomId === undefined || item.pointIds === undefined) {
+        continue;
+      }
+      roomDevices.push({
+        roomId: item.roomId,
+        pointIds: item.pointIds
+      });
+    }
+    return roomDevices;
+  }
+
+  private backendDeviceStates(payload: Object[]): DynamicDeviceStateSpec[] {
+    const states: DynamicDeviceStateSpec[] = [];
+    for (let i = 0; i < payload.length; i++) {
+      const item = payload[i] as BackendDeviceStatePayload;
+      if (item.pointId === undefined) {
+        continue;
+      }
+      states.push({
+        pointId: item.pointId,
+        on: item.on === undefined ? true : item.on,
+        value: item.value === undefined ? 0 : item.value
+      });
+    }
+    return states;
   }
 
   private applyAutoPeriod(): void {
@@ -684,9 +854,6 @@ struct Index {
   }
 
   private installedPointIds(roomId: string): string[] {
-    if (roomId === 'living') {
-      return this.livingPointIdsText.length > 0 ? this.livingPointIdsText.split('|').filter((id: string) => id.length > 0) : [];
-    }
     for (let i = 0; i < this.roomDevices.length; i++) {
       if (this.roomDevices[i].roomId === roomId) {
         return this.roomDevices[i].pointIds;
@@ -1072,6 +1239,7 @@ struct Index {
     this.addScenePanelVisible = false;
     this.devicePanelMode = '';
     this.selectionVersion++;
+    this.syncActiveState();
   }
 
   private roomIndexById(roomId: string): number {
@@ -1087,6 +1255,7 @@ struct Index {
     this.homeRoomSwiperIndex = index;
     if (index < this.rooms.length) {
       this.activeRoomId = this.rooms[index].id;
+      this.syncActiveState();
     }
     this.selectedPointId = '';
     this.detailPointId = '';
@@ -1163,6 +1332,7 @@ struct Index {
     this.scenes = [...this.scenes, nextScene];
     this.activeSceneId = nextScene.id;
     this.applyScene(nextScene.id);
+    this.syncHomeSection('scenes', this.scenes);
     this.addScenePanelVisible = false;
   }
 
@@ -1183,6 +1353,7 @@ struct Index {
     this.scenes = [...this.scenes, nextScene];
     this.activeSceneId = nextScene.id;
     this.applyScene(nextScene.id);
+    this.syncHomeSection('scenes', this.scenes);
     this.editingSceneId = '';
     this.customSceneName = '';
     this.customSceneDetail = '';
@@ -1239,6 +1410,7 @@ struct Index {
     this.scenes = nextScenes;
     this.activeSceneId = this.editingSceneId;
     this.applyScene(this.editingSceneId);
+    this.syncHomeSection('scenes', this.scenes);
     this.editingSceneId = '';
     this.customSceneName = '';
     this.customSceneDetail = '';
@@ -1285,6 +1457,7 @@ struct Index {
         this.selectedPointId = '';
         this.detailPointId = '';
         this.selectionVersion++;
+        this.syncRooms();
         return;
       }
     }
@@ -1315,11 +1488,13 @@ struct Index {
     this.selectedPointId = '';
     this.detailPointId = '';
     this.selectionVersion++;
+    this.syncRooms();
   }
 
   private togglePeriodForDebug(): void {
     this.manualPeriod = true;
     this.isNight = !this.isNight;
+    this.syncActiveState();
   }
 
   private openPointDetail(pointId: string): void {
@@ -1654,6 +1829,8 @@ struct Index {
     for (let i = 0; i < presets.length; i++) {
       this.applyScenePreset(presets[i]);
     }
+    this.syncDeviceStates();
+    this.syncActiveState();
   }
 
   private pointBadge(point: PointSpec): string {
@@ -1731,17 +1908,71 @@ struct Index {
     const point = this.pointById(pointId);
     if (point.action === 'temperature') {
       this.adjustPoint(point.id, 1);
+      this.syncDeviceAction(point.id, 'temperature');
       return;
     }
     if (point.action === 'curtain') {
       this.setDetailValue(point, this.detailValue(point) >= 100 ? 0 : 100);
+      this.syncDeviceAction(point.id, 'curtain');
       return;
     }
     if (point.action === 'light' || point.action === 'toggle') {
       this.togglePoint(point.id);
+      this.syncDeviceAction(point.id, point.action);
       return;
     }
     this.openPointDetail(point.id);
+  }
+
+  private async syncDeviceAction(pointId: string, actionType: string): Promise<void> {
+    if (this.authToken.trim().length === 0) {
+      return;
+    }
+    const point = this.pointById(pointId);
+    const result = await submitDeviceAction(this.authToken, {
+      pointId: pointId,
+      actionType: actionType,
+      on: this.backendPointOn(point),
+      value: this.detailValue(point),
+      command: actionType
+    });
+    if (result.ok && result.data !== undefined) {
+      this.rememberBackendState(result.data.homeState);
+      return;
+    }
+    this.rememberSyncedState(await updateDeviceState(this.authToken, pointId, {
+      on: this.backendPointOn(point),
+      value: this.detailValue(point),
+      command: actionType
+    }));
+  }
+
+  private backendPointOn(point: PointSpec): boolean {
+    if (point.id.indexOf('@') >= 0) {
+      return this.dynamicState(point.id).on;
+    }
+    if (point.action === 'light') {
+      return this.lightOnForRoom(point.roomId);
+    }
+    if (point.action === 'toggle') {
+      return this.sharedToggleOn(point);
+    }
+    return true;
+  }
+
+  private currentDeviceStatesSnapshot(): DynamicDeviceStateSpec[] {
+    const states: DynamicDeviceStateSpec[] = [];
+    for (let i = 0; i < this.rooms.length; i++) {
+      const points = this.pointsForRoom(this.rooms[i].id);
+      for (let j = 0; j < points.length; j++) {
+        states.push({
+          pointId: points[j].id,
+          on: this.backendPointOn(points[j]),
+          value: this.detailValue(points[j])
+        });
+      }
+    }
+    return states;
   }
 
   private mapSummary(): string {
@@ -2168,6 +2399,7 @@ struct Index {
       this.setDynamicState(this.dynamicStateDefault(this.pointSpecForRoom(roomId, nextPointId)));
     }
     this.selectionVersion++;
+    this.syncRoomDevices(roomId);
   }
 
   private removeDeviceFromActiveRoom(pointId: string): void {
@@ -2188,6 +2420,22 @@ struct Index {
       this.detailPointId = '';
     }
     this.selectionVersion++;
+    this.syncRoomDevices(roomId);
+  }
+
+  private async syncRoomDevices(roomId: string): Promise<void> {
+    if (this.authToken.trim().length === 0) {
+      return;
+    }
+    const result = await updateRoomDevices(this.authToken, roomId, this.installedPointIds(roomId));
+    this.rememberSyncedState(result);
+    if (result.ok && result.data !== undefined) {
+      const roomDevices = this.backendRoomDevices(result.data.roomDevices);
+      if (roomDevices.length > 0) {
+        this.roomDevices = roomDevices;
+        this.syncLivingDevicesToStorage();
+      }
+    }
   }
 
   private devicePanelPoints(): PointSpec[] {
@@ -2243,6 +2491,7 @@ struct Index {
         meta: meta
       }
     ];
+    this.syncHomeSection('agentMessages', this.chatMessages);
   }
 
   private appendAgentRecord(title: string, detail: string, status: string): void {
@@ -2258,6 +2507,44 @@ struct Index {
       },
       ...this.agentRecords
     ];
+    this.syncHomeSection('agentRecords', this.agentRecords);
+  }
+
+  private async syncHomeSection(section: string, value: Object): Promise<void> {
+    if (this.authToken.trim().length === 0) {
+      return;
+    }
+    this.rememberSyncedState(await updateHomeSection(this.authToken, section, value));
+  }
+
+  private async syncRooms(): Promise<void> {
+    if (this.authToken.trim().length === 0) {
+      return;
+    }
+    this.rememberSyncedState(await updateHomeSection(this.authToken, 'rooms', this.rooms));
+    this.rememberSyncedState(await updateHomeSection(this.authToken, 'roomDevices', this.roomDevices));
+    this.syncActiveState();
+  }
+
+  private async syncDeviceStates(): Promise<void> {
+    if (this.authToken.trim().length === 0) {
+      return;
+    }
+    const snapshot = this.currentDeviceStatesSnapshot();
+    this.dynamicDeviceStates = snapshot;
+    this.rememberSyncedState(await updateHomeSection(this.authToken, 'deviceStates', snapshot));
+  }
+
+  private async syncActiveState(): Promise<void> {
+    if (this.authToken.trim().length === 0) {
+      return;
+    }
+    this.rememberSyncedState(await updateActiveState(this.authToken, {
+      activeRoomId: this.activeRoomId,
+      activeSceneId: this.activeSceneId,
+      isNight: this.isNight,
+      manualPeriod: this.manualPeriod
+    }));
   }
 
   private applyAgentSuggestion(prompt: string): void {
@@ -2307,6 +2594,7 @@ struct Index {
           },
           ...this.automations
         ];
+        this.syncHomeSection('automations', this.automations);
       }
       const recordDetail = reply.draft !== undefined ? reply.draft.action : reply.detail;
       const recordStatus = reply.ok ? (reply.mode === 'llm' ? '回答' : '已执行') : '未连接';
@@ -2359,6 +2647,7 @@ struct Index {
       },
       ...this.automations
     ];
+    this.syncHomeSection('automations', this.automations);
     this.appendAgentRecord('手动自动化已创建', `${title} · ${trigger}`, '已执行');
     this.pushChatMessage('agent', `已创建脚本“${title}”，触发条件是“${trigger}”。你现在可以在上方脚本板块里继续启用或调整它。`, '脚本已保存');
     this.automationTitle = '';
@@ -2388,6 +2677,7 @@ struct Index {
       }
     }
     this.automations = nextAutomations;
+    this.syncHomeSection('automations', this.automations);
   }
 
   private enabledAutomationCount(): number {
@@ -5526,9 +5816,9 @@ struct Index {
       } else if (this.activeTab === 'smart') {
         this.SmartPage()
       } else if (this.activeTab === 'store') {
-        P31_StoreHome({ isNight: this.isNight })
+        P31_StoreHome({ isNight: this.isNight, transparentBg: true })
       } else if (this.activeTab === 'profile') {
-        P21_MyProfile({ isNight: this.isNight })
+        P21_MyProfile({ isNight: this.isNight, transparentBg: true })
       } else {
         this.EmptyPage()
       }

@@ -48,9 +48,15 @@ const MY_SERVICES: MyServiceSpec[] = [
 @Component
 export struct P21_MyProfile {
   @Prop isNight: boolean;
+  @Prop transparentBg: boolean = false;
   @State pressedKey: string = '';
   @State activeHomeIndex: number = 0;
   @StorageLink('lumiUserSignedIn') signedIn: boolean = false;
+  @StorageLink('lumiAuthToken') authToken: string = '';
+  @StorageLink('lumiHomeState') homeStateText: string = '';
+  @StorageLink('lumiUserPhone') signedPhone: string = '';
+  @StorageLink('lumiUserName') signedName: string = '';
+  @StorageLink('homeLivingPointIds') livingPointIdsText: string = '';
   @StorageLink('homeLivingDeviceCount') livingDeviceCount: number = 6;
 
   private primaryText(): string {
@@ -62,19 +68,22 @@ export struct P21_MyProfile {
   }
 
   private bgColor(): string {
-    return this.isNight ? '#070A0F' : '#F4F6FA';
+    if (this.transparentBg) {
+      return '#00000000';
+    }
+    return this.isNight ? '#060709' : '#F2F4F8';
   }
 
   private panelColor(): string {
-    return this.isNight ? '#D9151A22' : '#FFFFFFFF';
+    return this.isNight ? '#731F232A' : '#B8FFFFFF';
   }
 
   private softPanelColor(): string {
-    return this.isNight ? '#661E2530' : '#F0F4FA';
+    return this.isNight ? '#73161A20' : '#B8EFF2F7';
   }
 
   private lineColor(): string {
-    return this.isNight ? '#20FFFFFF' : '#12000000';
+    return this.isNight ? '#24FFFFFF' : '#5CFFFFFF';
   }
 
   private shadowColor(): string {
@@ -114,7 +123,6 @@ export struct P21_MyProfile {
     Scroll() {
       Column() {
         this.ProfileHeader()
-        this.HomeSwitcher()
         this.CommonFeatureBoard()
         this.HealthSummary()
         this.ServiceGrid()
@@ -166,16 +174,26 @@ export struct P21_MyProfile {
       .alignItems(HorizontalAlign.Start)
       .layoutWeight(1)
 
-      Button(this.signedIn ? '已登录' : '登录')
+      Button(this.signedIn ? '退出登录' : '登录')
         .height(36)
         .fontSize(12)
         .fontWeight(FontWeight.Bold)
-        .fontColor(this.signedIn ? this.secondaryText() : '#FFFFFF')
-        .backgroundColor(this.signedIn ? this.softPanelColor() : '#11151D')
+        .fontColor(this.signedIn ? '#D35B4B' : '#FFFFFF')
+        .backgroundColor(this.signedIn ? (this.isNight ? '#33D35B4B' : '#FFF1EF') : '#11151D')
         .borderRadius(18)
         .padding({ left: 14, right: 14 })
         .onClick(() => {
-          safePushUrl(this.getUIContext().getRouter(), { url: 'pages/my/mylogin', params: { isNight: this.isNight } });
+          if (this.signedIn) {
+            this.signedIn = false;
+            this.authToken = '';
+            this.homeStateText = '';
+            this.livingPointIdsText = '';
+            this.livingDeviceCount = 0;
+            this.signedPhone = '';
+            this.signedName = '';
+          } else {
+            safePushUrl(this.getUIContext().getRouter(), { url: 'pages/my/mylogin', params: { isNight: this.isNight } });
+          }
         })
     }
     .width('100%')
@@ -234,7 +252,7 @@ export struct P21_MyProfile {
     .padding({ left: 20, right: 20, top: 20, bottom: 18 })
     .linearGradient({
       angle: 135,
-      colors: this.isNight ? [['#192332', 0.0], ['#10151E', 0.66], ['#1A2D2B', 1.0]] : [['#E6EEFF', 0.0], ['#FFFFFF', 0.56], ['#EAF8F4', 1.0]]
+      colors: this.isNight ? [['#192332', 0.0], ['#10151E', 0.66], ['#1A2D2B', 1.0]] : [['#E6EEFF', 0.0], ['#B8FFFFFF', 0.56], ['#EAF8F4', 1.0]]
     })
     .border({ width: 1, color: this.lineColor() })
     .borderRadius(26)
@@ -350,11 +368,11 @@ export struct P21_MyProfile {
       .width('100%')
 
       Row() {
-        this.HealthMetric('在线率', this.activeHome().health, '#35D27A')
+        this.HealthMetric('在线率', '96%', '#35D27A')
         Blank().width(8)
-        this.HealthMetric('异常设备', this.activeHomeIndex === 0 ? '0' : '1', '#F3A33A')
+        this.HealthMetric('异常设备', '0', '#F3A33A')
         Blank().width(8)
-        this.HealthMetric('自动化', this.activeHomeIndex === 0 ? '26' : '12', '#5E8CFF')
+        this.HealthMetric('自动化', '26', '#5E8CFF')
       }
       .width('100%')
       .margin({ top: 14 })

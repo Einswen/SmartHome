@@ -1,0 +1,21 @@
+server:
+  port: ${SERVER_PORT:8080}
+
+spring:
+  application:
+    name: smarthome-backend
+  datasource:
+    url: ${MYSQL_URL:jdbc:mysql://127.0.0.1:3306/smarthome?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&useSSL=false}
+    username: ${MYSQL_USER:smarthome}
+    password: ${MYSQL_PASSWORD:smarthome}
+    hikari:
+      maximum-pool-size: 8
+      minimum-idle: 1
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+
+app:
+  jwt-secret: ${JWT_SECRET:dev-only-change-me-please-use-32-bytes}
+  jwt-ttl-seconds: ${JWT_TTL_SECONDS:2592000}
+  cors-origins: ${CORS_ORIGINS:*}

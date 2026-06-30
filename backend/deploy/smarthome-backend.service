@@ -1,0 +1,17 @@
+[Unit]
+Description=SmartHome Spring Boot Backend
+After=network.target mysql.service mysqld.service
+
+[Service]
+Type=simple
+User=smarthome
+Group=smarthome
+WorkingDirectory=/opt/smarthome
+EnvironmentFile=/etc/smarthome/backend.env
+ExecStart=/usr/bin/java -jar /opt/smarthome/smarthome-backend.jar
+Restart=always
+RestartSec=5
+SuccessExitStatus=143
+
+[Install]
+WantedBy=multi-user.target

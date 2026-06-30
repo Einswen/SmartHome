@@ -29,7 +29,6 @@ const DEVICE_CENTER_LIST: DeviceCenterSpec[] = [
 @Entry
 @Component
 struct MyDevicesPage {
-  @State networkFailed: boolean = false;
   @State showEmpty: boolean = false;
   @State pressedKey: string = '';
   @State selectedDeviceId: string = 'living_light';
@@ -65,15 +64,15 @@ struct MyDevicesPage {
   }
 
   private bgColor(): string {
-    return this.isNight ? '#070A0F' : '#F4F6FA';
+    return this.isNight ? '#060709' : '#F2F4F8';
   }
 
   private cardColor(): string {
-    return this.isNight ? '#D9151A22' : '#FFFFFF';
+    return this.isNight ? '#731F232A' : '#B8FFFFFF';
   }
 
   private softColor(): string {
-    return this.isNight ? '#661F2632' : '#F0F4FA';
+    return this.isNight ? '#73161A20' : '#B8EFF2F7';
   }
 
   private lineColor(): string {
@@ -318,29 +317,25 @@ struct MyDevicesPage {
     Column() {
       this.TopBar()
 
-      if (this.networkFailed) {
-        this.NetworkErrorState()
-      } else {
-        Scroll() {
-          Column() {
-            this.RoomPreview()
-            this.SummaryCard()
-            this.FilterBar()
+      Scroll() {
+        Column() {
+          this.RoomPreview()
+          this.SummaryCard()
+          this.FilterBar()
 
-            if (this.displayDevices().length === 0) {
-              this.EmptyState()
-            } else {
-              ForEach(this.displayDevices(), (item: DeviceCenterSpec) => {
-                this.DeviceCard(item)
-              }, (item: DeviceCenterSpec) => item.id)
-            }
+          if (this.displayDevices().length === 0) {
+            this.EmptyState()
+          } else {
+            ForEach(this.displayDevices(), (item: DeviceCenterSpec) => {
+              this.DeviceCard(item)
+            }, (item: DeviceCenterSpec) => item.id)
           }
-          .width('100%')
-          .padding({ left: 18, right: 18, bottom: 28 })
         }
-        .layoutWeight(1)
-        .scrollBar(BarState.Off)
+        .width('100%')
+        .padding({ left: 18, right: 18, bottom: 28 })
       }
+      .layoutWeight(1)
+      .scrollBar(BarState.Off)
     }
     .width('100%')
     .height('100%')
@@ -483,7 +478,7 @@ struct MyDevicesPage {
     }
     .width('100%')
     .padding({ left: 20, right: 20, top: 20, bottom: 20 })
-    .linearGradient({ angle: 135, colors: this.isNight ? [['#1B2432', 0.0], ['#111820', 0.62], ['#23342D', 1.0]] : [['#E6EEFF', 0.0], ['#FFFFFF', 0.62], ['#E9F7F2', 1.0]] })
+    .linearGradient({ angle: 135, colors: this.isNight ? [['#1B2432', 0.0], ['#111820', 0.62], ['#23342D', 1.0]] : [['#E6EEFF', 0.0], ['#B8FFFFFF', 0.62], ['#E9F7F2', 1.0]] })
     .borderRadius(26)
     .margin({ top: 14 })
   }
@@ -728,35 +723,4 @@ struct MyDevicesPage {
     .margin({ top: 10 })
   }
 
-  @Builder
-  NetworkErrorState() {
-    Column() {
-      Blank().height(78)
-      Text('网络连接异常')
-        .fontSize(23)
-        .fontWeight(FontWeight.Bold)
-        .fontColor(this.primaryText())
-      Text('无法同步设备状态，请检查网络后重试。本地缓存仍可查看上次设备列表。')
-        .fontSize(13)
-        .lineHeight(21)
-        .fontColor(this.secondaryText())
-        .textAlign(TextAlign.Center)
-        .margin({ left: 36, right: 36, top: 10 })
-      Button('重新连接')
-        .height(42)
-        .fontSize(14)
-        .fontWeight(FontWeight.Bold)
-        .fontColor('#FFFFFF')
-        .backgroundColor('#5E8CFF')
-        .borderRadius(21)
-        .padding({ left: 24, right: 24 })
-        .margin({ top: 22 })
-        .onClick(() => {
-          this.networkFailed = false;
-        })
-    }
-    .layoutWeight(1)
-    .width('100%')
-    .alignItems(HorizontalAlign.Center)
-  }
 }
