@@ -44,6 +44,26 @@ export interface SmartHomeAcceptedResponse {
   homeState: SmartHomeState;
 }
 
+export interface StoreAddress {
+  id: number;
+  name: string;
+  phone: string;
+  region: string;
+  detail: string;
+  tag: string;
+  isDefault: boolean;
+  updatedAt?: string;
+}
+
+export interface StoreAddressRequest {
+  name: string;
+  phone: string;
+  region: string;
+  detail: string;
+  tag: string;
+  isDefault?: boolean;
+}
+
 export interface DeviceStatePatch {
   on?: boolean;
   value?: number;
@@ -198,4 +218,24 @@ export async function updateDeviceState(token: string, pointId: string, patch: D
 
 export async function submitDeviceAction(token: string, payload: DeviceActionPayload): Promise<SmartHomeApiResult<SmartHomeAcceptedResponse>> {
   return requestJson<SmartHomeAcceptedResponse>('/home/device-actions', http.RequestMethod.POST, token, payload);
+}
+
+export async function fetchStoreAddresses(token: string): Promise<SmartHomeApiResult<StoreAddress[]>> {
+  return requestJson<StoreAddress[]>('/store/addresses', http.RequestMethod.GET, token);
+}
+
+export async function createStoreAddress(token: string, payload: StoreAddressRequest): Promise<SmartHomeApiResult<StoreAddress>> {
+  return requestJson<StoreAddress>('/store/addresses', http.RequestMethod.POST, token, payload);
+}
+
+export async function updateStoreAddress(token: string, addressId: number, payload: StoreAddressRequest): Promise<SmartHomeApiResult<StoreAddress>> {
+  return requestJson<StoreAddress>(`/store/addresses/${addressId}`, http.RequestMethod.PUT, token, payload);
+}
+
+export async function setDefaultStoreAddress(token: string, addressId: number): Promise<SmartHomeApiResult<StoreAddress[]>> {
+  return requestJson<StoreAddress[]>(`/store/addresses/${addressId}/default`, http.RequestMethod.PUT, token);
+}
+
+export async function deleteStoreAddress(token: string, addressId: number): Promise<SmartHomeApiResult<StoreAddress[]>> {
+  return requestJson<StoreAddress[]>(`/store/addresses/${addressId}`, http.RequestMethod.DELETE, token);
 }
