@@ -9,7 +9,6 @@ import {
   updateHomeSection,
   updateRoomDevices
 } from '../common/SmartHomeApi';
-import promptAction from '@ohos.promptAction';
 import { DeviceDetailPages } from '../components/DeviceDetailPages';
 import { HuaweiCloudApi } from '../common/HuaweiCloudApi';
 import { P31_StoreHome } from './store/storehome';
@@ -1250,13 +1249,6 @@ struct Index {
   private reportCloudError(message: string): void {
     this.cloudDebugMessage = message;
     console.error(`[CloudDebug] ${message}`);
-    try {
-      promptAction.showToast({
-        message: message,
-        duration: 4000
-      });
-    } catch {
-    }
   }
 
   private isCommandResponseTimeout(message: string): boolean {
@@ -1590,6 +1582,13 @@ struct Index {
     this.syncActiveState();
   }
 
+  private openMessagesCenter(): void {
+    safePushUrl(this.getUIContext().getRouter(), {
+      url: 'pages/my/mymessages',
+      params: { isNight: this.isNight }
+    });
+  }
+
   private openPointDetail(pointId: string): void {
     this.selectedPointId = pointId;
     this.detailPointId = pointId;
@@ -1667,24 +1666,10 @@ struct Index {
     try {
       await HuaweiCloudApi.sendMotorCommand(command);
       this.updateCloudDebug(`下发成功：${label}，华为云已接收电机控制 Motor=${command}`);
-      try {
-        promptAction.showToast({
-          message: `下发成功：${label}`,
-          duration: 2000
-        });
-      } catch {
-      }
     } catch (err) {
       const errorMessage = this.debugErrorText(err as Object);
       if (this.isCommandResponseTimeout(errorMessage)) {
         this.updateCloudDebug(`命令已发送但设备响应超时：${label}。串口若已收到 Motor=${command}，说明云端到板子已通，需要检查板子端命令响应/执行逻辑。原始错误：${errorMessage}`);
-        try {
-          promptAction.showToast({
-            message: `命令已发送：${label}，设备响应超时`,
-            duration: 4000
-          });
-        } catch {
-        }
         return;
       }
       if (isDynamicAir) {
@@ -1717,24 +1702,10 @@ struct Index {
         await HuaweiCloudApi.sendMotorCommand(command);
       }
       this.updateCloudDebug(`下发成功：${label}，华为云已接收 ${channel}=${command}`);
-      try {
-        promptAction.showToast({
-          message: `下发成功：${label}`,
-          duration: 2000
-        });
-      } catch {
-      }
     } catch (err) {
       const errorMessage = this.debugErrorText(err as Object);
       if (this.isCommandResponseTimeout(errorMessage)) {
         this.updateCloudDebug(`命令已发送但设备响应超时：${label}。串口若已收到 ${channel}=${command}，说明云端到板子已通。原始错误：${errorMessage}`);
-        try {
-          promptAction.showToast({
-            message: `命令已发送：${label}，设备响应超时`,
-            duration: 4000
-          });
-        } catch {
-        }
         return;
       }
       this.setPointToggleLocal(point, previousOn);
@@ -1754,25 +1725,11 @@ struct Index {
       await HuaweiCloudApi.sendMotorCommand('ON');
       this.updateCloudDebug(`扫地机器人 Motor=ON 已发送：${label}，${durationLabel}后发送 Motor=OFF`);
       this.scheduleRobotMotorStop(duration, label);
-      try {
-        promptAction.showToast({
-          message: `已启动：${label}，${durationLabel}后停止`,
-          duration: 2000
-        });
-      } catch {
-      }
     } catch (err) {
       const errorMessage = this.debugErrorText(err as Object);
       if (this.isCommandResponseTimeout(errorMessage)) {
         this.scheduleRobotMotorStop(duration, label);
         this.updateCloudDebug(`Motor=ON 已发出但设备响应超时：${label}，仍会在${durationLabel}后补发 Motor=OFF。串口若收到 Motor=ON/OFF，说明链路已通。原始错误：${errorMessage}`);
-        try {
-          promptAction.showToast({
-            message: `命令已发送：${label}，设备响应超时`,
-            duration: 4000
-          });
-        } catch {
-        }
         return;
       }
       this.setPointToggleLocal(point, previousOn);
@@ -1907,24 +1864,10 @@ struct Index {
         await HuaweiCloudApi.sendMotorCommand(command);
       }
       this.updateCloudDebug(`下发成功：${label}，华为云已接收 ${channel}=${command}`);
-      try {
-        promptAction.showToast({
-          message: `下发成功：${label}`,
-          duration: 2000
-        });
-      } catch {
-      }
     } catch (err) {
       const errorMessage = this.debugErrorText(err as Object);
       if (this.isCommandResponseTimeout(errorMessage)) {
         this.updateCloudDebug(`命令已发送但设备响应超时：${label}。串口若已收到 ${channel}=${command}，说明云端到板子已通。原始错误：${errorMessage}`);
-        try {
-          promptAction.showToast({
-            message: `命令已发送：${label}，设备响应超时`,
-            duration: 4000
-          });
-        } catch {
-        }
         return;
       }
       this.setDetailValue(point, previousValue);
@@ -3362,30 +3305,61 @@ struct Index {
           Column()
             .width(42)
             .height(42)
-            .backgroundColor(this.translucentInverseBg())
+            .backgroundColor(this.isNight ? '#661F2632' : '#FFFFFFFF')
             .border({
               width: 1,
               color: this.glassBorderColor()
             })
             .borderRadius(21)
-
-          Text('✉')
-            .fontSize(18)
-            .fontWeight(FontWeight.Bold)
-            .fontColor(this.inverseText())
+            .shadow({
+              radius: 14,
+              color: this.isNight ? '#33000000' : '#14151C20',
+              offsetY: 6
+            })
 
           Column()
-            .width(7)
-            .height(7)
-            .borderRadius(3.5)
-            .backgroundColor(this.isNight ? '#8EB8FF' : '#5E8CFF')
-            .margin({ left: 13, top: -12 })
+            .width(17)
+            .height(13)
+            .border({
+              width: 1.6,
+              color: this.primaryText()
+            })
+            .borderRadius(4)
+            .position({ x: 12.5, y: 15 })
+
+          Line({ width: 15, height: 8 })
+            .startPoint([0, 0])
+            .endPoint([7.5, 7])
+            .stroke(this.primaryText())
+            .strokeWidth(1.4)
+            .position({ x: 13.5, y: 16.5 })
+
+          Line({ width: 15, height: 8 })
+            .startPoint([15, 0])
+            .endPoint([7.5, 7])
+            .stroke(this.primaryText())
+            .strokeWidth(1.4)
+            .position({ x: 13.5, y: 16.5 })
+
+          Column()
+            .width(9)
+            .height(9)
+            .borderRadius(5)
+            .backgroundColor('#12C995')
+            .border({ width: 1.5, color: this.isNight ? '#171A1F' : '#FFFFFF' })
+            .position({ x: 29, y: 10 })
         }
         .width(42)
         .height(42)
         .margin({ left: 10 })
+        .scale(this.buttonScale('message_center'))
+        .opacity(this.buttonOpacity('message_center'))
+        .animation({ duration: 120, curve: Curve.EaseOut })
+        .onTouch((event: TouchEvent) => {
+          this.handlePressState('message_center', event);
+        })
         .onClick(() => {
-          safePushUrl(this.getUIContext().getRouter(), { url: 'pages/plancenter/plancenter', params: { isNight: this.isNight } });
+          this.openMessagesCenter();
         })
       }
       .alignItems(VerticalAlign.Center)
@@ -4364,21 +4338,6 @@ struct Index {
         .fontColor(this.secondaryText())
         .margin({ top: 10 })
 
-      if (this.cloudDebugMessage.length > 0) {
-        Text(this.cloudDebugMessage)
-          .fontSize(11)
-          .lineHeight(17)
-          .fontColor(this.secondaryText())
-          .width('100%')
-          .padding({ left: 12, right: 12, top: 10, bottom: 10 })
-          .backgroundColor(this.glassShellColor())
-          .border({
-            width: 1,
-            color: this.glassBorderColor()
-          })
-          .borderRadius(12)
-          .margin({ top: 10 })
-      }
     }
     .width('100%')
   }
