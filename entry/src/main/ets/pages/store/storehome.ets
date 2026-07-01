@@ -146,6 +146,7 @@ const STORE_PRODUCTS: StoreProductSpec[] = [
 @Component
 export struct P31_StoreHome {
   @Prop isNight: boolean = false;
+  @Prop transparentBg: boolean = false;
   @State activeCategoryId: string = 'all';
   @State networkFailed: boolean = false;
   @State showEmpty: boolean = false;
@@ -160,6 +161,9 @@ export struct P31_StoreHome {
   }
 
   private bgColor(): string {
+    if (this.transparentBg) {
+      return '#00000000';
+    }
     return this.isNight ? '#070A0F' : '#F4F6FA';
   }
 
