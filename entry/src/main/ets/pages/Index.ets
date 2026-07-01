@@ -6006,44 +6006,39 @@ struct Index {
       Row() {
         ForEach(NAV_ITEMS, (item: NavSpec) => {
           Column() {
-            Column() {
-              this.NavIcon(item)
+            this.NavIcon(item)
 
-              Text(item.label)
-                .fontSize(12)
-                .fontWeight(this.activeTab === item.id ? FontWeight.Bold : FontWeight.Medium)
-                .fontColor(this.navTextColor(item.id))
-                .margin({ top: 3 })
-            }
-            .width(76)
-            .height(54)
-            .justifyContent(FlexAlign.Center)
-            .alignItems(HorizontalAlign.Center)
-            .borderRadius(18)
-            .backgroundColor(this.navItemBg(item.id))
-            .scale(this.buttonScale(`nav_${item.id}`))
-            .opacity(this.buttonOpacity(`nav_${item.id}`))
-            .animation({ duration: 120, curve: Curve.EaseOut })
-            .onTouch((event: TouchEvent) => {
-              this.handlePressState(`nav_${item.id}`, event);
-            })
-            .onClick(() => {
-              this.activeTab = item.id;
-              if (item.id !== 'home') {
-                this.selectedPointId = '';
-                this.detailPointId = '';
-              }
-            })
+            Text(item.label)
+              .fontSize(12)
+              .fontWeight(this.activeTab === item.id ? FontWeight.Bold : FontWeight.Medium)
+              .fontColor(this.navTextColor(item.id))
+              .margin({ top: 3 })
           }
-          .layoutWeight(1)
+          .width(76)
           .height(54)
           .justifyContent(FlexAlign.Center)
           .alignItems(HorizontalAlign.Center)
+          .scale(this.buttonScale(`nav_${item.id}`))
+          .opacity(this.buttonOpacity(`nav_${item.id}`))
+          .animation({ duration: 120, curve: Curve.EaseOut })
+          .borderRadius(18)
+          .backgroundColor(this.navItemBg(item.id))
+          .onTouch((event: TouchEvent) => {
+            this.handlePressState(`nav_${item.id}`, event);
+          })
+          .onClick(() => {
+            this.activeTab = item.id;
+            if (item.id !== 'home') {
+              this.selectedPointId = '';
+              this.detailPointId = '';
+            }
+          })
         }, (item: NavSpec) => item.id)
       }
       .width('100%')
       .height(74)
       .padding({ left: 12, right: 12, top: 10, bottom: 10 })
+      .justifyContent(FlexAlign.SpaceBetween)
       .backgroundColor(this.glassStrongColor())
       .border({
         width: 1,
