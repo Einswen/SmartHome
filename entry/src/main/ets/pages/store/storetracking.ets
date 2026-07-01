@@ -2,6 +2,7 @@
 
 interface StoreTrackingRouteParams {
   orderId?: string;
+  orderTitle?: string;
   mode?: string;
   isNight?: boolean;
 }
@@ -17,6 +18,7 @@ interface TrackStepSpec {
 struct StoreTrackingPage {
   @StorageLink('homeNightMode') isNight: boolean = false;
   @State orderId: string = 'order_1';
+  @State orderTitle: string = '';
   @State mode: string = 'logistics';
   @State reminderEnabled: boolean = true;
   @State serviceBooked: boolean = false;
@@ -26,6 +28,9 @@ struct StoreTrackingPage {
     const params = router.getParams() as StoreTrackingRouteParams;
     if (params.orderId !== undefined) {
       this.orderId = params.orderId;
+    }
+    if (params.orderTitle !== undefined) {
+      this.orderTitle = params.orderTitle;
     }
     if (params.mode !== undefined) {
       this.mode = params.mode;
@@ -56,13 +61,22 @@ struct StoreTrackingPage {
   }
 
   private orderLabel(): string {
+    if (this.orderTitle.length > 0) {
+      return this.orderTitle;
+    }
+    if (this.orderId === 'pending_checkout') {
+      return '待支付订单';
+    }
+    if (this.orderId === 'order_1') {
+      return '环境传感器 Pro';
+    }
     if (this.orderId === 'order_2') {
       return '净化器滤芯订阅';
     }
     if (this.orderId === 'order_3') {
-      return '上门安装服务';
+      return '智能照明模块';
     }
-    return '全屋升级套装';
+    return '商城订单';
   }
 
   private primaryText(): string {
@@ -116,7 +130,7 @@ struct StoreTrackingPage {
     }
     return [
       { title: '订单确认', desc: '库存已锁定，服务单已创建', done: true },
-      { title: '仓库出库', desc: '网关和传感器已打包', done: true },
+      { title: '仓库出库', desc: `${this.orderLabel()} 已打包`, done: true },
       { title: '上门安装', desc: this.serviceBooked ? '明天 14:00 已预约' : '等待选择时间', done: this.serviceBooked }
     ];
   }

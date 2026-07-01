@@ -17,7 +17,7 @@ interface AddressSpec {
 const ADDRESS_LIST: AddressSpec[] = [
   {
     id: 'home',
-    name: 'Lumi 用户',
+    name: '商城用户',
     phone: '138 **** 8888',
     region: '上海市 浦东新区',
     detail: '智能家居体验中心 8 号楼 1201',
@@ -41,12 +41,22 @@ struct StoreAddressPage {
   @State isNight: boolean = false;
   @State editing: boolean = false;
   @State selectedAddressId: string = 'home';
+  @State customAddresses: AddressSpec[] = [];
+  @State contactName: string = '';
+  @State contactPhone: string = '';
+  @State contactRegion: string = '';
+  @State contactDetail: string = '';
+  @State phoneError: string = '';
+  @StorageLink('storeAddressPayload') addressPayload: string = '';
+  @StorageLink('storeDeletedAddressIds') deletedAddressIdsText: string = '';
 
   aboutToAppear(): void {
     const params = safeGetParams(this.getUIContext().getRouter()) as StoreAddressRouteParams | undefined;
     if (params && params.isNight !== undefined) {
       this.isNight = params.isNight;
     }
+    this.loadCustomAddresses();
+    this.ensureSelectedAddress();
   }
 
   private primaryText(): string {
@@ -71,6 +81,127 @@ struct StoreAddressPage {
 
   private lineColor(): string {
     return this.isNight ? '#24FFFFFF' : '#5CFFFFFF';
+  }
+
+  private addresses(): AddressSpec[] {
+    const baseAddresses: AddressSpec[] = [];
+    for (let i = 0; i < ADDRESS_LIST.length; i++) {
+      if (!this.isDeletedAddress(ADDRESS_LIST[i].id)) {
+        baseAddresses.push(ADDRESS_LIST[i]);
+      }
+    }
+    return [...baseAddresses, ...this.customAddresses];
+  }
+
+  private deletedAddressIds(): string[] {
+    return this.deletedAddressIdsText.length > 0 ? this.deletedAddressIdsText.split('|').filter((id: string) => id.length > 0) : [];
+  }
+
+  private isDeletedAddress(addressId: string): boolean {
+    return this.deletedAddressIds().indexOf(addressId) >= 0;
+  }
+
+  private isCustomAddress(addressId: string): boolean {
+    return addressId.indexOf('custom_') === 0;
+  }
+
+  private ensureSelectedAddress(): void {
+    const currentAddresses: AddressSpec[] = this.addresses();
+    if (currentAddresses.length === 0) {
+      this.selectedAddressId = '';
+      return;
+    }
+    for (let i = 0; i < currentAddresses.length; i++) {
+      if (currentAddresses[i].id === this.selectedAddressId) {
+        return;
+      }
+    }
+    this.selectedAddressId = currentAddresses[0].id;
+  }
+
+  private loadCustomAddresses(): void {
+    if (this.addressPayload.length === 0) {
+      return;
+    }
+    const lines: string[] = this.addressPayload.split('\n');
+    const addresses: AddressSpec[] = [];
+    for (let i = 0; i < lines.length; i++) {
+      const parts: string[] = lines[i].split('|');
+      if (parts.length !== 6 || parts[0].length === 0) {
+        continue;
+      }
+      addresses.push({
+        id: parts[0],
+        name: parts[1],
+        phone: parts[2],
+        region: parts[3],
+        detail: parts[4],
+        tag: parts[5],
+        isDefault: false
+      });
+    }
+    this.customAddresses = addresses;
+  }
+
+  private syncCustomAddresses(): void {
+    const lines: string[] = [];
+    for (let i = 0; i < this.customAddresses.length; i++) {
+      const item = this.customAddresses[i];
+      lines.push(`${item.id}|${item.name}|${item.phone}|${item.region}|${item.detail}|${item.tag}`);
+    }
+    this.addressPayload = lines.join('\n');
+  }
+
+  private validPhone(phone: string): boolean {
+    return /^1[3-9]\d{9}$/.test(phone.trim());
+  }
+
+  private saveAddress(): void {
+    const phone: string = this.contactPhone.trim();
+    if (phone.length === 0) {
+      this.phoneError = '请输入手机号';
+      return;
+    }
+    if (!this.validPhone(phone)) {
+      this.phoneError = '请输入 11 位有效手机号';
+      return;
+    }
+    const nextIndex = this.customAddresses.length + 1;
+    const nextAddress: AddressSpec = {
+      id: `custom_${new Date().getTime()}`,
+      name: this.contactName.trim().length > 0 ? this.contactName.trim() : `新增联系人 ${nextIndex}`,
+      phone: phone,
+      region: this.contactRegion.trim().length > 0 ? this.contactRegion.trim() : '未填写地区',
+      detail: this.contactDetail.trim().length > 0 ? this.contactDetail.trim() : '未填写详细地址',
+      tag: '新增',
+      isDefault: false
+    };
+    this.customAddresses = [...this.customAddresses, nextAddress];
+    this.syncCustomAddresses();
+    this.selectedAddressId = nextAddress.id;
+    this.contactName = '';
+    this.contactPhone = '';
+    this.contactRegion = '';
+    this.contactDetail = '';
+    this.phoneError = '';
+    this.editing = false;
+  }
+
+  private deleteAddress(addressId: string): void {
+    if (this.isCustomAddress(addressId)) {
+      this.customAddresses = this.customAddresses.filter((item: AddressSpec) => item.id !== addressId);
+      this.syncCustomAddresses();
+    } else {
+      const deletedIds: string[] = this.deletedAddressIds();
+      if (deletedIds.indexOf(addressId) < 0) {
+        deletedIds.push(addressId);
+        this.deletedAddressIdsText = deletedIds.join('|');
+      }
+    }
+    if (this.selectedAddressId === addressId) {
+      this.selectedAddressId = '';
+    }
+    this.ensureSelectedAddress();
   }
 
   build() {
@@ -155,9 +286,20 @@ struct StoreAddressPage {
         .width('100%')
         .margin({ bottom: 10 })
 
-      ForEach(ADDRESS_LIST, (item: AddressSpec) => {
-        this.AddressCard(item)
-      }, (item: AddressSpec) => item.id)
+      if (this.addresses().length === 0) {
+        Text('暂无地址，请添加新的配送地址。')
+          .fontSize(13)
+          .fontColor(this.secondaryText())
+          .width('100%')
+          .padding({ left: 16, right: 16, top: 24, bottom: 24 })
+          .backgroundColor(this.cardColor())
+          .border({ width: 1, color: this.lineColor() })
+          .borderRadius(22)
+      } else {
+        ForEach(this.addresses(), (item: AddressSpec) => {
+          this.AddressCard(item)
+        }, (item: AddressSpec) => item.id)
+      }
     }
     .width('100%')
     .margin({ top: 22 })
@@ -205,6 +347,19 @@ struct StoreAddressPage {
         .fontColor(this.secondaryText())
         .width('100%')
         .margin({ top: 6 })
+
+      Button('删除')
+        .height(32)
+        .fontSize(12)
+        .fontWeight(FontWeight.Bold)
+        .fontColor('#D35B4B')
+        .backgroundColor(this.isNight ? '#33D35B4B' : '#FFF1EF')
+        .borderRadius(16)
+        .padding({ left: 14, right: 14 })
+        .margin({ top: 12 })
+        .onClick(() => {
+          this.deleteAddress(item.id);
+        })
     }
     .width('100%')
     .alignItems(HorizontalAlign.Start)
@@ -243,10 +398,17 @@ struct StoreAddressPage {
       .width('100%')
 
       if (this.editing) {
-        this.FormRow('联系人', '请输入收货人姓名')
-        this.FormRow('手机号', '请输入联系电话')
-        this.FormRow('所在地区', '省 / 市 / 区')
-        this.FormRow('详细地址', '街道、门牌号、楼层')
+        this.FormRow('联系人', '请输入收货人姓名', 'name')
+        this.FormRow('手机号', '请输入联系电话', 'phone')
+        if (this.phoneError.length > 0) {
+          Text(this.phoneError)
+            .fontSize(12)
+            .fontColor('#D35B4B')
+            .width('100%')
+            .margin({ top: 6 })
+        }
+        this.FormRow('所在地区', '省 / 市 / 区', 'region')
+        this.FormRow('详细地址', '街道、门牌号、楼层', 'detail')
 
         Button('保存地址')
           .width('100%')
@@ -258,7 +420,7 @@ struct StoreAddressPage {
           .borderRadius(22)
           .margin({ top: 14 })
           .onClick(() => {
-            this.editing = false;
+            this.saveAddress();
           })
       }
     }
@@ -271,7 +433,7 @@ struct StoreAddressPage {
   }
 
   @Builder
-  FormRow(label: string, placeholder: string) {
+  FormRow(label: string, placeholder: string, field: string) {
     Column() {
       Text(label)
         .fontSize(12)
@@ -279,7 +441,10 @@ struct StoreAddressPage {
         .fontColor(this.secondaryText())
         .width('100%')
 
-      TextInput({ placeholder: placeholder })
+      TextInput({
+        placeholder: placeholder,
+        text: field === 'name' ? this.contactName : (field === 'phone' ? this.contactPhone : (field === 'region' ? this.contactRegion : this.contactDetail))
+      })
         .height(42)
         .fontSize(13)
         .fontColor(this.primaryText())
@@ -287,6 +452,20 @@ struct StoreAddressPage {
         .backgroundColor(this.softColor())
         .borderRadius(16)
         .margin({ top: 8 })
+        .onChange((value: string) => {
+          if (field === 'name') {
+            this.contactName = value;
+          } else if (field === 'phone') {
+            this.contactPhone = value;
+            if (this.phoneError.length > 0 && this.validPhone(value)) {
+              this.phoneError = '';
+            }
+          } else if (field === 'region') {
+            this.contactRegion = value;
+          } else {
+            this.contactDetail = value;
+          }
+        })
     }
     .width('100%')
     .margin({ top: 14 })

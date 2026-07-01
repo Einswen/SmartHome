@@ -17,8 +17,6 @@ interface ProductSpec {
 
 interface StoreRouteParams {
   isNight: boolean;
-  addedProductId: string;
-  addedCount: number;
 }
 
 interface ProductShotSpec {
@@ -37,7 +35,7 @@ const PRODUCT_LIST: ProductSpec[] = [
   { id: 'light_module', title: '智能照明模块', desc: '支持亮度、色温与场景联动，适合全屋灯光升级。', price: '¥129', image: $r('app.media.store_light_module'), tag: '热卖', scene: '客厅主灯' },
   { id: 'gesture_panel', title: '手势控制面板', desc: '无接触切换回家、观影、睡眠等高频场景。', price: '¥299', image: $r('app.media.store_gesture_panel'), tag: '新品', scene: '玄关 / 客厅' },
   { id: 'robot_pack', title: '清洁维护套装', desc: '扫地机器人主刷、边刷、滤网组合装。', price: '¥89', image: $r('app.media.store_robot_pack'), tag: '耗材', scene: '扫地机器人' },
-  { id: 'gateway_m2', title: 'Lumi 网关 M2', desc: '蓝牙 Mesh 与 Zigbee 双协议接入，覆盖主流智能设备。', price: '¥369', image: $r('app.media.store_gateway_m2'), tag: '中枢', scene: '全屋' },
+  { id: 'gateway_m2', title: '智能网关 M2', desc: '蓝牙 Mesh 与 Zigbee 双协议接入，覆盖主流智能设备。', price: '¥369', image: $r('app.media.store_gateway_m2'), tag: '中枢', scene: '全屋' },
   { id: 'filter', title: '净化器滤芯', desc: '高效过滤颗粒物和异味，建议每 6 个月更换。', price: '¥159', image: $r('app.media.device_living_purifier'), tag: '订阅省 15%', scene: '空气净化器' }
   ,
   { id: 'living_curtain_motor', title: '智能窗帘电机', desc: '适配客厅西侧窗帘，可接入日照跟随和观影联动。', price: '¥249', image: $r('app.media.device_living_curtain'), tag: '联动', scene: '客厅窗帘' },
@@ -58,6 +56,9 @@ struct StoreProductPage {
   @StorageLink('cartAddedProductId') cartAddedProductId: string = '';
   @StorageLink('cartAddedCount') cartAddedCount: number = 0;
   @StorageLink('cartLinePayload') cartLinePayload: string = '';
+  @StorageLink('cartCleared') cartCleared: boolean = false;
+  @StorageLink('cartEdited') cartEdited: boolean = false;
+  @StorageLink('cartSchemaVersion') cartSchemaVersion: string = '';
 
   aboutToAppear(): void {
     const params = safeGetParams(this.getUIContext().getRouter()) as ProductRouteParams | undefined;
@@ -167,7 +168,8 @@ struct StoreProductPage {
   }
 
   private addCartLine(productId: string, count: number): void {
-    const parts: string[] = this.cartLinePayload.length > 0 ? this.cartLinePayload.split(';') : [];
+    const storedParts: string[] = this.cartLinePayload.length > 0 ? this.cartLinePayload.split(';') : [];
+    const parts: string[] = storedParts;
     const nextParts: string[] = [];
     let merged: boolean = false;
     for (let i = 0; i < parts.length; i++) {
@@ -191,11 +193,7 @@ struct StoreProductPage {
   }
 
   private routeParams(): StoreRouteParams {
-    return { isNight: this.isNight, addedProductId: this.added ? this.productId : '', addedCount: this.count };
-  }
-
-  private addedRouteParams(): StoreRouteParams {
-    return { isNight: this.isNight, addedProductId: this.productId, addedCount: this.count };
+    return { isNight: this.isNight };
   }
 
   build() {
@@ -610,8 +608,11 @@ struct StoreProductPage {
           this.addCartLine(this.productId, this.count);
           this.cartAddedProductId = this.productId;
           this.cartAddedCount = this.count;
+          this.cartCleared = false;
+          this.cartEdited = true;
+          this.cartSchemaVersion = 'empty_cart_v1';
           this.added = true;
-          safePushUrl(this.getUIContext().getRouter(), { url: 'pages/store/storecart', params: this.addedRouteParams() });
+          safePushUrl(this.getUIContext().getRouter(), { url: 'pages/store/storecart', params: this.routeParams() });
         })
       Button('去结算')
         .height(44)

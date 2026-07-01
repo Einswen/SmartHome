@@ -2,7 +2,44 @@
 
 interface StoreCategoryRouteParams {
   isNight?: boolean;
+  categoryId?: string;
 }
+
+interface CategoryProductSpec {
+  id: string;
+  title: string;
+  desc: string;
+  image: Resource;
+  productId: string;
+  color: string;
+}
+
+const BUNDLE_PRODUCTS: CategoryProductSpec[] = [
+  {
+    id: 'bundle_gateway',
+    title: '智能网关 M2',
+    desc: '全屋中枢，负责连接传感器、照明模块和自动化场景。',
+    image: $r('app.media.store_gateway_m2'),
+    productId: 'gateway_m2',
+    color: '#5E8CFF'
+  },
+  {
+    id: 'bundle_sensor',
+    title: '环境传感器 Pro',
+    desc: '感知温湿度、光照和人体存在，作为全屋联动触发器。',
+    image: $r('app.media.store_sensor_pro'),
+    productId: 'sensor_pro',
+    color: '#19B7A4'
+  },
+  {
+    id: 'bundle_light',
+    title: '智能照明模块',
+    desc: '升级主灯和氛围灯，配合网关完成回家、观影和睡眠场景。',
+    image: $r('app.media.store_light_module'),
+    productId: 'light_module',
+    color: '#F3A33A'
+  }
+];
 
 @Entry
 @Component
@@ -10,11 +47,19 @@ struct StoreCategoryPage {
   @State isNight: boolean = false;
   @State networkFailed: boolean = false;
   @State showEmpty: boolean = false;
+  @State categoryId: string = '';
+  @StorageLink('cartLinePayload') cartLinePayload: string = '';
+  @StorageLink('cartCleared') cartCleared: boolean = false;
+  @StorageLink('cartEdited') cartEdited: boolean = false;
+  @StorageLink('cartSchemaVersion') cartSchemaVersion: string = '';
 
   aboutToAppear(): void {
     const params = safeGetParams(this.getUIContext().getRouter()) as StoreCategoryRouteParams | undefined;
     if (params && params.isNight !== undefined) {
       this.isNight = params.isNight;
+    }
+    if (params && params.categoryId !== undefined) {
+      this.categoryId = params.categoryId;
     }
   }
 
@@ -38,6 +83,50 @@ struct StoreCategoryPage {
     return this.isNight ? '#73161A20' : '#B8EFF2F7';
   }
 
+  private bundlePayload(): string {
+    return 'gateway_m2:1;sensor_pro:1;light_module:1';
+  }
+
+  private mergeCartPayload(addPayload: string): string {
+    const lines: string[] = [];
+    const source: string[] = this.cartLinePayload.length > 0 ? this.cartLinePayload.split(';') : [];
+    const additions: string[] = addPayload.split(';');
+    for (let i = 0; i < source.length; i++) {
+      if (source[i].length > 0) {
+        lines.push(source[i]);
+      }
+    }
+    for (let addIndex = 0; addIndex < additions.length; addIndex++) {
+      const addPair: string[] = additions[addIndex].split(':');
+      if (addPair.length !== 2 || addPair[0].length === 0) {
+        continue;
+      }
+      const addCount: number = Number(addPair[1]);
+      let merged: boolean = false;
+      for (let lineIndex = 0; lineIndex < lines.length; lineIndex++) {
+        const pair: string[] = lines[lineIndex].split(':');
+        if (pair.length !== 2 || pair[0] !== addPair[0]) {
+          continue;
+        }
+        const storedCount: number = Number(pair[1]);
+        lines[lineIndex] = `${pair[0]}:${(isNaN(storedCount) ? 0 : storedCount) + (isNaN(addCount) ? 0 : addCount)}`;
+        merged = true;
+      }
+      if (!merged) {
+        lines.push(additions[addIndex]);
+      }
+    }
+    return lines.join(';');
+  }
+
+  private addBundleToCart(): void {
+    this.cartLinePayload = this.mergeCartPayload(this.bundlePayload());
+    this.cartCleared = false;
+    this.cartEdited = true;
+    this.cartSchemaVersion = 'empty_cart_v1';
+    safePushUrl(this.getUIContext().getRouter(), { url: 'pages/store/storecart', params: { isNight: this.isNight } });
+  }
+
   build() {
     Column() {
       this.TopBar()
@@ -49,9 +138,15 @@ struct StoreCategoryPage {
             this.Hero()
             if (this.showEmpty) {
               this.EmptyState()
+            } else if (this.categoryId === 'bundle') {
+              ForEach(BUNDLE_PRODUCTS, (item: CategoryProductSpec) => {
+                this.CategoryCard(item.title, item.desc, item.image, item.productId, item.color)
+              }, (item: CategoryProductSpec) => item.id)
+              this.BundleAction()
             } else {
               this.CategoryCard('传感与环境', '感知温湿度、光照、人体存在，用于精细化自动化。', $r('app.media.store_sensor_pro'), 'sensor_pro', '#19B7A4')
               this.CategoryCard('灯光与氛围', '亮度、色温、场景联动，让客厅和卧室更舒适。', $r('app.media.store_light_module'), 'light_module', '#F3A33A')
+              this.CategoryCard('窗帘与遮阳', '窗帘电机接入日照、观影和离家场景，不归入照明类。', $r('app.media.device_living_curtain'), 'living_curtain_motor', '#D76626')
               this.CategoryCard('安防与控制', '网关、面板、门锁与异常告警服务。', $r('app.media.store_gesture_panel'), 'gesture_panel', '#5E8CFF')
               this.CategoryCard('清洁与耗材', '扫地机器人维护套装、净化器滤芯和电池。', $r('app.media.store_robot_pack'), 'robot_pack', '#7F72F2')
             }
@@ -81,23 +176,25 @@ struct StoreCategoryPage {
         .onClick(() => {
           safeBack(this.getUIContext().getRouter());
         })
-      Text('商品分类')
+      Text(this.categoryId === 'bundle' ? '全屋升级套装' : '商品分类')
         .fontSize(22)
         .fontWeight(FontWeight.Bold)
         .fontColor(this.primaryText())
         .margin({ left: 14 })
         .layoutWeight(1)
-      Button(this.showEmpty ? '恢复' : '空数据')
-        .height(34)
-        .fontSize(12)
-        .fontWeight(FontWeight.Bold)
-        .fontColor('#5E8CFF')
-        .backgroundColor(this.isNight ? '#335E8CFF' : '#EAF0FF')
-        .borderRadius(17)
-        .padding({ left: 12, right: 12 })
-        .onClick(() => {
-          this.showEmpty = !this.showEmpty;
-        })
+      if (this.categoryId !== 'bundle') {
+        Button(this.showEmpty ? '恢复' : '空数据')
+          .height(34)
+          .fontSize(12)
+          .fontWeight(FontWeight.Bold)
+          .fontColor('#5E8CFF')
+          .backgroundColor(this.isNight ? '#335E8CFF' : '#EAF0FF')
+          .borderRadius(17)
+          .padding({ left: 12, right: 12 })
+          .onClick(() => {
+            this.showEmpty = !this.showEmpty;
+          })
+      }
     }
     .width('100%')
     .padding({ left: 18, right: 18, top: 28, bottom: 14 })
@@ -106,12 +203,12 @@ struct StoreCategoryPage {
   @Builder
   Hero() {
     Column() {
-      Text('按家庭场景选购')
+      Text(this.categoryId === 'bundle' ? '全屋升级套装' : '按家庭场景选购')
         .fontSize(23)
         .fontWeight(FontWeight.Bold)
         .fontColor(this.primaryText())
         .width('100%')
-      Text('每个分类都对应首页设备和自动化能力，避免买了不能联动。')
+      Text(this.categoryId === 'bundle' ? '全屋升级套装包含网关、传感器和照明模块，可分别查看详情。' : '每个分类都对应首页设备和自动化能力，避免买了不能联动。')
         .fontSize(13)
         .lineHeight(20)
         .fontColor(this.secondaryText())
@@ -162,6 +259,22 @@ struct StoreCategoryPage {
     .onClick(() => {
       safePushUrl(this.getUIContext().getRouter(), { url: 'pages/store/storeproduct', params: { productId: productId, isNight: this.isNight } });
     })
+  }
+
+  @Builder
+  BundleAction() {
+    Button('一键加入购物车')
+      .width('100%')
+      .height(46)
+      .fontSize(14)
+      .fontWeight(FontWeight.Bold)
+      .fontColor(this.isNight ? '#11151D' : '#FFFFFF')
+      .backgroundColor(this.isNight ? '#F5F7FB' : '#11151D')
+      .borderRadius(23)
+      .margin({ top: 16 })
+      .onClick(() => {
+        this.addBundleToCart();
+      })
   }
 
   @Builder

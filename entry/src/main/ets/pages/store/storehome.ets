@@ -25,6 +25,7 @@ const STORE_CATEGORIES: StoreCategorySpec[] = [
   { id: 'all', label: '推荐' },
   { id: 'sensor', label: '感知' },
   { id: 'light', label: '照明' },
+  { id: 'curtain', label: '窗帘' },
   { id: 'security', label: '中枢' },
   { id: 'clean', label: '清洁' },
   { id: 'supply', label: '耗材' }
@@ -77,7 +78,7 @@ const STORE_PRODUCTS: StoreProductSpec[] = [
   },
   {
     id: 'gateway_m2',
-    title: 'Lumi 网关 M2',
+    title: '智能网关 M2',
     desc: '蓝牙 Mesh 与 Zigbee 双协议接入，覆盖家庭核心智能设备。',
     price: '¥369',
     tag: '中枢',
@@ -103,7 +104,7 @@ const STORE_PRODUCTS: StoreProductSpec[] = [
     desc: '适配客厅西侧窗帘，可接入日照跟随和观影联动。',
     price: '¥249',
     tag: '联动',
-    categoryId: 'light',
+    categoryId: 'curtain',
     image: $r('app.media.device_living_curtain'),
     stock: '现货',
     fit: '客厅窗帘'
@@ -151,6 +152,29 @@ export struct P31_StoreHome {
   @State networkFailed: boolean = false;
   @State showEmpty: boolean = false;
   @State pressedKey: string = '';
+  @StorageLink('cartLinePayload') cartLinePayload: string = '';
+  @StorageLink('cartAddedProductId') cartAddedProductId: string = '';
+  @StorageLink('cartAddedCount') cartAddedCount: number = 0;
+  @StorageLink('cartCleared') cartCleared: boolean = false;
+  @StorageLink('cartEdited') cartEdited: boolean = false;
+  @StorageLink('cartSchemaVersion') cartSchemaVersion: string = '';
+
+  aboutToAppear(): void {
+    this.migrateCartSchema();
+  }
+
+  private migrateCartSchema(): void {
+    if (this.cartSchemaVersion === 'empty_cart_v1') {
+      return;
+    }
+    if (this.cartLinePayload.length === 0) {
+      this.cartAddedProductId = '';
+      this.cartAddedCount = 0;
+      this.cartCleared = false;
+      this.cartEdited = true;
+    }
+    this.cartSchemaVersion = 'empty_cart_v1';
+  }
 
   private primaryText(): string {
     return this.isNight ? '#F6F8FC' : '#11151D';
@@ -197,6 +221,33 @@ export struct P31_StoreHome {
     return STORE_PRODUCTS.filter((item: StoreProductSpec) => item.categoryId === this.activeCategoryId);
   }
 
+  private cartCount(): number {
+    let count: number = 0;
+    if (this.cartLinePayload.length === 0) {
+      if (this.cartCleared) {
+        return 0;
+      }
+      return count;
+    }
+    const lines: string[] = this.cartLinePayload.split(';');
+    for (let i = 0; i < lines.length; i++) {
+      const pair: string[] = lines[i].split(':');
+      if (pair.length !== 2) {
+        continue;
+      }
+      const lineCount = Number(pair[1]);
+      if (!isNaN(lineCount) && lineCount > 0) {
+        count += lineCount;
+      }
+    }
+    return count;
+  }
+
+  private cartHint(): string {
+    const count = this.cartCount();
+    return count > 0 ? `${count}件待确认` : '暂无商品';
+  }
+
   private handlePressState(key: string, event: TouchEvent): void {
     if (event.type === TouchType.Down) {
       this.pressedKey = key;
@@ -241,7 +292,7 @@ export struct P31_StoreHome {
   Header() {
     Row() {
       Column() {
-        Text('Lumi 商城')
+        Text('商城')
           .fontSize(25)
           .fontWeight(FontWeight.Bold)
           .fontColor(this.primaryText())
@@ -327,11 +378,11 @@ export struct P31_StoreHome {
 
       Row() {
         Column() {
-          Text('组合价')
+          Text('套装内容')
             .fontSize(11)
             .fontWeight(FontWeight.Bold)
             .fontColor('#D76626')
-          Text('¥629')
+          Text('3 件')
             .fontSize(28)
             .fontWeight(FontWeight.Bold)
             .fontColor('#D76626')
@@ -349,7 +400,7 @@ export struct P31_StoreHome {
           .backgroundColor(this.isNight ? '#F5F7FB' : '#11151D')
           .borderRadius(18)
           .onClick(() => {
-            safePushUrl(this.getUIContext().getRouter(), { url: 'pages/store/storecategory', params: { categoryId: 'sensor', isNight: this.isNight } });
+            safePushUrl(this.getUIContext().getRouter(), { url: 'pages/store/storecategory', params: { categoryId: 'bundle', isNight: this.isNight } });
           })
       }
       .width('100%')
@@ -400,13 +451,18 @@ export struct P31_StoreHome {
 
   @Builder
   QuickEntrances() {
-    Row() {
-      this.Entrance('分类', '按场景找设备', 'pages/store/storecategory', '#5E8CFF')
-      this.Entrance('购物车', '2 件待确认', 'pages/store/storecart', '#19B7A4')
-      this.Entrance('订单', '物流与订阅', 'pages/store/storeorders', '#F3A33A')
-      this.Entrance('地址', '配送与安装', 'pages/store/storeaddress', '#7F72F2')
+    Scroll() {
+      Row() {
+        this.Entrance('分类', '按场景找设备', 'pages/store/storecategory', '#5E8CFF')
+      this.Entrance('购物车', '购买商品', 'pages/store/storecart', '#19B7A4')
+        this.Entrance('订单', '物流与订阅', 'pages/store/storeorders', '#F3A33A')
+        this.Entrance('地址', '配送与安装', 'pages/store/storeaddress', '#7F72F2')
+      }
+      .padding({ right: 12 })
     }
     .width('100%')
+    .scrollBar(BarState.Off)
+    .scrollable(ScrollDirection.Horizontal)
     .margin({ top: 16 })
   }
 
@@ -430,7 +486,7 @@ export struct P31_StoreHome {
         .margin({ top: 5 })
         .maxLines(1)
     }
-    .layoutWeight(1)
+    .width(116)
     .height(86)
     .alignItems(HorizontalAlign.Start)
     .justifyContent(FlexAlign.Center)

@@ -15,17 +15,12 @@ interface CartItemSpec {
   image: Resource;
 }
 
-const CART_ITEMS: CartItemSpec[] = [
-  { id: 'gateway_m2', title: 'Lumi 网关 M2', desc: '全屋中枢，适配蓝牙 Mesh / Zigbee', price: '¥369', count: 1, image: $r('app.media.store_gateway_m2') },
-  { id: 'light_module', title: '智能照明模块', desc: '适配客厅主灯与氛围灯联动', price: '¥129', count: 2, image: $r('app.media.store_light_module') }
-];
-
 const CART_CATALOG: CartItemSpec[] = [
   { id: 'sensor_pro', title: '环境传感器 Pro', desc: '温湿度、光照、人体存在三合一', price: '¥199', count: 1, image: $r('app.media.store_sensor_pro') },
   { id: 'light_module', title: '智能照明模块', desc: '适配客厅主灯与氛围灯联动', price: '¥129', count: 1, image: $r('app.media.store_light_module') },
   { id: 'gesture_panel', title: '手势控制面板', desc: '无接触切换家庭场景', price: '¥299', count: 1, image: $r('app.media.store_gesture_panel') },
   { id: 'robot_pack', title: '清洁维护套装', desc: '主刷、边刷、滤网组合装', price: '¥89', count: 1, image: $r('app.media.store_robot_pack') },
-  { id: 'gateway_m2', title: 'Lumi 网关 M2', desc: '全屋中枢，适配蓝牙 Mesh / Zigbee', price: '¥369', count: 1, image: $r('app.media.store_gateway_m2') },
+  { id: 'gateway_m2', title: '智能网关 M2', desc: '全屋中枢，适配蓝牙 Mesh / Zigbee', price: '¥369', count: 1, image: $r('app.media.store_gateway_m2') },
   { id: 'filter', title: '净化器滤芯', desc: '适配空气净化器，建议 6 个月更换', price: '¥159', count: 1, image: $r('app.media.device_living_purifier') },
   { id: 'living_curtain_motor', title: '智能窗帘电机', desc: '接入日照跟随和观影联动', price: '¥249', count: 1, image: $r('app.media.device_living_curtain') },
   { id: 'bedroom_air_guard', title: '睡眠空调伴侣', desc: '夜间降噪和温度曲线控制', price: '¥169', count: 1, image: $r('app.media.device_bedroom_air') },
@@ -36,9 +31,8 @@ const CART_CATALOG: CartItemSpec[] = [
 @Entry
 @Component
 struct StoreCartPage {
-  @State showEmpty: boolean = false;
   @State networkFailed: boolean = false;
-  @State selectedAll: boolean = true;
+  @State selectedItemIds: string = '';
   @State checkoutDone: boolean = false;
   @State isNight: boolean = false;
   @State addedProductId: string = '';
@@ -46,7 +40,10 @@ struct StoreCartPage {
   @StorageLink('cartAddedProductId') cartAddedProductId: string = '';
   @StorageLink('cartAddedCount') cartAddedCount: number = 0;
   @StorageLink('cartLinePayload') cartLinePayload: string = '';
+  @StorageLink('cartEdited') cartEdited: boolean = false;
   @StorageLink('storePendingOrderPayload') pendingOrderPayload: string = '';
+  @StorageLink('cartCleared') cartCleared: boolean = false;
+  @StorageLink('cartSchemaVersion') cartSchemaVersion: string = '';
 
   aboutToAppear(): void {
     const params = safeGetParams(this.getUIContext().getRouter()) as CartRouteParams | undefined;
@@ -59,6 +56,65 @@ struct StoreCartPage {
     if (params && params.addedCount !== undefined) {
       this.addedCount = params.addedCount;
     }
+    this.migrateCartSchema(this.addedProductId.length > 0 || this.cartLinePayload.length > 0);
+    this.mergeRouteAddedProduct();
+  }
+
+  private migrateCartSchema(hasCurrentCartData: boolean): void {
+    if (this.cartSchemaVersion === 'empty_cart_v1') {
+      return;
+    }
+    if (!hasCurrentCartData) {
+      this.cartLinePayload = '';
+      this.cartAddedProductId = '';
+      this.cartAddedCount = 0;
+      this.selectedItemIds = '';
+      this.cartCleared = false;
+      this.cartEdited = true;
+    }
+    this.cartSchemaVersion = 'empty_cart_v1';
+  }
+
+  private mergeRouteAddedProduct(): void {
+    if (this.addedProductId.length === 0 || this.addedCount <= 0) {
+      return;
+    }
+    const currentItems: CartItemSpec[] = this.items();
+    const nextItems: CartItemSpec[] = [];
+    let merged: boolean = false;
+    for (let i = 0; i < currentItems.length; i++) {
+      const item = currentItems[i];
+      if (item.id === this.addedProductId) {
+        nextItems.push({
+          id: item.id,
+          title: item.title,
+          desc: item.desc,
+          price: item.price,
+          count: item.count + this.addedCount,
+          image: item.image
+        });
+        merged = true;
+      } else {
+        nextItems.push(item);
+      }
+    }
+    if (!merged) {
+      const catalog: CartItemSpec | undefined = this.catalogItem(this.addedProductId);
+      if (catalog !== undefined) {
+        nextItems.push({
+          id: catalog.id,
+          title: catalog.title,
+          desc: catalog.desc,
+          price: catalog.price,
+          count: this.addedCount,
+          image: catalog.image
+        });
+      }
+    }
+    this.persistItems(nextItems);
+    this.setItemSelected(this.addedProductId, true);
+    this.addedProductId = '';
+    this.addedCount = 1;
   }
 
   private primaryText(): string {
@@ -82,80 +138,101 @@ struct StoreCartPage {
   }
 
   private items(): CartItemSpec[] {
-    if (this.showEmpty) {
+    if (this.cartCleared) {
       return [];
     }
-    const nextItems: CartItemSpec[] = [];
-    for (let baseIndex = 0; baseIndex < CART_ITEMS.length; baseIndex++) {
-      const baseItem = CART_ITEMS[baseIndex];
-      nextItems.push({
-        id: baseItem.id,
-        title: baseItem.title,
-        desc: baseItem.desc,
-        price: baseItem.price,
-        count: baseItem.count,
-        image: baseItem.image
-      });
+    if (this.cartLinePayload.length > 0) {
+      return this.itemsFromPayload(this.cartLinePayload);
     }
+    return [];
+  }
 
-    let payload: string = this.cartLinePayload;
-    if (payload.length === 0) {
-      const effectiveProductId: string = this.addedProductId.length > 0 ? this.addedProductId : this.cartAddedProductId;
-      const effectiveCount: number = this.addedProductId.length > 0 ? this.addedCount : this.cartAddedCount;
-      if (effectiveProductId.length > 0 && effectiveCount > 0) {
-        payload = `${effectiveProductId}:${effectiveCount}`;
+  private catalogItem(id: string): CartItemSpec | undefined {
+    for (let i = 0; i < CART_CATALOG.length; i++) {
+      if (CART_CATALOG[i].id === id) {
+        return CART_CATALOG[i];
       }
     }
+    return undefined;
+  }
 
+  private itemsFromPayload(payload: string): CartItemSpec[] {
+    const result: CartItemSpec[] = [];
     if (payload.length === 0) {
-      return nextItems;
+      return result;
     }
-
     const lines: string[] = payload.split(';');
-    for (let lineIndex = 0; lineIndex < lines.length; lineIndex++) {
-      const pair: string[] = lines[lineIndex].split(':');
+    for (let i = 0; i < lines.length; i++) {
+      const pair: string[] = lines[i].split(':');
       if (pair.length !== 2 || pair[0].length === 0) {
         continue;
       }
       const parsedCount: number = Number(pair[1]);
-      const lineCount: number = isNaN(parsedCount) ? 0 : parsedCount;
-      if (lineCount <= 0) {
+      const count: number = isNaN(parsedCount) ? 0 : parsedCount;
+      const catalog: CartItemSpec | undefined = this.catalogItem(pair[0]);
+      if (catalog === undefined || count <= 0) {
         continue;
       }
-      let merged: boolean = false;
-      for (let itemIndex = 0; itemIndex < nextItems.length; itemIndex++) {
-        const current = nextItems[itemIndex];
-        if (current.id === pair[0]) {
-          const mergedItem: CartItemSpec = {
-            id: current.id,
-            title: current.title,
-            desc: current.desc,
-            price: current.price,
-            count: current.count + lineCount,
-            image: current.image
-          };
-          nextItems[itemIndex] = mergedItem;
-          merged = true;
-        }
-      }
-      if (merged) {
-        continue;
-      }
-      for (let catalogIndex = 0; catalogIndex < CART_CATALOG.length; catalogIndex++) {
-        if (CART_CATALOG[catalogIndex].id === pair[0]) {
-          const addedItem: CartItemSpec = {
-            id: CART_CATALOG[catalogIndex].id,
-            title: CART_CATALOG[catalogIndex].title,
-            desc: CART_CATALOG[catalogIndex].desc,
-            price: CART_CATALOG[catalogIndex].price,
-            count: lineCount,
-            image: CART_CATALOG[catalogIndex].image
-          };
-          nextItems.push(addedItem);
-        }
+      result.push({
+        id: catalog.id,
+        title: catalog.title,
+        desc: catalog.desc,
+        price: catalog.price,
+        count: count,
+        image: catalog.image
+      });
+    }
+    return result;
+  }
+
+  private persistItems(nextItems: CartItemSpec[]): void {
+    const lines: string[] = [];
+    const selectedIds: string[] = [];
+    for (let i = 0; i < nextItems.length; i++) {
+      lines.push(`${nextItems[i].id}:${nextItems[i].count}`);
+      if (this.itemSelected(nextItems[i].id)) {
+        selectedIds.push(nextItems[i].id);
       }
     }
-    return nextItems;
+    this.cartLinePayload = lines.join(';');
+    this.cartEdited = true;
+    this.cartCleared = nextItems.length === 0;
+    this.selectedItemIds = selectedIds.join('|');
+    this.cartAddedProductId = '';
+    this.cartAddedCount = 0;
+    this.addedProductId = '';
+    this.addedCount = 1;
+    this.pendingOrderPayload = '';
+    this.checkoutDone = false;
+  }
+
+  private changeItemCount(id: string, delta: number): void {
+    const currentItems: CartItemSpec[] = this.items();
+    const nextItems: CartItemSpec[] = [];
+    for (let i = 0; i < currentItems.length; i++) {
+      const item = currentItems[i];
+      const nextCount: number = item.id === id ? item.count + delta : item.count;
+      nextItems.push({
+        id: item.id,
+        title: item.title,
+        desc: item.desc,
+        price: item.price,
+        count: nextCount < 1 ? 1 : nextCount,
+        image: item.image
+      });
+    }
+    this.persistItems(nextItems);
+  }
+
+  private removeItem(id: string): void {
+    const currentItems: CartItemSpec[] = this.items();
+    const nextItems: CartItemSpec[] = [];
+    for (let i = 0; i < currentItems.length; i++) {
+      if (currentItems[i].id !== id) {
+        nextItems.push(currentItems[i]);
+      }
+    }
+    this.persistItems(nextItems);
   }
 
   private priceNumber(id: string): number {
@@ -192,25 +269,80 @@ struct StoreCartPage {
     return 0;
   }
 
-  private totalText(): string {
-    if (!this.selectedAll) {
-      return '¥0';
+  private selectedIds(): string[] {
+    return this.selectedItemIds.length > 0 ? this.selectedItemIds.split('|').filter((id: string) => id.length > 0) : [];
+  }
+
+  private itemSelected(id: string): boolean {
+    return this.selectedIds().indexOf(id) >= 0;
+  }
+
+  private selectedCount(): number {
+    const currentItems: CartItemSpec[] = this.items();
+    let count: number = 0;
+    for (let i = 0; i < currentItems.length; i++) {
+      if (this.itemSelected(currentItems[i].id)) {
+        count++;
+      }
     }
+    return count;
+  }
+
+  private allSelected(): boolean {
+    const currentItems: CartItemSpec[] = this.items();
+    return currentItems.length > 0 && this.selectedCount() === currentItems.length;
+  }
+
+  private selectAllItems(): void {
+    const ids: string[] = [];
+    const currentItems: CartItemSpec[] = this.items();
+    for (let i = 0; i < currentItems.length; i++) {
+      ids.push(currentItems[i].id);
+    }
+    this.selectedItemIds = ids.join('|');
+  }
+
+  private toggleAllSelected(): void {
+    if (this.allSelected()) {
+      this.selectedItemIds = '';
+    } else {
+      this.selectAllItems();
+    }
+    this.checkoutDone = false;
+  }
+
+  private toggleItemSelected(id: string): void {
+    const ids: string[] = this.selectedIds();
+    const index = ids.indexOf(id);
+    if (index >= 0) {
+      ids.splice(index, 1);
+    } else {
+      ids.push(id);
+    }
+    this.selectedItemIds = ids.join('|');
+    this.checkoutDone = false;
+  }
+
+  private selectedPayload(): string {
+    const currentItems: CartItemSpec[] = this.items();
+    const lines: string[] = [];
+    for (let i = 0; i < currentItems.length; i++) {
+      if (this.itemSelected(currentItems[i].id)) {
+        lines.push(`${currentItems[i].id}:${currentItems[i].count}`);
+      }
+    }
+    return lines.join(';');
+  }
+
+  private totalText(): string {
     const currentItems: CartItemSpec[] = this.items();
     let total: number = 0;
     for (let i = 0; i < currentItems.length; i++) {
-      total += this.priceNumber(currentItems[i].id) * currentItems[i].count;
+      if (this.itemSelected(currentItems[i].id)) {
+        total += this.priceNumber(currentItems[i].id) * currentItems[i].count;
+      }
     }
     return `¥${total}`;
-  }
-
-  private savePendingOrder(): void {
-    const currentItems: CartItemSpec[] = this.items();
-    const parts: string[] = [];
-    for (let i = 0; i < currentItems.length; i++) {
-      parts.push(`${currentItems[i].id}:${currentItems[i].count}`);
-    }
-    this.pendingOrderPayload = parts.join(';');
   }
 
   build() {
@@ -227,7 +359,7 @@ struct StoreCartPage {
             } else {
               ForEach(this.items(), (item: CartItemSpec) => {
                 this.CartCard(item)
-              }, (item: CartItemSpec) => item.id)
+              }, (item: CartItemSpec) => `${item.id}_${item.count}_${this.itemSelected(item.id)}`)
               if (this.checkoutDone) {
                 this.CheckoutSuccess()
               }
@@ -277,7 +409,7 @@ struct StoreCartPage {
         .onClick(() => {
           safePushUrl(this.getUIContext().getRouter(), { url: 'pages/store/storeaddress', params: { isNight: this.isNight } });
         })
-      Button(this.showEmpty ? '恢复' : '清空')
+      Button(this.cartCleared ? '恢复' : '清空')
         .height(34)
         .fontSize(12)
         .fontWeight(FontWeight.Bold)
@@ -286,7 +418,16 @@ struct StoreCartPage {
         .borderRadius(17)
         .padding({ left: 12, right: 12 })
         .onClick(() => {
-          this.showEmpty = !this.showEmpty;
+          this.cartCleared = true;
+          this.checkoutDone = false;
+          this.pendingOrderPayload = '';
+          this.selectedItemIds = '';
+          this.cartLinePayload = '';
+          this.cartEdited = true;
+          this.cartAddedProductId = '';
+          this.cartAddedCount = 0;
+          this.addedProductId = '';
+          this.addedCount = 1;
         })
     }
     .width('100%')
@@ -297,18 +438,18 @@ struct StoreCartPage {
   SummaryCard() {
     Row() {
       Column() {
-        Text('智能套装已合并优惠')
+        Text('购物车商品')
           .fontSize(20)
           .fontWeight(FontWeight.Bold)
           .fontColor(this.primaryText())
-        Text('网关和照明模块可组成客厅自动化基础包')
+        Text('已选商品会在结算后生成待支付订单')
           .fontSize(13)
           .fontColor(this.secondaryText())
           .margin({ top: 8 })
       }
       .alignItems(HorizontalAlign.Start)
       .layoutWeight(1)
-      Text('省 ¥31')
+      Text(`${this.items().length} 类`)
         .fontSize(12)
         .fontWeight(FontWeight.Bold)
         .fontColor('#FFFFFF')
@@ -323,33 +464,43 @@ struct StoreCartPage {
   }
 
   @Builder
-  CheckCircle(selected: boolean, size: number) {
-    Stack() {
-      Circle()
-        .width(size)
-        .height(size)
-        .fill(selected ? '#F3A33A' : '#00000000')
-        .stroke(selected ? '#F3A33A' : (this.isNight ? '#66FFFFFF' : '#B8C0CC'))
-        .strokeWidth(1.6)
-      if (selected) {
-        Text('✓')
-          .fontSize(size === 30 ? 17 : 16)
-          .fontWeight(FontWeight.Bold)
-          .fontColor('#FFFFFF')
-          .textAlign(TextAlign.Center)
-      }
+  CheckBox(selected: boolean, size: number, actionKey: string) {
+    Checkbox()
+      .width(size)
+      .height(size)
+      .select(selected)
+      .selectedColor('#F3A33A')
+      .onChange((checked: boolean) => {
+        if (actionKey === 'all') {
+          this.toggleAllSelected();
+        } else {
+          this.setItemSelected(actionKey, checked);
+        }
+      })
+  }
+
+  private setItemSelected(id: string, selected: boolean): void {
+    const ids: string[] = this.selectedIds();
+    const index = ids.indexOf(id);
+    if (selected && index < 0) {
+      ids.push(id);
     }
-    .width(size)
-    .height(size)
-    .onClick(() => {
-      this.selectedAll = !this.selectedAll;
-    })
+    if (!selected && index >= 0) {
+      ids.splice(index, 1);
+    }
+    this.selectedItemIds = ids.join('|');
+    this.checkoutDone = false;
+  }
+
+  @Builder
+  CheckCircle(selected: boolean, size: number, actionKey: string) {
+    this.CheckBox(selected, size, actionKey)
   }
 
   @Builder
   CartCard(item: CartItemSpec) {
     Row() {
-      this.CheckCircle(this.selectedAll, 28)
+      this.CheckCircle(this.itemSelected(item.id), 28, item.id)
       Image(item.image)
         .width(74)
         .height(74)
@@ -374,13 +525,34 @@ struct StoreCartPage {
             .fontWeight(FontWeight.Bold)
             .fontColor('#D76626')
             .layoutWeight(1)
-          Text(`x${item.count}`)
-            .fontSize(13)
+            .maxLines(1)
+          Button('删除')
+            .height(28)
+            .fontSize(11)
             .fontWeight(FontWeight.Bold)
-            .fontColor(this.secondaryText())
+            .fontColor('#D35B4B')
+            .backgroundColor(this.isNight ? '#33D35B4B' : '#FFF1EF')
+            .borderRadius(14)
+            .padding({ left: 10, right: 10 })
+            .onClick(() => {
+              this.removeItem(item.id);
+            })
         }
         .width('100%')
         .margin({ top: 8 })
+        Row() {
+          Blank()
+          this.CountButton('-', item.id, item.count > 1)
+          Text(`${item.count}`)
+            .fontSize(13)
+            .fontWeight(FontWeight.Bold)
+            .fontColor(this.primaryText())
+            .width(28)
+            .textAlign(TextAlign.Center)
+          this.CountButton('+', item.id, true)
+        }
+        .width('100%')
+        .margin({ top: 6 })
       }
       .alignItems(HorizontalAlign.Start)
       .layoutWeight(1)
@@ -394,9 +566,32 @@ struct StoreCartPage {
   }
 
   @Builder
+  CountButton(label: string, itemId: string, enabled: boolean) {
+    Stack({ alignContent: Alignment.Center }) {
+      Circle()
+        .width(30)
+        .height(30)
+        .fill(enabled ? (this.isNight ? '#F5F7FB' : '#11151D') : (this.isNight ? '#1D232B' : '#E1E6EF'))
+      Text(label)
+        .fontSize(18)
+        .fontWeight(FontWeight.Bold)
+        .fontColor(enabled ? (this.isNight ? '#11151D' : '#FFFFFF') : this.secondaryText())
+        .textAlign(TextAlign.Center)
+    }
+      .width(28)
+      .height(30)
+      .opacity(enabled ? 1 : 0.55)
+      .onClick(() => {
+        if (enabled) {
+          this.changeItemCount(itemId, label === '+' ? 1 : -1);
+        }
+      })
+  }
+
+  @Builder
   CheckoutBar() {
     Row() {
-      this.CheckCircle(this.selectedAll, 30)
+      this.CheckCircle(this.allSelected(), 30, 'all')
       Text('全选')
         .fontSize(13)
         .fontColor(this.secondaryText())
@@ -412,12 +607,12 @@ struct StoreCartPage {
         .fontSize(14)
         .fontWeight(FontWeight.Bold)
         .fontColor('#FFFFFF')
-        .backgroundColor(this.selectedAll && this.items().length > 0 ? '#F3A33A' : '#B8C0CC')
+        .backgroundColor(this.selectedCount() > 0 ? '#F3A33A' : '#B8C0CC')
         .borderRadius(22)
         .padding({ left: 24, right: 24 })
         .onClick(() => {
-          if (this.selectedAll && this.items().length > 0) {
-            this.savePendingOrder();
+          if (this.selectedCount() > 0) {
+            this.pendingOrderPayload = this.selectedPayload();
             this.checkoutDone = true;
           }
         })

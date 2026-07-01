@@ -25,7 +25,7 @@ const ORDER_CATALOG: OrderItemSpec[] = [
   { id: 'light_module', title: '智能照明模块', price: 129 },
   { id: 'gesture_panel', title: '手势控制面板', price: 299 },
   { id: 'robot_pack', title: '清洁维护套装', price: 89 },
-  { id: 'gateway_m2', title: 'Lumi 网关 M2', price: 369 },
+  { id: 'gateway_m2', title: '智能网关 M2', price: 369 },
   { id: 'filter', title: '净化器滤芯', price: 159 },
   { id: 'living_curtain_motor', title: '智能窗帘电机', price: 249 },
   { id: 'bedroom_air_guard', title: '睡眠空调伴侣', price: 169 },
@@ -348,7 +348,7 @@ struct StoreOrdersPage {
           .borderRadius(18)
           .margin({ right: 8 })
           .onClick(() => {
-            safePushUrl(this.getUIContext().getRouter(), { url: 'pages/store/storetracking', params: { orderId: item.id, mode: this.trackingMode(item.id), isNight: this.isNight } });
+            safePushUrl(this.getUIContext().getRouter(), { url: 'pages/store/storetracking', params: { orderId: item.id, orderTitle: item.title, mode: this.trackingMode(item.id), isNight: this.isNight } });
           })
         Button('售后支持')
           .layoutWeight(1)
