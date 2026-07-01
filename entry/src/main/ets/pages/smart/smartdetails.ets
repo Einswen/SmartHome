@@ -1,9 +1,7 @@
 ﻿import { safeBack, safeGetParams } from '../../common/SafeRouter';
 import {
   AgentMessageSpec,
-  AutomationSpec,
-  DEFAULT_AGENT_MESSAGES,
-  DEFAULT_AUTOMATIONS
+  AutomationSpec
 } from '../../smart/SmartModels';
 
 interface SmartDetailRouteParams {
@@ -18,8 +16,8 @@ interface SmartDetailRouteParams {
 struct SmartDetailsPage {
   @State mode: string = 'running';
   @State isNight: boolean = false;
-  @State automations: AutomationSpec[] = DEFAULT_AUTOMATIONS;
-  @State chatMessages: AgentMessageSpec[] = DEFAULT_AGENT_MESSAGES;
+  @State automations: AutomationSpec[] = [];
+  @State chatMessages: AgentMessageSpec[] = [];
 
   aboutToAppear(): void {
     const params = safeGetParams(this.getUIContext().getRouter()) as SmartDetailRouteParams | undefined;

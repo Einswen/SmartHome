@@ -11,17 +11,17 @@ import org.springframework.stereotype.Component;
 public class DefaultHomeStateFactory {
   public HomeStateDto create() {
     return new HomeStateDto(
-        defaultRooms(),
-        defaultRoomDevices(),
-        defaultDeviceStates(),
-        defaultScenes(),
-        defaultAutomations(),
-        defaultNotifications(),
-        defaultAgentRecords(),
+        new ArrayList<>(),
+        new ArrayList<>(),
+        new ArrayList<>(),
+        new ArrayList<>(),
+        new ArrayList<>(),
+        new ArrayList<>(),
+        new ArrayList<>(),
         new ArrayList<>(),
         defaultPreferences(),
-        "living",
-        "morning",
+        "",
+        "",
         false,
         false,
         Instant.now()

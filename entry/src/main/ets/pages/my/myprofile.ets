@@ -1,14 +1,5 @@
 ﻿import { safePushUrl } from '../../common/SafeRouter';
 
-interface HomeBriefSpec {
-  id: string;
-  name: string;
-  role: string;
-  deviceCount: string;
-  health: string;
-  index: number;
-}
-
 interface MyFeatureSpec {
   id: string;
   title: string;
@@ -25,12 +16,6 @@ interface MyServiceSpec {
   route: string;
 }
 
-const MY_HOMES: HomeBriefSpec[] = [
-  { id: 'home_main', name: '幸福之家', role: '当前家庭', deviceCount: '6 台设备', health: '96%', index: 0 },
-  { id: 'home_parents', name: '父母家', role: '远程照看', deviceCount: '4 台设备', health: '91%', index: 1 },
-  { id: 'home_office', name: '工作室', role: '共享空间', deviceCount: '3 台设备', health: '88%', index: 2 }
-];
-
 const MY_FEATURES: MyFeatureSpec[] = [
   { id: 'devices', title: '设备中心', desc: '与首页客厅设备同步，支持扩展设备管理', route: 'pages/my/mydevices', accent: '#5E8CFF' },
   { id: 'family', title: '家庭管理', desc: '成员、邀请、权限与家庭切换', route: 'pages/my/myfamily', accent: '#19B7A4' },
@@ -41,7 +26,7 @@ const MY_FEATURES: MyFeatureSpec[] = [
 const MY_SERVICES: MyServiceSpec[] = [
   { id: 'login', title: 'Lumi 登录', desc: '手机号、密码与家庭身份', tag: '账号', route: 'pages/my/mylogin' },
   { id: 'after_sale', title: '售后支持', desc: '保修、工单与上门服务', tag: '2 小时响应', route: 'pages/store/storeservice' },
-  { id: 'orders', title: '商城订单', desc: '耗材订阅与订单跟踪', tag: '3 单', route: 'pages/store/storeorders' },
+  { id: 'orders', title: '商城订单', desc: '耗材订阅与订单跟踪', tag: '订单', route: 'pages/store/storeorders' },
   { id: 'privacy', title: '通用偏好', desc: '通知、升级和第三方授权', tag: '可交互', route: 'pages/my/mysettings' }
 ];
 
@@ -50,14 +35,13 @@ export struct P21_MyProfile {
   @Prop isNight: boolean;
   @Prop transparentBg: boolean = false;
   @State pressedKey: string = '';
-  @State activeHomeIndex: number = 0;
   @StorageLink('lumiUserSignedIn') signedIn: boolean = false;
   @StorageLink('lumiAuthToken') authToken: string = '';
   @StorageLink('lumiHomeState') homeStateText: string = '';
   @StorageLink('lumiUserPhone') signedPhone: string = '';
   @StorageLink('lumiUserName') signedName: string = '';
   @StorageLink('homeLivingPointIds') livingPointIdsText: string = '';
-  @StorageLink('homeLivingDeviceCount') livingDeviceCount: number = 6;
+  @StorageLink('homeLivingDeviceCount') livingDeviceCount: number = 0;
 
   private primaryText(): string {
     return this.isNight ? '#F7F9FD' : '#11151D';
@@ -86,19 +70,12 @@ export struct P21_MyProfile {
     return this.isNight ? '#24FFFFFF' : '#5CFFFFFF';
   }
 
+  private hasAuthSession(): boolean {
+    return this.signedIn && this.authToken.trim().length > 0;
+  }
+
   private shadowColor(): string {
     return this.isNight ? '#66000000' : '#14151C20';
-  }
-
-  private activeHome(): HomeBriefSpec {
-    return MY_HOMES[this.activeHomeIndex];
-  }
-
-  private activeDeviceCount(): string {
-    if (this.activeHomeIndex === 0) {
-      return `${this.livingDeviceCount} 台设备`;
-    }
-    return this.activeHome().deviceCount;
   }
 
   private handlePressState(key: string, event: TouchEvent): void {
@@ -123,8 +100,12 @@ export struct P21_MyProfile {
     Scroll() {
       Column() {
         this.ProfileHeader()
-        this.CommonFeatureBoard()
-        this.HealthSummary()
+        if (this.hasAuthSession()) {
+          this.CommonFeatureBoard()
+          this.HealthSummary()
+        } else {
+          this.ProfileLoginPrompt()
+        }
         this.ServiceGrid()
       }
       .width('100%')
@@ -159,13 +140,13 @@ export struct P21_MyProfile {
       .margin({ right: 14 })
 
       Column() {
-        Text(this.signedIn ? 'Lumi 用户' : '未登录')
+        Text(this.hasAuthSession() ? 'Lumi 用户' : '未登录')
           .fontSize(25)
           .fontWeight(FontWeight.Bold)
           .fontColor(this.primaryText())
           .maxLines(1)
 
-        Text(this.signedIn ? 'Lumi 用户' : '未登录')
+        Text(this.hasAuthSession() ? 'Lumi 用户' : '未登录')
           .fontSize(13)
           .fontColor(this.secondaryText())
           .margin({ top: 7 })
@@ -174,16 +155,16 @@ export struct P21_MyProfile {
       .alignItems(HorizontalAlign.Start)
       .layoutWeight(1)
 
-      Button(this.signedIn ? '退出登录' : '登录')
+      Button(this.hasAuthSession() ? '退出登录' : '登录')
         .height(36)
         .fontSize(12)
         .fontWeight(FontWeight.Bold)
-        .fontColor(this.signedIn ? '#D35B4B' : '#FFFFFF')
-        .backgroundColor(this.signedIn ? (this.isNight ? '#33D35B4B' : '#FFF1EF') : '#11151D')
+        .fontColor(this.hasAuthSession() ? '#D35B4B' : '#FFFFFF')
+        .backgroundColor(this.hasAuthSession() ? (this.isNight ? '#33D35B4B' : '#FFF1EF') : '#11151D')
         .borderRadius(18)
         .padding({ left: 14, right: 14 })
         .onClick(() => {
-          if (this.signedIn) {
+          if (this.hasAuthSession()) {
             this.signedIn = false;
             this.authToken = '';
             this.homeStateText = '';
@@ -201,63 +182,41 @@ export struct P21_MyProfile {
   }
 
   @Builder
-  HomeSwitcher() {
+  ProfileLoginPrompt() {
     Column() {
-      Row() {
-        Column() {
-          Text(this.activeHome().name)
-            .fontSize(22)
-            .fontWeight(FontWeight.Bold)
-            .fontColor(this.primaryText())
-            .maxLines(1)
+      Text('登录后同步家庭')
+        .fontSize(20)
+        .fontWeight(FontWeight.Bold)
+        .fontColor(this.primaryText())
 
-          Text(`${this.activeDeviceCount()} · 健康度 ${this.activeHome().health}`)
-            .fontSize(12)
-            .fontColor(this.secondaryText())
-            .margin({ top: 6 })
-            .maxLines(1)
-        }
-        .alignItems(HorizontalAlign.Start)
-        .layoutWeight(1)
+      Text('设备、家庭、健康状态和自动化方案会跟随账号同步。')
+        .fontSize(12)
+        .lineHeight(20)
+        .fontColor(this.secondaryText())
+        .textAlign(TextAlign.Center)
+        .width('82%')
+        .margin({ top: 8 })
 
-        Text(this.activeHome().role)
-          .fontSize(12)
-          .fontWeight(FontWeight.Bold)
-          .fontColor('#FFFFFF')
-          .padding({ left: 12, right: 12, top: 7, bottom: 7 })
-          .backgroundColor('#5E8CFF')
-          .borderRadius(16)
-      }
-      .width('100%')
-
-      Row() {
-        ForEach(MY_HOMES, (item: HomeBriefSpec) => {
-          Text(item.name)
-            .fontSize(12)
-            .fontWeight(this.activeHomeIndex === item.index ? FontWeight.Bold : FontWeight.Medium)
-            .fontColor(this.activeHomeIndex === item.index ? (this.isNight ? '#11151D' : '#FFFFFF') : this.primaryText())
-            .padding({ left: 13, right: 13, top: 9, bottom: 9 })
-            .backgroundColor(this.activeHomeIndex === item.index ? (this.isNight ? '#F5F7FB' : '#11151D') : this.softPanelColor())
-            .borderRadius(17)
-            .margin({ right: 8 })
-            .onClick(() => {
-              this.activeHomeIndex = item.index;
-            })
-        }, (item: HomeBriefSpec) => item.id)
-      }
-      .width('100%')
-      .margin({ top: 18 })
+      Button('登录账号')
+        .height(40)
+        .fontSize(13)
+        .fontWeight(FontWeight.Bold)
+        .fontColor('#FFFFFF')
+        .backgroundColor('#11151D')
+        .borderRadius(20)
+        .padding({ left: 20, right: 20 })
+        .margin({ top: 18 })
+        .onClick(() => {
+          safePushUrl(this.getUIContext().getRouter(), { url: 'pages/my/mylogin', params: { isNight: this.isNight } });
+        })
     }
     .width('100%')
-    .padding({ left: 20, right: 20, top: 20, bottom: 18 })
-    .linearGradient({
-      angle: 135,
-      colors: this.isNight ? [['#192332', 0.0], ['#10151E', 0.66], ['#1A2D2B', 1.0]] : [['#E6EEFF', 0.0], ['#B8FFFFFF', 0.56], ['#EAF8F4', 1.0]]
-    })
+    .padding({ left: 18, right: 18, top: 26, bottom: 26 })
+    .backgroundColor(this.panelColor())
     .border({ width: 1, color: this.lineColor() })
-    .borderRadius(26)
-    .shadow({ radius: 22, color: this.shadowColor(), offsetY: 10 })
-    .margin({ top: 20 })
+    .borderRadius(24)
+    .margin({ top: 22 })
+    .alignItems(HorizontalAlign.Center)
   }
 
   @Builder
@@ -368,11 +327,11 @@ export struct P21_MyProfile {
       .width('100%')
 
       Row() {
-        this.HealthMetric('在线率', '96%', '#35D27A')
+        this.HealthMetric('设备数', `${this.livingDeviceCount}`, '#35D27A')
         Blank().width(8)
         this.HealthMetric('异常设备', '0', '#F3A33A')
         Blank().width(8)
-        this.HealthMetric('自动化', '26', '#5E8CFF')
+        this.HealthMetric('自动化', '0', '#5E8CFF')
       }
       .width('100%')
       .margin({ top: 14 })

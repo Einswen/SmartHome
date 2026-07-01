@@ -1,4 +1,4 @@
-﻿import { safeBack, safeGetParams } from '../../common/SafeRouter';
+﻿import { safeBack, safeGetParams, safePushUrl } from '../../common/SafeRouter';
 import { fetchHomeState, SmartHomeApiResult, SmartHomeState, updateHomeSection } from '../../common/SmartHomeApi';
 
 interface MyFamilyRouteParams {
@@ -20,27 +20,22 @@ interface FamilyPreferences {
   customMemberRole?: string;
 }
 
-const FAMILY_MEMBERS: FamilyMemberSpec[] = [
-  { id: 'owner', name: 'Lumi 用户', role: '家庭拥有者', status: '在线', accent: '#5E8CFF' },
-  { id: 'mom', name: '妈妈', role: '管理员', status: '远程控制已启用', accent: '#19B7A4' },
-  { id: 'guest', name: '访客', role: '临时成员', status: '今晚 22:00 失效', accent: '#F3A33A' }
-];
-
 @Entry
 @Component
 struct MyFamilyPage {
   @State showEmpty: boolean = false;
   @State inviteVisible: boolean = true;
   @State inviteFailed: boolean = false;
-  @State activeHome: string = '幸福之家';
+  @State activeHome: string = '我的家庭';
   @State isNight: boolean = false;
   @State hideGuest: boolean = false;
   @State hasCustomMember: boolean = false;
   @State customMemberName: string = '新成员';
   @State customMemberRole: string = '普通成员';
   @State showNewMember: boolean = false;
-  @State selectedMemberName: string = '妈妈';
+  @State selectedMemberName: string = '新成员';
   @State selectedMemberRole: string = '普通成员';
+  @StorageLink('lumiUserSignedIn') signedIn: boolean = false;
   @StorageLink('lumiAuthToken') authToken: string = '';
   @StorageLink('lumiHomeState') homeStateText: string = '';
   private appliedHomeStateText: string = '';
@@ -58,6 +53,10 @@ struct MyFamilyPage {
   }
 
   private loadFamilyState(): void {
+    if (!this.hasAuthSession()) {
+      this.appliedHomeStateText = '';
+      return;
+    }
     this.applyStoredHomeState();
     this.loadBackendState();
   }
@@ -123,7 +122,7 @@ struct MyFamilyPage {
   }
 
   private syncFamilyPreferences(): void {
-    if (this.authToken.trim().length === 0) {
+    if (!this.hasAuthSession()) {
       return;
     }
     this.syncFamilyPreferencesAsync();
@@ -153,16 +152,15 @@ struct MyFamilyPage {
     return this.isNight ? '#73161A20' : '#B8EFF2F7';
   }
 
+  private hasAuthSession(): boolean {
+    return this.signedIn && this.authToken.trim().length > 0;
+  }
+
   private members(): FamilyMemberSpec[] {
     if (this.showEmpty) {
       return [];
     }
     const nextMembers: FamilyMemberSpec[] = [];
-    for (let i = 0; i < FAMILY_MEMBERS.length; i++) {
-      if (FAMILY_MEMBERS[i].id !== 'guest' || !this.hideGuest) {
-        nextMembers.push(FAMILY_MEMBERS[i]);
-      }
-    }
     if (this.hasCustomMember) {
       const newMember: FamilyMemberSpec = { id: 'new_member', name: this.customMemberName, role: this.customMemberRole, status: '已加入家庭', accent: '#7F72F2' };
       nextMembers.push(newMember);
@@ -173,33 +171,73 @@ struct MyFamilyPage {
   build() {
     Column() {
       this.TopBar()
-      Scroll() {
-        Column() {
-          this.HomeCard()
-          this.InviteCard()
-          this.PermissionCard()
-          this.MemberHeader()
-          if (this.showNewMember) {
-            this.AddMemberPanel()
-          }
+      if (this.hasAuthSession()) {
+        Scroll() {
+          Column() {
+            this.HomeCard()
+            this.InviteCard()
+            this.PermissionCard()
+            this.MemberHeader()
+            if (this.showNewMember) {
+              this.AddMemberPanel()
+            }
 
-          if (this.members().length === 0) {
-            this.EmptyMemberState()
-          } else {
-            ForEach(this.members(), (member: FamilyMemberSpec) => {
-              this.MemberRow(member)
-            }, (member: FamilyMemberSpec) => member.id)
+            if (this.members().length === 0) {
+              this.EmptyMemberState()
+            } else {
+              ForEach(this.members(), (member: FamilyMemberSpec) => {
+                this.MemberRow(member)
+              }, (member: FamilyMemberSpec) => member.id)
+            }
           }
+          .width('100%')
+          .padding({ left: 18, right: 18, bottom: 28 })
         }
-        .width('100%')
-        .padding({ left: 18, right: 18, bottom: 28 })
+        .layoutWeight(1)
+        .scrollBar(BarState.Off)
+      } else {
+        this.AuthRequiredState()
       }
-      .layoutWeight(1)
-      .scrollBar(BarState.Off)
     }
     .width('100%')
     .height('100%')
     .backgroundColor(this.bgColor())
+  }
+
+  @Builder
+  AuthRequiredState() {
+    Column() {
+      Text('登录后管理家庭')
+        .fontSize(21)
+        .fontWeight(FontWeight.Bold)
+        .fontColor(this.primaryText())
+
+      Text('家庭成员、权限和共享空间会从账号同步，未登录时不显示示例家庭。')
+        .fontSize(13)
+        .lineHeight(20)
+        .fontColor(this.secondaryText())
+        .textAlign(TextAlign.Center)
+        .width('78%')
+        .margin({ top: 8 })
+
+      Button('去登录')
+        .height(40)
+        .fontSize(13)
+        .fontWeight(FontWeight.Bold)
+        .fontColor('#FFFFFF')
+        .backgroundColor('#11151D')
+        .borderRadius(20)
+        .padding({ left: 20, right: 20 })
+        .margin({ top: 18 })
+        .onClick(() => {
+          safePushUrl(this.getUIContext().getRouter(), { url: 'pages/my/mylogin', params: { isNight: this.isNight } });
+        })
+    }
+    .width('100%')
+    .layoutWeight(1)
+    .justifyContent(FlexAlign.Center)
+    .alignItems(HorizontalAlign.Center)
+    .padding({ left: 28, right: 28, bottom: 40 })
   }
 
   @Builder
@@ -236,7 +274,7 @@ struct MyFamilyPage {
             .fontSize(24)
             .fontWeight(FontWeight.Bold)
             .fontColor(this.primaryText())
-          Text('2 个房间 · 6 台设备 · 3 位成员共享')
+          Text('0 个房间 · 0 台设备 · 待添加成员')
             .fontSize(13)
             .fontColor(this.secondaryText())
             .margin({ top: 8 })
@@ -244,7 +282,7 @@ struct MyFamilyPage {
         .alignItems(HorizontalAlign.Start)
         .layoutWeight(1)
 
-        Text('96% 健康')
+        Text('待配置')
           .fontSize(12)
           .fontWeight(FontWeight.Bold)
           .fontColor('#FFFFFF')
@@ -255,9 +293,7 @@ struct MyFamilyPage {
       .width('100%')
 
       Row() {
-        this.HomeChip('幸福之家')
-        this.HomeChip('父母家')
-        this.HomeChip('工作室')
+        this.HomeChip('我的家庭')
       }
       .width('100%')
       .margin({ top: 18 })
@@ -468,11 +504,8 @@ struct MyFamilyPage {
         .borderRadius(16)
         .padding({ left: 12, right: 12 })
         .onClick(() => {
-          if (this.showEmpty) {
-            this.showEmpty = false;
-          } else {
-            this.showNewMember = !this.showNewMember;
-          }
+          this.showEmpty = false;
+          this.showNewMember = !this.showNewMember;
           this.syncFamilyPreferences();
         })
     }
@@ -634,19 +667,6 @@ struct MyFamilyPage {
         .fontColor(this.secondaryText())
         .textAlign(TextAlign.Center)
         .margin({ top: 8 })
-      Button('恢复成员示例')
-        .height(40)
-        .fontSize(13)
-        .fontWeight(FontWeight.Bold)
-        .fontColor('#FFFFFF')
-        .backgroundColor('#5E8CFF')
-        .borderRadius(20)
-        .padding({ left: 18, right: 18 })
-        .margin({ top: 18 })
-        .onClick(() => {
-          this.showEmpty = false;
-          this.syncFamilyPreferences();
-        })
     }
     .width('100%')
     .padding({ left: 28, right: 28, top: 54, bottom: 54 })
