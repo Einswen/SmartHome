@@ -1,62 +1,49 @@
-﻿import { safeBack, safeGetParams } from '../../common/SafeRouter';
+import { safeBack, safeGetParams } from '../../common/SafeRouter';
+import {
+  createStoreAddress,
+  deleteStoreAddress,
+  fetchStoreAddresses,
+  setDefaultStoreAddress,
+  SmartHomeApiResult,
+  StoreAddress,
+  StoreAddressRequest,
+  updateStoreAddress
+} from '../../common/SmartHomeApi';
 
 interface StoreAddressRouteParams {
   isNight?: boolean;
 }
-
-interface AddressSpec {
-  id: string;
-  name: string;
-  phone: string;
-  region: string;
-  detail: string;
-  tag: string;
-  isDefault: boolean;
-}
-
-const ADDRESS_LIST: AddressSpec[] = [
-  {
-    id: 'home',
-    name: '商城用户',
-    phone: '138 **** 8888',
-    region: '上海市 浦东新区',
-    detail: '智能家居体验中心 8 号楼 1201',
-    tag: '家庭',
-    isDefault: true
-  },
-  {
-    id: 'office',
-    name: '安装联系人',
-    phone: '136 **** 6620',
-    region: '上海市 徐汇区',
-    detail: '漕河泾开发区 18 号 6 层',
-    tag: '工作',
-    isDefault: false
-  }
-];
 
 @Entry
 @Component
 struct StoreAddressPage {
   @State isNight: boolean = false;
   @State editing: boolean = false;
-  @State selectedAddressId: string = 'home';
-  @State customAddresses: AddressSpec[] = [];
-  @State contactName: string = '';
-  @State contactPhone: string = '';
-  @State contactRegion: string = '';
-  @State contactDetail: string = '';
-  @State phoneError: string = '';
-  @StorageLink('storeAddressPayload') addressPayload: string = '';
-  @StorageLink('storeDeletedAddressIds') deletedAddressIdsText: string = '';
+  @State selectedAddressId: string = '';
+  @State addresses: StoreAddress[] = [];
+  @State addressLoading: boolean = false;
+  @State addressSaving: boolean = false;
+  @State addressMessage: string = '';
+  @State editingAddressId: string = '';
+  @State formName: string = '';
+  @State formPhone: string = '';
+  @State formRegion: string = '';
+  @State formDetail: string = '';
+  @State formTag: string = '家庭';
+  @State formDefault: boolean = false;
+  @StorageLink('lumiUserSignedIn') signedIn: boolean = false;
+  @StorageLink('lumiAuthToken') authToken: string = '';
 
   aboutToAppear(): void {
     const params = safeGetParams(this.getUIContext().getRouter()) as StoreAddressRouteParams | undefined;
     if (params && params.isNight !== undefined) {
       this.isNight = params.isNight;
     }
-    this.loadCustomAddresses();
-    this.ensureSelectedAddress();
+    this.loadAddresses();
+  }
+
+  onPageShow(): void {
+    this.loadAddresses();
   }
 
   private primaryText(): string {
@@ -83,125 +70,170 @@ struct StoreAddressPage {
     return this.isNight ? '#24FFFFFF' : '#5CFFFFFF';
   }
 
-  private addresses(): AddressSpec[] {
-    const baseAddresses: AddressSpec[] = [];
-    for (let i = 0; i < ADDRESS_LIST.length; i++) {
-      if (!this.isDeletedAddress(ADDRESS_LIST[i].id)) {
-        baseAddresses.push(ADDRESS_LIST[i]);
-      }
+  private hasAuthSession(): boolean {
+    return this.signedIn && this.authToken.trim().length > 0;
+  }
+
+  private async loadAddresses(): Promise<void> {
+    if (!this.hasAuthSession()) {
+      this.addresses = [];
+      this.selectedAddressId = '';
+      this.addressMessage = '登录后可同步保存收货地址';
+      return;
     }
-    return [...baseAddresses, ...this.customAddresses];
-  }
-
-  private deletedAddressIds(): string[] {
-    return this.deletedAddressIdsText.length > 0 ? this.deletedAddressIdsText.split('|').filter((id: string) => id.length > 0) : [];
-  }
-
-  private isDeletedAddress(addressId: string): boolean {
-    return this.deletedAddressIds().indexOf(addressId) >= 0;
-  }
-
-  private isCustomAddress(addressId: string): boolean {
-    return addressId.indexOf('custom_') === 0;
+    this.addressLoading = true;
+    const result: SmartHomeApiResult<StoreAddress[]> = await fetchStoreAddresses(this.authToken);
+    this.addressLoading = false;
+    if (!result.ok || result.data === undefined) {
+      this.addressMessage = result.error === undefined ? '地址读取失败，请稍后重试' : result.error;
+      return;
+    }
+    this.addresses = result.data;
+    this.addressMessage = result.data.length === 0 ? '还没有保存地址' : '';
+    this.ensureSelectedAddress();
   }
 
   private ensureSelectedAddress(): void {
-    const currentAddresses: AddressSpec[] = this.addresses();
-    if (currentAddresses.length === 0) {
+    if (this.addresses.length === 0) {
       this.selectedAddressId = '';
       return;
     }
-    for (let i = 0; i < currentAddresses.length; i++) {
-      if (currentAddresses[i].id === this.selectedAddressId) {
+    for (let i = 0; i < this.addresses.length; i++) {
+      if (this.addresses[i].isDefault) {
+        this.selectedAddressId = `${this.addresses[i].id}`;
         return;
       }
     }
-    this.selectedAddressId = currentAddresses[0].id;
+    this.selectedAddressId = `${this.addresses[0].id}`;
   }
 
-  private loadCustomAddresses(): void {
-    if (this.addressPayload.length === 0) {
-      return;
-    }
-    const lines: string[] = this.addressPayload.split('\n');
-    const addresses: AddressSpec[] = [];
-    for (let i = 0; i < lines.length; i++) {
-      const parts: string[] = lines[i].split('|');
-      if (parts.length !== 6 || parts[0].length === 0) {
-        continue;
-      }
-      addresses.push({
-        id: parts[0],
-        name: parts[1],
-        phone: parts[2],
-        region: parts[3],
-        detail: parts[4],
-        tag: parts[5],
-        isDefault: false
-      });
-    }
-    this.customAddresses = addresses;
+  private beginCreate(): void {
+    this.editing = true;
+    this.editingAddressId = '';
+    this.formName = '';
+    this.formPhone = '';
+    this.formRegion = '';
+    this.formDetail = '';
+    this.formTag = '家庭';
+    this.formDefault = this.addresses.length === 0;
+    this.addressMessage = '';
   }
 
-  private syncCustomAddresses(): void {
-    const lines: string[] = [];
-    for (let i = 0; i < this.customAddresses.length; i++) {
-      const item = this.customAddresses[i];
-      lines.push(`${item.id}|${item.name}|${item.phone}|${item.region}|${item.detail}|${item.tag}`);
-    }
-    this.addressPayload = lines.join('\n');
+  private beginEdit(item: StoreAddress): void {
+    this.editing = true;
+    this.editingAddressId = `${item.id}`;
+    this.formName = item.name;
+    this.formPhone = item.phone;
+    this.formRegion = item.region;
+    this.formDetail = item.detail;
+    this.formTag = item.tag;
+    this.formDefault = item.isDefault;
+    this.addressMessage = '';
   }
 
-  private validPhone(phone: string): boolean {
-    return /^1[3-9]\d{9}$/.test(phone.trim());
-  }
-
-  private saveAddress(): void {
-    const phone: string = this.contactPhone.trim();
-    if (phone.length === 0) {
-      this.phoneError = '请输入手机号';
-      return;
-    }
-    if (!this.validPhone(phone)) {
-      this.phoneError = '请输入 11 位有效手机号';
-      return;
-    }
-    const nextIndex = this.customAddresses.length + 1;
-    const nextAddress: AddressSpec = {
-      id: `custom_${new Date().getTime()}`,
-      name: this.contactName.trim().length > 0 ? this.contactName.trim() : `新增联系人 ${nextIndex}`,
-      phone: phone,
-      region: this.contactRegion.trim().length > 0 ? this.contactRegion.trim() : '未填写地区',
-      detail: this.contactDetail.trim().length > 0 ? this.contactDetail.trim() : '未填写详细地址',
-      tag: '新增',
-      isDefault: false
-    };
-    this.customAddresses = [...this.customAddresses, nextAddress];
-    this.syncCustomAddresses();
-    this.selectedAddressId = nextAddress.id;
-    this.contactName = '';
-    this.contactPhone = '';
-    this.contactRegion = '';
-    this.contactDetail = '';
-    this.phoneError = '';
+  private closeForm(): void {
     this.editing = false;
+    this.editingAddressId = '';
+    this.addressMessage = '';
   }
 
-  private deleteAddress(addressId: string): void {
-    if (this.isCustomAddress(addressId)) {
-      this.customAddresses = this.customAddresses.filter((item: AddressSpec) => item.id !== addressId);
-      this.syncCustomAddresses();
-    } else {
-      const deletedIds: string[] = this.deletedAddressIds();
-      if (deletedIds.indexOf(addressId) < 0) {
-        deletedIds.push(addressId);
-        this.deletedAddressIdsText = deletedIds.join('|');
-      }
+  private formTitle(): string {
+    return this.editingAddressId.length > 0 ? '编辑地址' : '新增地址';
+  }
+
+  private canSaveAddress(): boolean {
+    return this.hasAuthSession() &&
+      !this.addressSaving &&
+      this.formName.trim().length > 0 &&
+      this.formPhone.trim().length > 0 &&
+      this.formRegion.trim().length > 0 &&
+      this.formDetail.trim().length > 0;
+  }
+
+  private buildAddressPayload(): StoreAddressRequest {
+    return {
+      name: this.formName.trim(),
+      phone: this.formPhone.trim(),
+      region: this.formRegion.trim(),
+      detail: this.formDetail.trim(),
+      tag: this.formTag.trim().length === 0 ? '家庭' : this.formTag.trim(),
+      isDefault: this.formDefault
+    };
+  }
+
+  private async saveAddress(): Promise<void> {
+    if (!this.canSaveAddress()) {
+      this.addressMessage = this.hasAuthSession() ? '请完整填写联系人、手机号、地区和详细地址' : '请先登录后再保存地址';
+      return;
     }
-    if (this.selectedAddressId === addressId) {
-      this.selectedAddressId = '';
+    this.addressSaving = true;
+    const payload = this.buildAddressPayload();
+    const result = this.editingAddressId.length > 0
+      ? await updateStoreAddress(this.authToken, Number(this.editingAddressId), payload)
+      : await createStoreAddress(this.authToken, payload);
+    this.addressSaving = false;
+    if (!result.ok || result.data === undefined) {
+      this.addressMessage = result.error === undefined ? '保存失败，请稍后重试' : result.error;
+      return;
     }
+    this.selectedAddressId = `${result.data.id}`;
+    this.editing = false;
+    this.editingAddressId = '';
+    this.addressMessage = '地址已保存';
+    await this.loadAddresses();
+  }
+
+  private async selectAddress(item: StoreAddress): Promise<void> {
+    this.selectedAddressId = `${item.id}`;
+    if (!this.hasAuthSession() || item.isDefault) {
+      return;
+    }
+    const result = await setDefaultStoreAddress(this.authToken, item.id);
+    this.applyAddressListResult(result, '默认地址已更新');
+  }
+
+  private async removeAddress(item: StoreAddress): Promise<void> {
+    if (!this.hasAuthSession()) {
+      this.addressMessage = '请先登录后再删除地址';
+      return;
+    }
+    const result = await deleteStoreAddress(this.authToken, item.id);
+    this.applyAddressListResult(result, '地址已删除');
+    if (this.editingAddressId === `${item.id}`) {
+      this.closeForm();
+    }
+  }
+
+  private applyAddressListResult(result: SmartHomeApiResult<StoreAddress[]>, successMessage: string): void {
+    if (!result.ok || result.data === undefined) {
+      this.addressMessage = result.error === undefined ? '操作失败，请稍后重试' : result.error;
+      return;
+    }
+    this.addresses = result.data;
+    this.addressMessage = successMessage;
     this.ensureSelectedAddress();
+  }
+
+  private updateFormField(field: string, value: string): void {
+    switch (field) {
+      case 'name':
+        this.formName = value;
+        break;
+      case 'phone':
+        this.formPhone = value;
+        break;
+      case 'region':
+        this.formRegion = value;
+        break;
+      case 'detail':
+        this.formDetail = value;
+        break;
+      case 'tag':
+        this.formTag = value;
+        break;
+      default:
+        break;
+    }
   }
 
   build() {
@@ -279,26 +311,36 @@ struct StoreAddressPage {
   @Builder
   AddressList() {
     Column() {
-      Text('常用地址')
-        .fontSize(18)
-        .fontWeight(FontWeight.Bold)
-        .fontColor(this.primaryText())
-        .width('100%')
-        .margin({ bottom: 10 })
+      Row() {
+        Text('常用地址')
+          .fontSize(18)
+          .fontWeight(FontWeight.Bold)
+          .fontColor(this.primaryText())
+          .layoutWeight(1)
 
-      if (this.addresses().length === 0) {
-        Text('暂无地址，请添加新的配送地址。')
+        if (this.addressLoading) {
+          Text('同步中')
+            .fontSize(12)
+            .fontColor(this.secondaryText())
+        }
+      }
+      .width('100%')
+      .margin({ bottom: 10 })
+
+      if (this.addresses.length === 0) {
+        Text(this.addressMessage.length > 0 ? this.addressMessage : '还没有保存地址')
           .fontSize(13)
+          .lineHeight(20)
           .fontColor(this.secondaryText())
           .width('100%')
-          .padding({ left: 16, right: 16, top: 24, bottom: 24 })
+          .padding({ left: 16, right: 16, top: 18, bottom: 18 })
           .backgroundColor(this.cardColor())
           .border({ width: 1, color: this.lineColor() })
-          .borderRadius(22)
+          .borderRadius(18)
       } else {
-        ForEach(this.addresses(), (item: AddressSpec) => {
+        ForEach(this.addresses, (item: StoreAddress) => {
           this.AddressCard(item)
-        }, (item: AddressSpec) => item.id)
+        }, (item: StoreAddress) => `${item.id}`)
       }
     }
     .width('100%')
@@ -306,7 +348,7 @@ struct StoreAddressPage {
   }
 
   @Builder
-  AddressCard(item: AddressSpec) {
+  AddressCard(item: StoreAddress) {
     Column() {
       Row() {
         Text(item.tag)
@@ -323,11 +365,11 @@ struct StoreAddressPage {
           .margin({ left: 10 })
           .layoutWeight(1)
 
-        Radio({ value: item.id, group: 'address' })
-          .checked(this.selectedAddressId === item.id)
+        Radio({ value: `${item.id}`, group: 'address' })
+          .checked(this.selectedAddressId === `${item.id}`)
           .onChange((checked: boolean) => {
             if (checked) {
-              this.selectedAddressId = item.id;
+              this.selectAddress(item);
             }
           })
       }
@@ -348,28 +390,44 @@ struct StoreAddressPage {
         .width('100%')
         .margin({ top: 6 })
 
-      Button('删除')
-        .height(32)
-        .fontSize(12)
-        .fontWeight(FontWeight.Bold)
-        .fontColor('#D35B4B')
-        .backgroundColor(this.isNight ? '#33D35B4B' : '#FFF1EF')
-        .borderRadius(16)
-        .padding({ left: 14, right: 14 })
-        .margin({ top: 12 })
-        .onClick(() => {
-          this.deleteAddress(item.id);
-        })
+      Row() {
+        Button('编辑')
+          .height(32)
+          .fontSize(12)
+          .fontWeight(FontWeight.Bold)
+          .fontColor(this.primaryText())
+          .backgroundColor(this.softColor())
+          .borderRadius(16)
+          .padding({ left: 14, right: 14 })
+          .onClick(() => {
+            this.beginEdit(item);
+          })
+
+        Button('删除')
+          .height(32)
+          .fontSize(12)
+          .fontWeight(FontWeight.Bold)
+          .fontColor('#E14D4D')
+          .backgroundColor(this.softColor())
+          .borderRadius(16)
+          .padding({ left: 14, right: 14 })
+          .margin({ left: 10 })
+          .onClick(() => {
+            this.removeAddress(item);
+          })
+      }
+      .width('100%')
+      .margin({ top: 14 })
     }
     .width('100%')
     .alignItems(HorizontalAlign.Start)
     .padding({ left: 16, right: 16, top: 16, bottom: 16 })
     .backgroundColor(this.cardColor())
-    .border({ width: 1, color: this.selectedAddressId === item.id ? '#F3A33A' : this.lineColor() })
+    .border({ width: 1, color: this.selectedAddressId === `${item.id}` ? '#F3A33A' : this.lineColor() })
     .borderRadius(22)
     .margin({ top: 10 })
     .onClick(() => {
-      this.selectedAddressId = item.id;
+      this.selectAddress(item);
     })
   }
 
@@ -377,7 +435,7 @@ struct StoreAddressPage {
   AddressForm() {
     Column() {
       Row() {
-        Text('新增地址')
+        Text(this.formTitle())
           .fontSize(18)
           .fontWeight(FontWeight.Bold)
           .fontColor(this.primaryText())
@@ -392,36 +450,58 @@ struct StoreAddressPage {
           .borderRadius(17)
           .padding({ left: 14, right: 14 })
           .onClick(() => {
-            this.editing = !this.editing;
+            if (this.editing) {
+              this.closeForm();
+            } else {
+              this.beginCreate();
+            }
           })
       }
       .width('100%')
 
       if (this.editing) {
-        this.FormRow('联系人', '请输入收货人姓名', 'name')
-        this.FormRow('手机号', '请输入联系电话', 'phone')
-        if (this.phoneError.length > 0) {
-          Text(this.phoneError)
-            .fontSize(12)
-            .fontColor('#D35B4B')
-            .width('100%')
-            .margin({ top: 6 })
-        }
-        this.FormRow('所在地区', '省 / 市 / 区', 'region')
-        this.FormRow('详细地址', '街道、门牌号、楼层', 'detail')
+        this.FormRow('联系人', '请输入收货人姓名', this.formName, 'name')
+        this.FormRow('手机号', '请输入联系电话', this.formPhone, 'phone')
+        this.FormRow('所在地区', '省 / 市 / 区', this.formRegion, 'region')
+        this.FormRow('详细地址', '街道、门牌号、楼层', this.formDetail, 'detail')
+        this.FormRow('标签', '家庭 / 工作 / 安装', this.formTag, 'tag')
 
-        Button('保存地址')
+        Row() {
+          Checkbox()
+            .select(this.formDefault)
+            .onChange((checked: boolean) => {
+              this.formDefault = checked;
+            })
+
+          Text('设为默认地址')
+            .fontSize(13)
+            .fontColor(this.secondaryText())
+            .margin({ left: 8 })
+        }
+        .width('100%')
+        .margin({ top: 14 })
+
+        Button(this.addressSaving ? '保存中' : '保存地址')
           .width('100%')
           .height(44)
           .fontSize(14)
           .fontWeight(FontWeight.Bold)
           .fontColor('#FFFFFF')
-          .backgroundColor('#11151D')
+          .backgroundColor(this.canSaveAddress() ? '#11151D' : '#7A818D')
           .borderRadius(22)
           .margin({ top: 14 })
           .onClick(() => {
             this.saveAddress();
           })
+      }
+
+      if (this.addressMessage.length > 0 && this.addresses.length > 0) {
+        Text(this.addressMessage)
+          .fontSize(12)
+          .lineHeight(18)
+          .fontColor(this.secondaryText())
+          .width('100%')
+          .margin({ top: 12 })
       }
     }
     .width('100%')
@@ -433,7 +513,7 @@ struct StoreAddressPage {
   }
 
   @Builder
-  FormRow(label: string, placeholder: string, field: string) {
+  FormRow(label: string, placeholder: string, value: string, field: string) {
     Column() {
       Text(label)
         .fontSize(12)
@@ -441,10 +521,7 @@ struct StoreAddressPage {
         .fontColor(this.secondaryText())
         .width('100%')
 
-      TextInput({
-        placeholder: placeholder,
-        text: field === 'name' ? this.contactName : (field === 'phone' ? this.contactPhone : (field === 'region' ? this.contactRegion : this.contactDetail))
-      })
+      TextInput({ placeholder: placeholder, text: value })
         .height(42)
         .fontSize(13)
         .fontColor(this.primaryText())
@@ -452,19 +529,8 @@ struct StoreAddressPage {
         .backgroundColor(this.softColor())
         .borderRadius(16)
         .margin({ top: 8 })
-        .onChange((value: string) => {
-          if (field === 'name') {
-            this.contactName = value;
-          } else if (field === 'phone') {
-            this.contactPhone = value;
-            if (this.phoneError.length > 0 && this.validPhone(value)) {
-              this.phoneError = '';
-            }
-          } else if (field === 'region') {
-            this.contactRegion = value;
-          } else {
-            this.contactDetail = value;
-          }
+        .onChange((nextValue: string) => {
+          this.updateFormField(field, nextValue);
         })
     }
     .width('100%')
