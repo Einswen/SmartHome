@@ -266,11 +266,11 @@ const INITIAL_ROOM_DEVICES: RoomDeviceState[] = [
 @Component
 struct Index {
   @State activeTab: string = 'home';
-  @State rooms: RoomSpec[] = [];
-  @State activeRoomId: string = '';
+  @State rooms: RoomSpec[] = INITIAL_ROOMS;
+  @State activeRoomId: string = 'living';
   @State homeRoomSwiperIndex: number = 0;
-  @State scenes: SceneSpec[] = [];
-  @State activeSceneId: string = '';
+  @State scenes: SceneSpec[] = INITIAL_SCENES;
+  @State activeSceneId: string = 'morning';
   @State agentPrompt: string = '';
   @State agentListening: boolean = false;
   @State agentThinking: boolean = false;
@@ -285,9 +285,9 @@ struct Index {
   @State automationTrigger: string = '';
   @State automationAction: string = '';
   @State expandedAutomationId: string = '';
-  @State agentRecords: AgentRecordSpec[] = [];
-  @State automations: AutomationSpec[] = [];
-  @State chatMessages: AgentMessageSpec[] = [];
+  @State agentRecords: AgentRecordSpec[] = DEFAULT_AGENT_RECORDS;
+  @State automations: AutomationSpec[] = DEFAULT_AUTOMATIONS;
+  @State chatMessages: AgentMessageSpec[] = DEFAULT_AGENT_MESSAGES;
   @State selectedPointId: string = '';
   @State detailPointId: string = '';
   @State @Watch('handleDetailActionPoint') detailActionPointId: string = '';
@@ -303,17 +303,17 @@ struct Index {
   @State editingSceneId: string = '';
   @State sceneDevicePresetsDraft: SceneDevicePresetSpec[] = [];
   @State dynamicDeviceStates: DynamicDeviceStateSpec[] = [];
-  @State roomDevices: RoomDeviceState[] = [];
+  @State roomDevices: RoomDeviceState[] = INITIAL_ROOM_DEVICES;
   @State isNight: boolean = false;
   @State manualPeriod: boolean = false;
-  @StorageLink('homeLivingPointIds') livingPointIdsText: string = '';
-  @StorageLink('homeLivingDeviceCount') livingDeviceCount: number = 0;
-  @StorageLink('homeLivingAirInstalled') livingAirInstalled: boolean = false;
-  @StorageLink('homeLivingCurtainInstalled') livingCurtainInstalled: boolean = false;
-  @StorageLink('homeLivingTvInstalled') livingTvInstalled: boolean = false;
-  @StorageLink('homeLivingPurifierInstalled') livingPurifierInstalled: boolean = false;
-  @StorageLink('homeLivingRobotInstalled') livingRobotInstalled: boolean = false;
-  @StorageLink('homeLivingLightInstalled') livingLightInstalled: boolean = false;
+  @StorageLink('homeLivingPointIds') livingPointIdsText: string = 'living_air|living_curtain|living_tv|living_purifier|living_robot|living_light';
+  @StorageLink('homeLivingDeviceCount') livingDeviceCount: number = 6;
+  @StorageLink('homeLivingAirInstalled') livingAirInstalled: boolean = true;
+  @StorageLink('homeLivingCurtainInstalled') livingCurtainInstalled: boolean = true;
+  @StorageLink('homeLivingTvInstalled') livingTvInstalled: boolean = true;
+  @StorageLink('homeLivingPurifierInstalled') livingPurifierInstalled: boolean = true;
+  @StorageLink('homeLivingRobotInstalled') livingRobotInstalled: boolean = true;
+  @StorageLink('homeLivingLightInstalled') livingLightInstalled: boolean = true;
   @StorageLink('homeLivingLightOn') livingLightOn: boolean = false;
   @State bedroomLightOn: boolean = false;
   @StorageLink('homeLivingTemperature') livingTemperature: number = 24;
@@ -330,7 +330,6 @@ struct Index {
   @State cloudDebugMessage: string = '';
   @State bedroomRobotOn: boolean = false;
   @State bedroomDoorLocked: boolean = true;
-  @StorageLink('lumiUserSignedIn') signedIn: boolean = false;
   @StorageLink('lumiAuthToken') authToken: string = '';
   @StorageLink('lumiHomeState') homeStateText: string = '';
   private clockTimer: number = -1;
@@ -360,10 +359,6 @@ struct Index {
   }
 
   onPageShow(): void {
-    if (!this.hasAuthSession()) {
-      this.resetPrivateHomeState();
-      return;
-    }
     this.applyStoredHomeState();
     this.loadBackendState();
   }
@@ -379,48 +374,16 @@ struct Index {
   }
 
   private async loadBackendState(): Promise<void> {
-    if (!this.hasAuthSession()) {
-      this.resetPrivateHomeState();
+    this.applyStoredHomeState();
+    if (this.authToken.trim().length === 0) {
       return;
     }
-    this.applyStoredHomeState();
     const result = await fetchHomeState(this.authToken);
     if (!result.ok || result.data === undefined) {
       return;
     }
     this.rememberBackendState(result.data);
     this.applyBackendState(result.data);
-  }
-
-  private hasAuthSession(): boolean {
-    return this.signedIn && this.authToken.trim().length > 0;
-  }
-
-  private resetPrivateHomeState(): void {
-    this.rooms = [];
-    this.roomDevices = [];
-    this.dynamicDeviceStates = [];
-    this.scenes = [];
-    this.automations = [];
-    this.agentRecords = [];
-    this.chatMessages = [];
-    this.activeRoomId = '';
-    this.activeSceneId = '';
-    this.homeRoomSwiperIndex = 0;
-    this.selectedPointId = '';
-    this.detailPointId = '';
-    this.addRoomPanelVisible = false;
-    this.addScenePanelVisible = false;
-    this.devicePanelMode = '';
-    this.agentPrompt = '';
-    this.automationComposerVisible = false;
-    this.expandedAutomationId = '';
-    this.appliedHomeStateText = '';
-    this.homeStateText = '';
-    this.livingPointIdsText = '';
-    this.livingDeviceCount = 0;
-    this.syncLivingInstalledFlags([]);
-    this.selectionVersion++;
   }
 
   private rememberBackendState(state: SmartHomeState): void {
@@ -436,9 +399,6 @@ struct Index {
   }
 
   private applyStoredHomeState(): void {
-    if (!this.hasAuthSession()) {
-      return;
-    }
     if (this.homeStateText.length === 0 || this.homeStateText === this.appliedHomeStateText) {
       return;
     }
@@ -452,20 +412,30 @@ struct Index {
 
   private applyBackendState(state: SmartHomeState): void {
     const rooms = this.backendRooms(state.rooms);
-    this.rooms = rooms;
+    if (rooms.length > 0) {
+      this.rooms = rooms;
+    }
     const roomDevices = this.backendRoomDevices(state.roomDevices);
-    this.roomDevices = roomDevices;
+    if (roomDevices.length > 0) {
+      this.roomDevices = roomDevices;
+    }
     const deviceStates = this.backendDeviceStates(state.deviceStates);
-    this.dynamicDeviceStates = deviceStates;
-    this.scenes = state.scenes as SceneSpec[];
-    this.automations = state.automations as AutomationSpec[];
+    if (deviceStates.length > 0) {
+      this.dynamicDeviceStates = deviceStates;
+    }
+    if (state.scenes.length > 0) {
+      this.scenes = state.scenes as SceneSpec[];
+    }
+    if (state.automations.length > 0) {
+      this.automations = state.automations as AutomationSpec[];
+    }
     this.agentRecords = state.agentRecords as AgentRecordSpec[];
     this.chatMessages = state.agentMessages as AgentMessageSpec[];
-    this.activeRoomId = state.activeRoomId.length > 0 ? state.activeRoomId : (this.rooms.length > 0 ? this.rooms[0].id : '');
-    this.activeSceneId = state.activeSceneId.length > 0 ? state.activeSceneId : (this.scenes.length > 0 ? this.scenes[0].id : '');
+    this.activeRoomId = state.activeRoomId;
+    this.activeSceneId = state.activeSceneId;
     this.isNight = state.isNight;
     this.manualPeriod = state.manualPeriod;
-    this.homeRoomSwiperIndex = this.rooms.length > 0 ? this.roomIndexById(this.activeRoomId) : 0;
+    this.homeRoomSwiperIndex = this.roomIndexById(this.activeRoomId);
     this.syncLivingDevicesToStorage();
     this.selectionVersion++;
   }
@@ -548,19 +518,14 @@ struct Index {
         return this.rooms[i];
       }
     }
-    return {
-      id: '',
-      name: '',
-      subtitle: '',
-      preset: false
-    };
+    return this.rooms[0];
   }
 
   private currentRoomId(): string {
     if (this.homeRoomSwiperIndex >= 0 && this.homeRoomSwiperIndex < this.rooms.length) {
       return this.rooms[this.homeRoomSwiperIndex].id;
     }
-    return this.rooms.length > 0 ? this.activeRoomId : '';
+    return this.activeRoomId;
   }
 
   private roomById(roomId: string): RoomSpec {
@@ -569,12 +534,7 @@ struct Index {
         return this.rooms[i];
       }
     }
-    return {
-      id: roomId,
-      name: roomId.length > 0 ? roomId : '未选择房间',
-      subtitle: '',
-      preset: false
-    };
+    return this.rooms[0];
   }
 
   private roomTemplateId(roomId: string): string {
@@ -1393,7 +1353,7 @@ struct Index {
     this.editingSceneId = '';
     this.customSceneName = '';
     this.customSceneDetail = '';
-    this.selectedSceneTemplateId = this.activeSceneId.length > 0 ? this.sceneBaseId(this.activeSceneId) : 'morning';
+    this.selectedSceneTemplateId = this.sceneBaseId(this.activeSceneId);
     this.sceneDevicePresetsDraft = [];
     this.selectionVersion++;
   }
@@ -1515,25 +1475,6 @@ struct Index {
     this.addScenePanelVisible = false;
   }
 
-  private deleteEditingScene(): void {
-    if (!this.isEditingScene()) {
-      return;
-    }
-    const deletedSceneId = this.editingSceneId;
-    this.scenes = this.scenes.filter((scene: SceneSpec) => scene.id !== deletedSceneId);
-    if (this.activeSceneId === deletedSceneId) {
-      this.activeSceneId = this.scenes.length > 0 ? this.scenes[0].id : '';
-    }
-    this.syncHomeSection('scenes', this.scenes);
-    this.syncActiveState();
-    this.editingSceneId = '';
-    this.customSceneName = '';
-    this.customSceneDetail = '';
-    this.sceneDevicePresetsDraft = [];
-    this.addScenePanelVisible = false;
-    this.selectionVersion++;
-  }
-
   private presetRoomCount(templateId: string): number {
     let count = 0;
     for (let i = 0; i < this.rooms.length; i++) {
@@ -1645,6 +1586,9 @@ struct Index {
     const baseId = this.pointBaseId(point.id);
     if (baseId === 'living_air' || baseId === 'bedroom_air' || baseId === 'generic_air') {
       return point.id.indexOf('@') >= 0 ? this.dynamicState(point.id).on : this.sharedAirOnForRoom(point.roomId);
+    }
+    if (point.action === 'curtain') {
+      return this.detailValue(point) > 0;
     }
     return this.pointToggleOn(point);
   }
@@ -1765,21 +1709,15 @@ struct Index {
   private async toggleRobotByMotor(point: PointSpec): Promise<void> {
     const previousOn = this.pointToggleOn(point);
     const nextOn = !previousOn;
-    const label = `${point.name}${nextOn ? '开始' : '停止'}`;
+    const label = `${point.name}${nextOn ? '开始' : '暂停'}`;
     this.setPointToggleLocal(point, nextOn);
-    const duration = nextOn ? 1800 : 800;
-    const durationLabel = nextOn ? '约 3 秒' : '约 1 秒';
-    this.updateCloudDebug(`准备下发：${label}，Motor=ON 后${durationLabel}强制 Motor=OFF`);
+    const duration = nextOn ? 3000 : 1000;
+    const durationLabel = nextOn ? '3 秒' : '1 秒';
+    this.updateCloudDebug(`准备下发：${label}，先 Motor=ON，收到后计时 ${durationLabel} 再 Motor=OFF`);
     try {
+      await HuaweiCloudApi.sendMotorCommand('ON');
+      this.updateCloudDebug(`扫地机器人 Motor=ON 已发送：${label}，${durationLabel}后发送 Motor=OFF`);
       this.scheduleRobotMotorStop(duration, label);
-      HuaweiCloudApi.sendMotorCommand('ON')
-        .then(() => {
-          this.updateCloudDebug(`扫地机器人电机启动命令已发送：${label}，等待定时 OFF`);
-        })
-        .catch((err: Object) => {
-          const errorMessage = this.debugErrorText(err);
-          this.updateCloudDebug(`扫地机器人 ON 响应异常，但 OFF 定时器已启动：${label}。${errorMessage}`);
-        });
       try {
         promptAction.showToast({
           message: `已启动：${label}，${durationLabel}后停止`,
@@ -1790,7 +1728,8 @@ struct Index {
     } catch (err) {
       const errorMessage = this.debugErrorText(err as Object);
       if (this.isCommandResponseTimeout(errorMessage)) {
-        this.updateCloudDebug(`命令已发送但设备响应超时：${label}。串口若已收到 Motor=ON/OFF，说明扫地机器人命令已到板子。原始错误：${errorMessage}`);
+        this.scheduleRobotMotorStop(duration, label);
+        this.updateCloudDebug(`Motor=ON 已发出但设备响应超时：${label}，仍会在${durationLabel}后补发 Motor=OFF。串口若收到 Motor=ON/OFF，说明链路已通。原始错误：${errorMessage}`);
         try {
           promptAction.showToast({
             message: `命令已发送：${label}，设备响应超时`,
@@ -1831,11 +1770,21 @@ struct Index {
     }
     if (baseId === 'living_robot' || baseId === 'bedroom_robot' || baseId === 'generic_robot' || baseId.indexOf('robot') >= 0) {
       this.setPointToggleLocal(point, targetOn);
-      const duration = targetOn ? 1800 : 800;
-      const durationLabel = targetOn ? '约 3 秒' : '约 1 秒';
-      this.scheduleRobotMotorStop(duration, label);
-      this.updateCloudDebug(`准备下发：${label}，扫地机器人 Motor=ON，${durationLabel}后 Motor=OFF`);
-      await HuaweiCloudApi.sendMotorCommand('ON');
+      const duration = targetOn ? 3000 : 1000;
+      const durationLabel = targetOn ? '3 秒' : '1 秒';
+      this.updateCloudDebug(`准备下发：${label}，扫地机器人 Motor=ON，收到后${durationLabel}再 Motor=OFF`);
+      try {
+        await HuaweiCloudApi.sendMotorCommand('ON');
+        this.scheduleRobotMotorStop(duration, label);
+      } catch (err) {
+        const errorMessage = this.debugErrorText(err as Object);
+        if (this.isCommandResponseTimeout(errorMessage)) {
+          this.scheduleRobotMotorStop(duration, label);
+          this.updateCloudDebug(`Motor=ON 已发出但设备响应超时：${label}，仍会在${durationLabel}后补发 Motor=OFF。原始错误：${errorMessage}`);
+          return;
+        }
+        throw new Error(errorMessage);
+      }
       return;
     }
     const useLightChannel = point.action === 'light';
@@ -1876,7 +1825,7 @@ struct Index {
     const previousValue = this.detailValue(point);
     let command = value > 0 ? 'ON' : 'OFF';
     if (point.action === 'curtain') {
-      command = value > 0 ? 'OFF' : 'ON';
+      command = value > 0 ? 'ON' : 'OFF';
     }
     const label = `${point.name}${value > 0 ? '打开' : '关闭'}`;
     const useLightChannel = point.action === 'light';
@@ -2136,13 +2085,10 @@ struct Index {
         return this.scenes[i];
       }
     }
-    return this.sceneTemplateById(sceneId);
+    return this.scenes[0];
   }
 
   private sceneBaseId(sceneId: string): string {
-    if (sceneId.length === 0) {
-      return '';
-    }
     const scene = this.sceneById(sceneId);
     return scene.baseId !== undefined ? scene.baseId : scene.id;
   }
@@ -2203,9 +2149,6 @@ struct Index {
   }
 
   private applyScene(sceneId: string): void {
-    if (sceneId.length === 0) {
-      return;
-    }
     this.activeSceneId = sceneId;
     this.manualPeriod = true;
     const scene = this.sceneById(sceneId);
@@ -2226,6 +2169,8 @@ struct Index {
     for (let i = 0; i < presets.length; i++) {
       this.applyScenePreset(presets[i]);
     }
+    this.syncDeviceStates();
+    this.syncActiveState();
     this.sendSceneToCloud(baseId);
   }
 
@@ -2868,8 +2813,10 @@ struct Index {
     this.rememberSyncedState(result);
     if (result.ok && result.data !== undefined) {
       const roomDevices = this.backendRoomDevices(result.data.roomDevices);
-      this.roomDevices = roomDevices;
-      this.syncLivingDevicesToStorage();
+      if (roomDevices.length > 0) {
+        this.roomDevices = roomDevices;
+        this.syncLivingDevicesToStorage();
+      }
     }
   }
 
@@ -3665,29 +3612,27 @@ struct Index {
           .fontColor(this.primaryText())
           .layoutWeight(1)
 
-        if (this.activeSceneId.length > 0) {
-          Button('编辑当前场景')
-            .height(34)
-            .fontSize(12)
-            .fontWeight(FontWeight.Bold)
-            .fontColor(this.primaryText())
-            .backgroundColor(this.glassShellColor())
-            .border({
-              width: 1,
-              color: this.glassBorderColor()
-            })
-            .borderRadius(17)
-            .padding({ left: 14, right: 14 })
-            .scale(this.buttonScale('scene_edit_current'))
-            .opacity(this.buttonOpacity('scene_edit_current'))
-            .animation({ duration: 120, curve: Curve.EaseOut })
-            .onTouch((event: TouchEvent) => {
-              this.handlePressState('scene_edit_current', event);
-            })
-            .onClick(() => {
-              this.openEditScenePanel(this.activeSceneId);
-            })
-        }
+        Button('编辑当前场景')
+          .height(34)
+          .fontSize(12)
+          .fontWeight(FontWeight.Bold)
+          .fontColor(this.primaryText())
+          .backgroundColor(this.glassShellColor())
+          .border({
+            width: 1,
+            color: this.glassBorderColor()
+          })
+          .borderRadius(17)
+          .padding({ left: 14, right: 14 })
+          .scale(this.buttonScale('scene_edit_current'))
+          .opacity(this.buttonOpacity('scene_edit_current'))
+          .animation({ duration: 120, curve: Curve.EaseOut })
+          .onTouch((event: TouchEvent) => {
+            this.handlePressState('scene_edit_current', event);
+          })
+          .onClick(() => {
+            this.openEditScenePanel(this.activeSceneId);
+          })
       }
       .width('100%')
 
@@ -5033,31 +4978,6 @@ struct Index {
                   this.saveSceneEditor();
                 }
               })
-
-            if (this.isEditingScene()) {
-              Button('删除场景')
-                .width('100%')
-                .height(46)
-                .fontSize(14)
-                .fontWeight(FontWeight.Bold)
-                .fontColor('#D35B4B')
-                .backgroundColor(this.isNight ? '#33D35B4B' : '#FFF1EF')
-                .border({
-                  width: 1,
-                  color: this.isNight ? '#55D35B4B' : '#FFE0DA'
-                })
-                .borderRadius(20)
-                .margin({ top: -12, bottom: 22 })
-                .scale(this.buttonScale('delete_scene'))
-                .opacity(this.buttonOpacity('delete_scene'))
-                .animation({ duration: 120, curve: Curve.EaseOut })
-                .onTouch((event: TouchEvent) => {
-                  this.handlePressState('delete_scene', event);
-                })
-                .onClick(() => {
-                  this.deleteEditingScene();
-                })
-            }
           }
           .width('100%')
           .padding({ top: this.isEditingScene() ? 0 : 24 })
@@ -5136,48 +5056,6 @@ struct Index {
       .width('100%')
       .height('100%')
     }
-  }
-
-  @Builder
-  AuthRequiredPage(title: string, detail: string) {
-    Column() {
-      Text(title)
-        .fontSize(25)
-        .fontWeight(FontWeight.Bold)
-        .fontColor(this.primaryText())
-
-      Text(detail)
-        .fontSize(13)
-        .lineHeight(21)
-        .fontColor(this.secondaryText())
-        .textAlign(TextAlign.Center)
-        .width('76%')
-        .margin({ top: 10 })
-
-      Button('去登录')
-        .height(44)
-        .fontSize(14)
-        .fontWeight(FontWeight.Bold)
-        .fontColor(this.inverseText())
-        .backgroundColor(this.translucentInverseBg())
-        .borderRadius(22)
-        .padding({ left: 24, right: 24 })
-        .margin({ top: 22 })
-        .scale(this.buttonScale('auth_required_login'))
-        .opacity(this.buttonOpacity('auth_required_login'))
-        .animation({ duration: 120, curve: Curve.EaseOut })
-        .onTouch((event: TouchEvent) => {
-          this.handlePressState('auth_required_login', event);
-        })
-        .onClick(() => {
-          safePushUrl(this.getUIContext().getRouter(), { url: 'pages/my/mylogin', params: { isNight: this.isNight } });
-        })
-    }
-    .width('100%')
-    .height('100%')
-    .justifyContent(FlexAlign.Center)
-    .alignItems(HorizontalAlign.Center)
-    .padding({ left: 28, right: 28, bottom: 90 })
   }
 
   @Builder
@@ -6405,15 +6283,14 @@ struct Index {
               .fontColor(this.navTextColor(item.id))
               .margin({ top: 3 })
           }
-          .width(76)
+          .layoutWeight(1)
           .height(54)
           .justifyContent(FlexAlign.Center)
-          .alignItems(HorizontalAlign.Center)
+          .borderRadius(18)
+          .backgroundColor(this.navItemBg(item.id))
           .scale(this.buttonScale(`nav_${item.id}`))
           .opacity(this.buttonOpacity(`nav_${item.id}`))
           .animation({ duration: 120, curve: Curve.EaseOut })
-          .borderRadius(18)
-          .backgroundColor(this.navItemBg(item.id))
           .onTouch((event: TouchEvent) => {
             this.handlePressState(`nav_${item.id}`, event);
           })
@@ -6429,7 +6306,6 @@ struct Index {
       .width('100%')
       .height(74)
       .padding({ left: 12, right: 12, top: 10, bottom: 10 })
-      .justifyContent(FlexAlign.SpaceBetween)
       .backgroundColor(this.glassStrongColor())
       .border({
         width: 1,
@@ -6446,17 +6322,9 @@ struct Index {
       this.PageAtmosphere()
 
       if (this.activeTab === 'home') {
-        if (this.hasAuthSession()) {
-          this.HomePage()
-        } else {
-          this.AuthRequiredPage('登录后查看家庭', '家庭、房间、设备、场景和状态只会在登录后同步显示。')
-        }
+        this.HomePage()
       } else if (this.activeTab === 'smart') {
-        if (this.hasAuthSession()) {
-          this.SmartPage()
-        } else {
-          this.AuthRequiredPage('登录后使用智能助手', '脚本、对话记录和自动化方案会跟随账号同步。')
-        }
+        this.SmartPage()
       } else if (this.activeTab === 'store') {
         P31_StoreHome({ isNight: this.isNight })
       } else if (this.activeTab === 'profile') {
@@ -6467,7 +6335,7 @@ struct Index {
 
       this.BottomNav()
 
-      if (this.activeTab === 'home' && this.hasAuthSession()) {
+      if (this.activeTab === 'home') {
         this.OverlayPanel()
       }
     }
