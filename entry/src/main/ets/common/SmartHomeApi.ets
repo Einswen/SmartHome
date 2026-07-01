@@ -1,6 +1,6 @@
 import http from '@ohos.net.http';
 
-export const SMART_HOME_API_BASE_URL: string = 'http://192.168.5.158:18080/api';
+export const SMART_HOME_API_BASE_URL: string = 'http://218.244.154.231/api';
 const API_TIMEOUT_MS: number = 8000;
 
 export interface SmartHomeUser {
