@@ -60,7 +60,36 @@ struct MyLoginPage {
   }
 
   private canLogin(): boolean {
-    return this.agreed && this.phone.trim().length >= 6 && this.password.length >= 6 && !this.networkFailed && !this.loginLoading && !this.registerLoading;
+    return this.agreed && this.phone.trim().length > 0 && this.password.length >= 6 && !this.networkFailed && !this.loginLoading && !this.registerLoading;
+  }
+
+  private isValidPhoneInput(): boolean {
+    const input = this.phone.trim();
+    return /^1[3-9]\d{9}$/.test(input) || /^test\d+$/i.test(input);
+  }
+
+  private showValidationDialog(message: string): void {
+    this.validationDialog = message;
+  }
+
+  private validateBeforeSubmit(): boolean {
+    if (!this.agreed) {
+      this.showValidationDialog('请先勾选用户协议与隐私政策');
+      return false;
+    }
+    if (this.phone.trim().length === 0) {
+      this.showValidationDialog('请输入手机号');
+      return false;
+    }
+    if (!this.isValidPhoneInput()) {
+      this.showValidationDialog('输入手机号不合法');
+      return false;
+    }
+    if (this.password.length < 6) {
+      this.showValidationDialog('请输入至少 6 位密码');
+      return false;
+    }
+    return true;
   }
 
   private isValidPhoneInput(): boolean {
