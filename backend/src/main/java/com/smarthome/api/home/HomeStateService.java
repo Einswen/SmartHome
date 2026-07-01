@@ -207,7 +207,9 @@ public class HomeStateService {
   }
 
   private HomeStateDto withPreferences(HomeStateDto state, Map<String, Object> value) {
-    return new HomeStateDto(state.rooms(), state.roomDevices(), state.deviceStates(), state.scenes(), state.automations(), state.notifications(), state.agentRecords(), state.agentMessages(), value, state.activeRoomId(), state.activeSceneId(), state.isNight(), state.manualPeriod(), state.updatedAt());
+    Map<String, Object> preferences = new LinkedHashMap<>(state.preferences());
+    preferences.putAll(value);
+    return new HomeStateDto(state.rooms(), state.roomDevices(), state.deviceStates(), state.scenes(), state.automations(), state.notifications(), state.agentRecords(), state.agentMessages(), preferences, state.activeRoomId(), state.activeSceneId(), state.isNight(), state.manualPeriod(), state.updatedAt());
   }
 
   private List<Map<String, Object>> copyList(List<Map<String, Object>> source) {
