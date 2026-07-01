@@ -92,35 +92,6 @@ struct MyLoginPage {
     return true;
   }
 
-  private isValidPhoneInput(): boolean {
-    const input = this.phone.trim();
-    return /^1[3-9]\d{9}$/.test(input) || /^test\d+$/i.test(input);
-  }
-
-  private showValidationDialog(message: string): void {
-    this.validationDialog = message;
-  }
-
-  private validateBeforeSubmit(): boolean {
-    if (!this.agreed) {
-      this.showValidationDialog('请先勾选用户协议与隐私政策');
-      return false;
-    }
-    if (this.phone.trim().length === 0) {
-      this.showValidationDialog('请输入手机号');
-      return false;
-    }
-    if (!this.isValidPhoneInput()) {
-      this.showValidationDialog('输入手机号不合法');
-      return false;
-    }
-    if (this.password.length < 6) {
-      this.showValidationDialog('请输入至少 6 位密码');
-      return false;
-    }
-    return true;
-  }
-
   private authFailureMessage(result: SmartHomeApiResult<SmartHomeAuthResponse>, fallback: string): string {
     if (result.statusCode === 401) {
       return '账号或密码错误';
