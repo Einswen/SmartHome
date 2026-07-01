@@ -26,6 +26,14 @@ export interface SmartActionSpec {
   command: string;
   label: string;
   value?: number;
+  extra?: SmartActionExtraSpec;
+}
+
+export interface SmartActionExtraSpec {
+  source?: string;
+  label?: string;
+  roomName?: string;
+  deviceName?: string;
 }
 
 export interface SmartPromptDraft {

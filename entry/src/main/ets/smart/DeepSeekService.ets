@@ -11,6 +11,25 @@ interface DeepSeekRequestBody {
   messages: DeepSeekMessage[];
   temperature: number;
   stream: boolean;
+  response_format?: DeepSeekResponseFormat;
+  max_tokens?: number;
+}
+
+interface DeepSeekResponseFormat {
+  type: string;
+}
+
+interface DeepSeekResponseMessage {
+  role?: string;
+  content?: string;
+}
+
+interface DeepSeekResponseChoice {
+  message?: DeepSeekResponseMessage;
+}
+
+interface DeepSeekResponseBody {
+  choices?: DeepSeekResponseChoice[];
 }
 
 export interface DeepSeekAnswer {
@@ -35,6 +54,15 @@ function unescapeJsonString(value: string): string {
 }
 
 function parseDeepSeekContent(raw: string): string {
+  try {
+    const parsed = JSON.parse(raw) as DeepSeekResponseBody;
+    if (parsed.choices !== undefined && parsed.choices.length > 0 &&
+      parsed.choices[0].message !== undefined && parsed.choices[0].message.content !== undefined) {
+      return parsed.choices[0].message.content.trim();
+    }
+  } catch {
+  }
+
   const contentKey = '"content"';
   const keyIndex = raw.indexOf(contentKey);
   if (keyIndex < 0) {
@@ -69,7 +97,7 @@ function parseDeepSeekContent(raw: string): string {
   return unescapeJsonString(raw.substring(startQuoteIndex + 1, endQuoteIndex));
 }
 
-export async function askDeepSeek(prompt: string): Promise<DeepSeekAnswer> {
+async function requestDeepSeek(messages: DeepSeekMessage[], temperature: number, jsonMode: boolean): Promise<DeepSeekAnswer> {
   if (!hasDeepSeekApiKey()) {
     return {
       ok: false,
@@ -82,19 +110,16 @@ export async function askDeepSeek(prompt: string): Promise<DeepSeekAnswer> {
   const request = http.createHttp();
   const body: DeepSeekRequestBody = {
     model: DEEPSEEK_MODEL,
-    messages: [
-      {
-        role: 'system',
-        content: '你是一个智能家居应用里的中文语音助手。回答要简洁、自然，可以帮助用户解决日常问题，也可以协助整理智能家居自动化想法。'
-      },
-      {
-        role: 'user',
-        content: prompt
-      }
-    ],
-    temperature: 0.7,
+    messages: messages,
+    temperature: temperature,
     stream: false
   };
+  if (jsonMode) {
+    body.response_format = {
+      type: 'json_object'
+    };
+    body.max_tokens = 2048;
+  }
 
   try {
     const response = await request.request(DEEPSEEK_API_URL, {
@@ -135,4 +160,30 @@ export async function askDeepSeek(prompt: string): Promise<DeepSeekAnswer> {
   } finally {
     request.destroy();
   }
+}
+
+export async function askDeepSeek(prompt: string): Promise<DeepSeekAnswer> {
+  return requestDeepSeek([
+    {
+      role: 'system',
+      content: '你是一个智能家居应用里的中文语音助手。回答要简洁、自然，可以帮助用户解决日常问题，也可以协助整理智能家居自动化想法。'
+    },
+    {
+      role: 'user',
+      content: prompt
+    }
+  ], 0.7, false);
+}
+
+export async function askDeepSeekWithSystem(systemPrompt: string, userPrompt: string, temperature: number): Promise<DeepSeekAnswer> {
+  return requestDeepSeek([
+    {
+      role: 'system',
+      content: systemPrompt
+    },
+    {
+      role: 'user',
+      content: userPrompt
+    }
+  ], temperature, true);
 }
