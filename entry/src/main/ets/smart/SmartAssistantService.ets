@@ -3,6 +3,14 @@ import { parseSmartPrompt } from './SmartPromptParser';
 import { SmartAssistantReply } from './SmartModels';
 
 function shouldUseLocalSmartHome(prompt: string): boolean {
+  const lower = prompt.toLowerCase();
+  const englishDeviceKeywords: string[] = [
+    'air conditioner', 'aircon', 'light', 'lamp', 'curtain', 'robot', 'vacuum', 'tv', 'purifier', 'door'
+  ];
+  if ((isEnglishAcPrompt(lower) || includesEnglishKeyword(lower, englishDeviceKeywords)) && hasEnglishDeviceAction(lower)) {
+    return true;
+  }
+
   const deviceKeywords: string[] = [
     '灯', '空调', '窗帘', '电视', '净化器', '扫地机器人', '门锁', '安防'
   ];
@@ -24,6 +32,30 @@ function shouldUseLocalSmartHome(prompt: string): boolean {
 
   for (let i = 0; i < actionKeywords.length; i++) {
     if (prompt.indexOf(actionKeywords[i]) >= 0) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function isEnglishAcPrompt(lower: string): boolean {
+  return lower === 'ac' ||
+    lower.indexOf(' ac ') >= 0 ||
+    lower.indexOf(' ac') === lower.length - 3 ||
+    lower.indexOf('ac ') === 0;
+}
+
+function hasEnglishDeviceAction(lower: string): boolean {
+  if (includesEnglishKeyword(lower, ['turn on', 'turn off', 'switch on', 'switch off', 'open', 'close', 'start', 'stop', 'pause'])) {
+    return true;
+  }
+  const padded = ` ${lower.replace(/[.,!?]/g, ' ')} `;
+  return padded.indexOf(' on ') >= 0 || padded.indexOf(' off ') >= 0;
+}
+
+function includesEnglishKeyword(text: string, keywords: string[]): boolean {
+  for (let i = 0; i < keywords.length; i++) {
+    if (text.indexOf(keywords[i]) >= 0) {
       return true;
     }
   }
