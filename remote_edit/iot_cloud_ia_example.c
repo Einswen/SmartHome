@@ -58,6 +58,7 @@ static unsigned int m_ia_MsgQueue;
 static ia_status_t m_app_status;
 static int m_lcd_ready = 0;
 static int m_lcd_has_photo_bg = 0;
+static const uint8_t *m_lcd_current_bg = NULL;
 
 static void ia_lcd_clear_text_area(void)
 {
@@ -83,6 +84,7 @@ static void ia_lcd_show_scene(const uint8_t *picture, const char *line2, const c
     }
     lcd_show_picture(0, 0, SCENE_PIC_W, SCENE_PIC_H, picture);
     m_lcd_has_photo_bg = 1;
+    m_lcd_current_bg = picture;
     ia_lcd_show_title();
     lcd_show_string(0, 70, (uint8_t *)line2, LCD_WHITE, LCD_WHITE, 24, 1);
     lcd_show_string(0, 120, (uint8_t *)line3, LCD_WHITE, LCD_WHITE, 24, 1);
@@ -97,6 +99,10 @@ static void ia_lcd_show_status(const char *line2, const char *line3)
     if (!m_lcd_ready)
     {
         return;
+    }
+    if (m_lcd_has_photo_bg && m_lcd_current_bg != NULL)
+    {
+        lcd_show_picture(0, 0, SCENE_PIC_W, SCENE_PIC_H, m_lcd_current_bg);
     }
     ia_lcd_clear_text_area();
     ia_lcd_show_title();
@@ -272,17 +278,7 @@ void ia_deal_cmd_msg(cmd_t *cmd)
         {
             goto EXIT;
         }
-        if (0 == strcmp(cJSON_GetStringValue(obj_para), "MORNING_SCENE"))
-        {
-            printf("Scene Morning\n");
-            ia_lcd_show_scene(g_scene_morning_pic, "Good Morning", "Scene Ready");
-        }
-        else if (0 == strcmp(cJSON_GetStringValue(obj_para), "ARRIVE_SCENE"))
-        {
-            printf("Scene Arrive\n");
-            ia_lcd_show_scene(g_scene_arrive_pic, "Welcome Home", "Scene Ready");
-        }
-        else if (0 == strcmp(cJSON_GetStringValue(obj_para), "ON"))
+        if (0 == strcmp(cJSON_GetStringValue(obj_para), "ON"))
         {
             m_app_status.motor = 1;
             motor_set_status(ON);

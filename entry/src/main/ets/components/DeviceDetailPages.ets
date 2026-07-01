@@ -276,12 +276,14 @@ const DEVICE_PAGES: DevicePageSpec[] = [
 @Component
 export struct DeviceDetailPages {
   @Link detailPointId: string;
+  @Link detailActionPointId: string;
   @Prop pointId: string = '';
   @Prop pointName: string = '';
   @Prop pointType: string = '';
   @Prop pointStatus: string = '';
   @Prop pointDetail: string = '';
   @Prop isNight: boolean = false;
+  @Prop pointOn: boolean = true;
   @State pressedKey: string = '';
   @State currentValue: number = 0;
   @State powerOn: boolean = true;
@@ -291,10 +293,7 @@ export struct DeviceDetailPages {
 
   aboutToAppear(): void {
     this.currentValue = this.page().sliderValue;
-    const basePointId = this.pointBaseId(this.pointId);
-    if (basePointId === 'living_tv' || basePointId === 'bedroom_door') {
-      this.powerOn = false;
-    }
+    this.powerOn = this.pointOn;
   }
 
   private pointBaseId(pointId: string): string {
@@ -644,6 +643,7 @@ export struct DeviceDetailPages {
           })
           .onClick(() => {
             this.powerOn = !this.powerOn;
+            this.detailActionPointId = this.pointId;
           })
 
         Button(this.autoManaged ? '退出托管' : '智能托管')

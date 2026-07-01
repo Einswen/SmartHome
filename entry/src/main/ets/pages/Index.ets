@@ -17,7 +17,11 @@ import { P21_MyProfile } from './my/myprofile';
 import {
   AgentMessageSpec,
   AgentRecordSpec,
-  AutomationSpec
+  AutomationSpec,
+  DEFAULT_AGENT_MESSAGES,
+  DEFAULT_AGENT_RECORDS,
+  DEFAULT_AUTOMATIONS,
+  SmartActionSpec
 } from '../smart/SmartModels';
 import {
   createDraftActions,
@@ -286,6 +290,7 @@ struct Index {
   @State chatMessages: AgentMessageSpec[] = [];
   @State selectedPointId: string = '';
   @State detailPointId: string = '';
+  @State @Watch('handleDetailActionPoint') detailActionPointId: string = '';
   @State selectionVersion: number = 0;
   @State pressedKey: string = '';
   @State addRoomPanelVisible: boolean = false;
@@ -1617,6 +1622,15 @@ struct Index {
     this.selectionVersion++;
   }
 
+  private handleDetailActionPoint(): void {
+    const pointId = this.detailActionPointId;
+    if (pointId.length === 0) {
+      return;
+    }
+    this.detailActionPointId = '';
+    this.runDeviceAction(pointId);
+  }
+
   private pointToggleOn(point: PointSpec): boolean {
     if (point.id.indexOf('@') >= 0) {
       return this.dynamicState(point.id).on;
@@ -1625,6 +1639,14 @@ struct Index {
       return this.lightOnForRoom(point.roomId);
     }
     return this.sharedToggleOn(point);
+  }
+
+  private detailPowerOn(point: PointSpec): boolean {
+    const baseId = this.pointBaseId(point.id);
+    if (baseId === 'living_air' || baseId === 'bedroom_air' || baseId === 'generic_air') {
+      return point.id.indexOf('@') >= 0 ? this.dynamicState(point.id).on : this.sharedAirOnForRoom(point.roomId);
+    }
+    return this.pointToggleOn(point);
   }
 
   private setPointToggleLocal(point: PointSpec, value: boolean): void {
@@ -1704,11 +1726,17 @@ struct Index {
     const nextOn = !previousOn;
     const command = nextOn ? 'ON' : 'OFF';
     const label = `${point.name}${nextOn ? '开启' : '关闭'}`;
-    this.updateCloudDebug(`准备下发：${label}，映射为电机控制 Motor=${command}`);
+    const useLightChannel = point.action === 'light';
+    const channel = useLightChannel ? 'Light' : 'Motor';
+    this.updateCloudDebug(`准备下发：${label}，映射为${useLightChannel ? '紫光灯控制' : '电机控制'} ${channel}=${command}`);
     this.setPointToggleLocal(point, nextOn);
     try {
-      await HuaweiCloudApi.sendMotorCommand(command);
-      this.updateCloudDebug(`下发成功：${label}，华为云已接收电机控制 Motor=${command}`);
+      if (useLightChannel) {
+        await HuaweiCloudApi.sendLightCommand(command);
+      } else {
+        await HuaweiCloudApi.sendMotorCommand(command);
+      }
+      this.updateCloudDebug(`下发成功：${label}，华为云已接收 ${channel}=${command}`);
       try {
         promptAction.showToast({
           message: `下发成功：${label}`,
@@ -1719,7 +1747,7 @@ struct Index {
     } catch (err) {
       const errorMessage = this.debugErrorText(err as Object);
       if (this.isCommandResponseTimeout(errorMessage)) {
-        this.updateCloudDebug(`命令已发送但设备响应超时：${label}。串口若已收到 Motor=${command}，说明云端到板子已通，需要检查板子端命令响应/执行逻辑。原始错误：${errorMessage}`);
+        this.updateCloudDebug(`命令已发送但设备响应超时：${label}。串口若已收到 ${channel}=${command}，说明云端到板子已通。原始错误：${errorMessage}`);
         try {
           promptAction.showToast({
             message: `命令已发送：${label}，设备响应超时`,
@@ -1734,15 +1762,134 @@ struct Index {
     }
   }
 
+  private async toggleRobotByMotor(point: PointSpec): Promise<void> {
+    const previousOn = this.pointToggleOn(point);
+    const nextOn = !previousOn;
+    const label = `${point.name}${nextOn ? '开始' : '停止'}`;
+    this.setPointToggleLocal(point, nextOn);
+    const duration = nextOn ? 1800 : 800;
+    const durationLabel = nextOn ? '约 3 秒' : '约 1 秒';
+    this.updateCloudDebug(`准备下发：${label}，Motor=ON 后${durationLabel}强制 Motor=OFF`);
+    try {
+      this.scheduleRobotMotorStop(duration, label);
+      HuaweiCloudApi.sendMotorCommand('ON')
+        .then(() => {
+          this.updateCloudDebug(`扫地机器人电机启动命令已发送：${label}，等待定时 OFF`);
+        })
+        .catch((err: Object) => {
+          const errorMessage = this.debugErrorText(err);
+          this.updateCloudDebug(`扫地机器人 ON 响应异常，但 OFF 定时器已启动：${label}。${errorMessage}`);
+        });
+      try {
+        promptAction.showToast({
+          message: `已启动：${label}，${durationLabel}后停止`,
+          duration: 2000
+        });
+      } catch {
+      }
+    } catch (err) {
+      const errorMessage = this.debugErrorText(err as Object);
+      if (this.isCommandResponseTimeout(errorMessage)) {
+        this.updateCloudDebug(`命令已发送但设备响应超时：${label}。串口若已收到 Motor=ON/OFF，说明扫地机器人命令已到板子。原始错误：${errorMessage}`);
+        try {
+          promptAction.showToast({
+            message: `命令已发送：${label}，设备响应超时`,
+            duration: 4000
+          });
+        } catch {
+        }
+        return;
+      }
+      this.setPointToggleLocal(point, previousOn);
+      this.reportCloudError(`下发失败：${label}。${errorMessage}`);
+    }
+  }
+
+  private async setPointTargetByCloud(point: PointSpec, targetOn: boolean): Promise<void> {
+    const baseId = this.pointBaseId(point.id);
+    const command = targetOn ? 'ON' : 'OFF';
+    const label = `${point.name}${targetOn ? '开启' : '关闭'}`;
+    if (point.action === 'curtain') {
+      await this.setDetailValueByMotor(point, targetOn ? 100 : 0);
+      return;
+    }
+    if (baseId === 'living_air' || baseId === 'bedroom_air' || baseId === 'generic_air' || point.action === 'temperature') {
+      if (point.id.indexOf('@') >= 0) {
+        const state = this.dynamicState(point.id);
+        this.setDynamicState({
+          pointId: point.id,
+          on: targetOn,
+          value: state.value
+        });
+      } else {
+        this.setSharedAirOnForRoom(point.roomId, targetOn);
+      }
+      this.updateCloudDebug(`准备下发：${label}，显式电机控制 Motor=${command}`);
+      await HuaweiCloudApi.sendMotorCommand(command);
+      this.updateCloudDebug(`下发成功：${label}，Motor=${command}`);
+      return;
+    }
+    if (baseId === 'living_robot' || baseId === 'bedroom_robot' || baseId === 'generic_robot' || baseId.indexOf('robot') >= 0) {
+      this.setPointToggleLocal(point, targetOn);
+      const duration = targetOn ? 1800 : 800;
+      const durationLabel = targetOn ? '约 3 秒' : '约 1 秒';
+      this.scheduleRobotMotorStop(duration, label);
+      this.updateCloudDebug(`准备下发：${label}，扫地机器人 Motor=ON，${durationLabel}后 Motor=OFF`);
+      await HuaweiCloudApi.sendMotorCommand('ON');
+      return;
+    }
+    const useLightChannel = point.action === 'light';
+    this.setPointToggleLocal(point, targetOn);
+    this.updateCloudDebug(`准备下发：${label}，显式${useLightChannel ? '紫光灯控制' : '电机控制'} ${useLightChannel ? 'Light' : 'Motor'}=${command}`);
+    if (useLightChannel) {
+      await HuaweiCloudApi.sendLightCommand(command);
+    } else {
+      await HuaweiCloudApi.sendMotorCommand(command);
+    }
+  }
+
+  private scheduleRobotMotorStop(duration: number, label: string): void {
+    setTimeout(() => {
+      this.sendRobotMotorOffBurst(label);
+    }, duration);
+  }
+
+  private sendRobotMotorOffBurst(label: string): void {
+    this.sendRobotMotorOffAttempt(label, 1);
+    setTimeout(() => {
+      this.sendRobotMotorOffAttempt(label, 2);
+    }, 700);
+  }
+
+  private sendRobotMotorOffAttempt(label: string, attempt: number): void {
+    HuaweiCloudApi.sendMotorCommand('OFF')
+      .then(() => {
+        this.updateCloudDebug(`扫地机器人停止命令已发送：${label}，第 ${attempt} 次 Motor=OFF`);
+      })
+      .catch((err: Object) => {
+        const errorMessage = this.debugErrorText(err);
+        this.updateCloudDebug(`扫地机器人第 ${attempt} 次 Motor=OFF 响应异常，已继续补发：${label}。${errorMessage}`);
+      });
+  }
+
   private async setDetailValueByMotor(point: PointSpec, value: number): Promise<void> {
     const previousValue = this.detailValue(point);
-    const command = value > 0 ? 'ON' : 'OFF';
+    let command = value > 0 ? 'ON' : 'OFF';
+    if (point.action === 'curtain') {
+      command = value > 0 ? 'OFF' : 'ON';
+    }
     const label = `${point.name}${value > 0 ? '打开' : '关闭'}`;
-    this.updateCloudDebug(`准备下发：${label}，映射为电机控制 Motor=${command}`);
+    const useLightChannel = point.action === 'light';
+    const channel = useLightChannel ? 'Light' : 'Motor';
+    this.updateCloudDebug(`准备下发：${label}，映射为${useLightChannel ? '紫光灯控制' : '电机控制'} ${channel}=${command}`);
     this.setDetailValue(point, value);
     try {
-      await HuaweiCloudApi.sendMotorCommand(command);
-      this.updateCloudDebug(`下发成功：${label}，华为云已接收电机控制 Motor=${command}`);
+      if (useLightChannel) {
+        await HuaweiCloudApi.sendLightCommand(command);
+      } else {
+        await HuaweiCloudApi.sendMotorCommand(command);
+      }
+      this.updateCloudDebug(`下发成功：${label}，华为云已接收 ${channel}=${command}`);
       try {
         promptAction.showToast({
           message: `下发成功：${label}`,
@@ -1753,7 +1900,7 @@ struct Index {
     } catch (err) {
       const errorMessage = this.debugErrorText(err as Object);
       if (this.isCommandResponseTimeout(errorMessage)) {
-        this.updateCloudDebug(`命令已发送但设备响应超时：${label}。串口若已收到 Motor=${command}，说明云端到板子已通，需要检查板子端命令响应/执行逻辑。原始错误：${errorMessage}`);
+        this.updateCloudDebug(`命令已发送但设备响应超时：${label}。串口若已收到 ${channel}=${command}，说明云端到板子已通。原始错误：${errorMessage}`);
         try {
           promptAction.showToast({
             message: `命令已发送：${label}，设备响应超时`,
@@ -2079,8 +2226,6 @@ struct Index {
     for (let i = 0; i < presets.length; i++) {
       this.applyScenePreset(presets[i]);
     }
-    this.syncDeviceStates();
-    this.syncActiveState();
     this.sendSceneToCloud(baseId);
   }
 
@@ -2191,6 +2336,11 @@ struct Index {
     const baseId = this.pointBaseId(point.id);
     if (baseId === 'living_air' || baseId === 'bedroom_air' || baseId === 'generic_air') {
       this.toggleAirByMotor(point);
+      return;
+    }
+    if (baseId === 'living_robot' || baseId === 'bedroom_robot' || baseId === 'generic_robot' || baseId.indexOf('robot') >= 0) {
+      this.toggleRobotByMotor(point);
+      this.syncDeviceAction(point.id, 'robot');
       return;
     }
     if (point.action === 'temperature') {
@@ -2832,6 +2982,105 @@ struct Index {
     }));
   }
 
+  private pointActionMatches(point: PointSpec, command: string, value?: number): boolean {
+    if (command === 'on') {
+      return this.pointToggleOn(point);
+    }
+    if (command === 'off') {
+      return !this.pointToggleOn(point);
+    }
+    if (command === 'set' && value !== undefined) {
+      if (point.action === 'temperature' || point.action === 'curtain' || point.action === 'light') {
+        return this.detailValue(point) === value;
+      }
+    }
+    return false;
+  }
+
+  private async executeSmartAction(action: SmartActionSpec): Promise<void> {
+    if (action.pointId.length === 0 || action.command === 'draft') {
+      return;
+    }
+    const point = this.pointById(action.pointId);
+    if (action.command === 'on' || action.command === 'off') {
+      await this.setPointTargetByCloud(point, action.command === 'on');
+      return;
+    }
+    if (action.command === 'set') {
+      if (this.pointActionMatches(point, action.command, action.value)) {
+        return;
+      }
+      if (point.action === 'temperature') {
+        if (action.value !== undefined) {
+          this.setSharedTemperatureForRoom(point.roomId, action.value);
+        }
+        if (!this.sharedAirOnForRoom(point.roomId)) {
+          await this.toggleAirByMotor(point);
+        }
+        return;
+      }
+      if (point.action === 'curtain' || point.action === 'light') {
+        await this.setDetailValueByMotor(point, action.value === undefined ? this.detailValue(point) : action.value);
+        return;
+      }
+      if (!this.pointToggleOn(point)) {
+        await this.togglePointByMotor(point);
+      }
+    }
+  }
+
+  private async executeSmartActions(actions: SmartActionSpec[]): Promise<number> {
+    let count = 0;
+    for (let i = 0; i < actions.length; i++) {
+      const action = actions[i];
+      if (action.command === 'draft') {
+        continue;
+      }
+      await this.executeSmartAction(action);
+      count++;
+    }
+    return count;
+  }
+
+  private smartActionResultText(actions: SmartActionSpec[], executedCount: number): string {
+    if (executedCount <= 0) {
+      return '没有找到可以执行的设备动作。';
+    }
+    const results: string[] = [];
+    for (let i = 0; i < actions.length; i++) {
+      const action = actions[i];
+      if (action.pointId.length === 0 || action.command === 'draft') {
+        continue;
+      }
+      const point = this.pointById(action.pointId);
+      if (action.command === 'on') {
+        results.push(`${point.name}已打开`);
+        continue;
+      }
+      if (action.command === 'off') {
+        if (this.pointBaseId(point.id).indexOf('robot') >= 0) {
+          results.push(`${point.name}已暂停`);
+        } else {
+          results.push(`${point.name}已关闭`);
+        }
+        continue;
+      }
+      if (action.command === 'set') {
+        if (point.action === 'temperature' && action.value !== undefined) {
+          results.push(`${point.name}已调到 ${action.value}°C`);
+        } else if (point.action === 'curtain') {
+          results.push(`${point.name}${(action.value === undefined ? this.detailValue(point) : action.value) > 0 ? '已打开' : '已关闭'}`);
+        } else if (point.action === 'light') {
+          const value = action.value === undefined ? this.detailValue(point) : action.value;
+          results.push(value > 0 ? `${point.name}已打开` : `${point.name}已关闭`);
+        } else {
+          results.push(`${point.name}已执行`);
+        }
+      }
+    }
+    return results.length > 0 ? results.join('，') : `已执行 ${executedCount} 个设备动作`;
+  }
+
   private applyAgentSuggestion(prompt: string): void {
     this.agentPrompt = prompt;
     this.appendAgentRecord('智能助手已载入指令草稿', prompt, '草稿');
@@ -2880,6 +3129,17 @@ struct Index {
           ...this.automations
         ];
         this.syncHomeSection('automations', this.automations);
+      }
+      if (reply.draft !== undefined && !reply.draft.shouldCreateAutomation) {
+        const executedCount = await this.executeSmartActions(reply.draft.actions);
+        if (executedCount > 0) {
+          this.syncDeviceStates();
+          this.syncActiveState();
+          const resultText = this.smartActionResultText(reply.draft.actions, executedCount);
+          this.appendAgentRecord('设备指令已执行', resultText, '已执行');
+          this.pushChatMessage('agent', resultText, '已执行');
+          return;
+        }
       }
       const recordDetail = reply.draft !== undefined ? reply.draft.action : reply.detail;
       const recordStatus = reply.ok ? (reply.mode === 'llm' ? '回答' : '已执行') : '未连接';
@@ -4197,12 +4457,14 @@ struct Index {
   DetailPanel(point: PointSpec) {
     DeviceDetailPages({
       detailPointId: $detailPointId,
+      detailActionPointId: $detailActionPointId,
       pointId: point.id,
       pointName: point.name,
       pointType: point.type,
       pointStatus: this.pointStatus(point),
       pointDetail: point.detail,
-      isNight: this.isNight
+      isNight: this.isNight,
+      pointOn: this.detailPowerOn(point)
     })
   }
 
