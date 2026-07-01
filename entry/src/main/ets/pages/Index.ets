@@ -1,5 +1,17 @@
 ﻿import { safeGetParams, safePushUrl } from '../common/SafeRouter';
+import {
+  fetchHomeState,
+  SmartHomeApiResult,
+  SmartHomeState,
+  submitDeviceAction,
+  updateActiveState,
+  updateDeviceState,
+  updateHomeSection,
+  updateRoomDevices
+} from '../common/SmartHomeApi';
+import promptAction from '@ohos.promptAction';
 import { DeviceDetailPages } from '../components/DeviceDetailPages';
+import { HuaweiCloudApi } from '../common/HuaweiCloudApi';
 import { P31_StoreHome } from './store/storehome';
 import { P21_MyProfile } from './my/myprofile';
 import {
@@ -8,7 +20,9 @@ import {
   AutomationSpec,
   DEFAULT_AGENT_MESSAGES,
   DEFAULT_AGENT_RECORDS,
-  DEFAULT_AUTOMATIONS
+  DEFAULT_AUTOMATIONS,
+  SmartActionExtraSpec,
+  SmartActionSpec
 } from '../smart/SmartModels';
 import {
   createDraftActions,
@@ -79,6 +93,25 @@ interface DynamicDeviceStateSpec {
   pointId: string;
   on: boolean;
   value: number;
+}
+
+interface BackendRoomPayload {
+  id?: string;
+  name?: string;
+  subtitle?: string;
+  templateId?: string;
+  preset?: boolean;
+}
+
+interface BackendRoomDevicesPayload {
+  roomId?: string;
+  pointIds?: string[];
+}
+
+interface BackendDeviceStatePayload {
+  pointId?: string;
+  on?: boolean;
+  value?: number;
 }
 
 interface IndexRouteParams {
@@ -258,6 +291,7 @@ struct Index {
   @State chatMessages: AgentMessageSpec[] = DEFAULT_AGENT_MESSAGES;
   @State selectedPointId: string = '';
   @State detailPointId: string = '';
+  @State @Watch('handleDetailActionPoint') detailActionPointId: string = '';
   @State selectionVersion: number = 0;
   @State pressedKey: string = '';
   @State addRoomPanelVisible: boolean = false;
@@ -292,12 +326,17 @@ struct Index {
   @StorageLink('homeLivingTvOn') livingTvOn: boolean = false;
   @StorageLink('homeLivingPurifierOn') livingPurifierOn: boolean = true;
   @StorageLink('homeLivingRobotOn') livingRobotOn: boolean = false;
+  @State livingAirOn: boolean = false;
+  @State bedroomAirOn: boolean = false;
+  @State cloudDebugMessage: string = '';
   @State bedroomRobotOn: boolean = false;
   @State bedroomDoorLocked: boolean = true;
+  @StorageLink('lumiAuthToken') authToken: string = '';
+  @StorageLink('lumiHomeState') homeStateText: string = '';
   private clockTimer: number = -1;
+  private appliedHomeStateText: string = '';
 
   aboutToAppear(): void {
-    this.loadLivingDevicesFromStorage();
     const params = safeGetParams(this.getUIContext().getRouter()) as IndexRouteParams | undefined;
     if (params && params.activeTab !== undefined) {
       this.activeTab = params.activeTab;
@@ -317,6 +356,12 @@ struct Index {
     } catch {
       this.clockTimer = -1;
     }
+    this.loadBackendState();
+  }
+
+  onPageShow(): void {
+    this.applyStoredHomeState();
+    this.loadBackendState();
   }
 
   aboutToDisappear(): void {
@@ -327,6 +372,139 @@ struct Index {
       }
       this.clockTimer = -1;
     }
+  }
+
+  private async loadBackendState(): Promise<void> {
+    this.applyStoredHomeState();
+    if (this.authToken.trim().length === 0) {
+      return;
+    }
+    const result = await fetchHomeState(this.authToken);
+    if (!result.ok || result.data === undefined) {
+      return;
+    }
+    this.rememberBackendState(result.data);
+    this.applyBackendState(result.data);
+  }
+
+  private rememberBackendState(state: SmartHomeState): void {
+    const stateText = JSON.stringify(state);
+    this.appliedHomeStateText = stateText;
+    this.homeStateText = stateText;
+  }
+
+  private rememberSyncedState(result: SmartHomeApiResult<SmartHomeState>): void {
+    if (result.ok && result.data !== undefined) {
+      this.rememberBackendState(result.data);
+    }
+  }
+
+  private applyStoredHomeState(): void {
+    if (this.homeStateText.length === 0 || this.homeStateText === this.appliedHomeStateText) {
+      return;
+    }
+    try {
+      const state = JSON.parse(this.homeStateText) as SmartHomeState;
+      this.appliedHomeStateText = this.homeStateText;
+      this.applyBackendState(state);
+    } catch {
+    }
+  }
+
+  private applyBackendState(state: SmartHomeState): void {
+    const rooms = this.backendRooms(state.rooms);
+    if (rooms.length > 0) {
+      this.rooms = rooms;
+    }
+    const roomDevices = this.backendRoomDevices(state.roomDevices);
+    if (roomDevices.length > 0) {
+      this.roomDevices = roomDevices;
+    }
+    const deviceStates = this.backendDeviceStates(state.deviceStates);
+    if (deviceStates.length > 0) {
+      this.dynamicDeviceStates = deviceStates;
+    }
+    if (state.scenes.length > 0) {
+      this.scenes = state.scenes as SceneSpec[];
+    }
+    if (state.automations.length > 0) {
+      this.automations = state.automations as AutomationSpec[];
+    }
+    this.agentRecords = state.agentRecords as AgentRecordSpec[];
+    this.chatMessages = state.agentMessages as AgentMessageSpec[];
+    this.activeRoomId = state.activeRoomId;
+    this.activeSceneId = state.activeSceneId;
+    this.isNight = state.isNight;
+    this.manualPeriod = state.manualPeriod;
+    this.homeRoomSwiperIndex = this.roomIndexById(this.activeRoomId);
+    this.syncLivingDevicesToStorage();
+    this.selectionVersion++;
+  }
+
+  private backendRooms(payload: Object[]): RoomSpec[] {
+    const rooms: RoomSpec[] = [];
+    for (let i = 0; i < payload.length; i++) {
+      const item = payload[i] as BackendRoomPayload;
+      if (item.id === undefined || item.name === undefined) {
+        continue;
+      }
+      const presetRoom = this.presetRoomById(item.id);
+      rooms.push({
+        id: item.id,
+        name: item.name,
+        subtitle: item.subtitle === undefined ? presetRoom.subtitle : item.subtitle,
+        templateId: item.templateId === undefined ? presetRoom.templateId : item.templateId,
+        images: presetRoom.images,
+        preset: item.preset === undefined ? presetRoom.preset : item.preset
+      });
+    }
+    return rooms;
+  }
+
+  private presetRoomById(roomId: string): RoomSpec {
+    for (let i = 0; i < ROOMS.length; i++) {
+      if (ROOMS[i].id === roomId) {
+        return ROOMS[i];
+      }
+    }
+    return {
+      id: roomId,
+      name: roomId,
+      subtitle: '自定义房间',
+      templateId: 'custom',
+      preset: false
+    };
+  }
+
+  private backendRoomDevices(payload: Object[]): RoomDeviceState[] {
+    const roomDevices: RoomDeviceState[] = [];
+    for (let i = 0; i < payload.length; i++) {
+      const item = payload[i] as BackendRoomDevicesPayload;
+      if (item.roomId === undefined || item.pointIds === undefined) {
+        continue;
+      }
+      roomDevices.push({
+        roomId: item.roomId,
+        pointIds: item.pointIds
+      });
+    }
+    return roomDevices;
+  }
+
+  private backendDeviceStates(payload: Object[]): DynamicDeviceStateSpec[] {
+    const states: DynamicDeviceStateSpec[] = [];
+    for (let i = 0; i < payload.length; i++) {
+      const item = payload[i] as BackendDeviceStatePayload;
+      if (item.pointId === undefined) {
+        continue;
+      }
+      states.push({
+        pointId: item.pointId,
+        on: item.on === undefined ? true : item.on,
+        value: item.value === undefined ? 0 : item.value
+      });
+    }
+    return states;
   }
 
   private applyAutoPeriod(): void {
@@ -404,6 +582,40 @@ struct Index {
       }
     }
     return this.currentRoomId();
+  }
+
+  private preferredRoomIdForBasePoint(pointId: string): string {
+    if (pointId.indexOf('living_') === 0) {
+      return 'living';
+    }
+    if (pointId.indexOf('bedroom_') === 0) {
+      return 'bedroom';
+    }
+    return '';
+  }
+
+  private pointIdForLookup(pointId: string): string {
+    if (pointId.indexOf('@') >= 0) {
+      return pointId;
+    }
+    const preferredRoomId = this.preferredRoomIdForBasePoint(pointId);
+    if (preferredRoomId.length > 0) {
+      const preferredIds = this.installedPointIds(preferredRoomId);
+      for (let i = 0; i < preferredIds.length; i++) {
+        if (this.pointBaseId(preferredIds[i]) === pointId) {
+          return preferredIds[i];
+        }
+      }
+    }
+    for (let i = 0; i < this.roomDevices.length; i++) {
+      for (let j = 0; j < this.roomDevices[i].pointIds.length; j++) {
+        const installedId = this.roomDevices[i].pointIds[j];
+        if (this.pointBaseId(installedId) === pointId) {
+          return installedId;
+        }
+      }
+    }
+    return pointId;
   }
 
   private pointLibraryForRoom(roomId: string): PointSpec[] {
@@ -521,6 +733,18 @@ struct Index {
     return this.roomTemplateId(roomId) === 'living' ? this.livingTemperature : this.bedroomTemperature;
   }
 
+  private sharedAirOnForRoom(roomId: string): boolean {
+    return this.roomTemplateId(roomId) === 'living' ? this.livingAirOn : this.bedroomAirOn;
+  }
+
+  private setSharedAirOnForRoom(roomId: string, value: boolean): void {
+    if (this.roomTemplateId(roomId) === 'living') {
+      this.livingAirOn = value;
+      return;
+    }
+    this.bedroomAirOn = value;
+  }
+
   private setSharedTemperatureForRoom(roomId: string, value: number): void {
     if (this.roomTemplateId(roomId) === 'living') {
       this.livingTemperature = value;
@@ -628,6 +852,9 @@ struct Index {
     if (baseId === 'bedroom_left_light' || baseId === 'bedroom_right_light') {
       return { pointId: point.id, on: this.bedroomLightOn, value: this.bedroomLightLevel };
     }
+    if (baseId === 'generic_air') {
+      return { pointId: point.id, on: false, value: 24 };
+    }
     if (point.action === 'temperature') {
       return { pointId: point.id, on: true, value: 24 };
     }
@@ -684,9 +911,6 @@ struct Index {
   }
 
   private installedPointIds(roomId: string): string[] {
-    if (roomId === 'living') {
-      return this.livingPointIdsText.length > 0 ? this.livingPointIdsText.split('|').filter((id: string) => id.length > 0) : [];
-    }
     for (let i = 0; i < this.roomDevices.length; i++) {
       if (this.roomDevices[i].roomId === roomId) {
         return this.roomDevices[i].pointIds;
@@ -729,7 +953,8 @@ struct Index {
   }
 
   private pointById(pointId: string): PointSpec {
-    return this.pointSpecForRoom(this.roomIdForPointId(pointId), pointId);
+    const resolvedPointId = this.pointIdForLookup(pointId);
+    return this.pointSpecForRoom(this.roomIdForPointId(resolvedPointId), resolvedPointId);
   }
 
   private activeLightOn(): boolean {
@@ -1003,6 +1228,41 @@ struct Index {
     return `${value}%`;
   }
 
+  private debugErrorText(err: Object | string | undefined): string {
+    if (err === undefined || err === null) {
+      return '未知错误';
+    }
+    if (typeof err === 'string') {
+      return err;
+    }
+    const error = err as Error;
+    if (error.message !== undefined && error.message.length > 0) {
+      return error.message;
+    }
+    return JSON.stringify(err);
+  }
+
+  private updateCloudDebug(message: string): void {
+    this.cloudDebugMessage = message;
+    console.info(`[CloudDebug] ${message}`);
+  }
+
+  private reportCloudError(message: string): void {
+    this.cloudDebugMessage = message;
+    console.error(`[CloudDebug] ${message}`);
+    try {
+      promptAction.showToast({
+        message: message,
+        duration: 4000
+      });
+    } catch {
+    }
+  }
+
+  private isCommandResponseTimeout(message: string): boolean {
+    return message.indexOf('Operation timeout') >= 0 || message.indexOf('23000028') >= 0;
+  }
+
   private pointStatus(point: PointSpec): string {
     const baseId = this.pointBaseId(point.id);
     if (point.id.indexOf('@') >= 0) {
@@ -1034,10 +1294,10 @@ struct Index {
       return this.lightOnForRoom(point.roomId) ? `已开 · ${this.lightLevelForRoom(point.roomId)}%` : '已关闭';
     }
     if (point.id === 'living_air') {
-      return `${this.livingTemperature}°C`;
+      return this.livingAirOn ? `运行中 · ${this.livingTemperature}°C` : `已关闭 · ${this.livingTemperature}°C`;
     }
     if (point.id === 'bedroom_air') {
-      return `${this.bedroomTemperature}°C`;
+      return this.bedroomAirOn ? `运行中 · ${this.bedroomTemperature}°C` : `已关闭 · ${this.bedroomTemperature}°C`;
     }
     if (point.id === 'living_curtain') {
       return `${this.livingCurtain}%`;
@@ -1072,6 +1332,7 @@ struct Index {
     this.addScenePanelVisible = false;
     this.devicePanelMode = '';
     this.selectionVersion++;
+    this.syncActiveState();
   }
 
   private roomIndexById(roomId: string): number {
@@ -1087,6 +1348,7 @@ struct Index {
     this.homeRoomSwiperIndex = index;
     if (index < this.rooms.length) {
       this.activeRoomId = this.rooms[index].id;
+      this.syncActiveState();
     }
     this.selectedPointId = '';
     this.detailPointId = '';
@@ -1163,6 +1425,7 @@ struct Index {
     this.scenes = [...this.scenes, nextScene];
     this.activeSceneId = nextScene.id;
     this.applyScene(nextScene.id);
+    this.syncHomeSection('scenes', this.scenes);
     this.addScenePanelVisible = false;
   }
 
@@ -1183,6 +1446,7 @@ struct Index {
     this.scenes = [...this.scenes, nextScene];
     this.activeSceneId = nextScene.id;
     this.applyScene(nextScene.id);
+    this.syncHomeSection('scenes', this.scenes);
     this.editingSceneId = '';
     this.customSceneName = '';
     this.customSceneDetail = '';
@@ -1239,6 +1503,7 @@ struct Index {
     this.scenes = nextScenes;
     this.activeSceneId = this.editingSceneId;
     this.applyScene(this.editingSceneId);
+    this.syncHomeSection('scenes', this.scenes);
     this.editingSceneId = '';
     this.customSceneName = '';
     this.customSceneDetail = '';
@@ -1285,6 +1550,7 @@ struct Index {
         this.selectedPointId = '';
         this.detailPointId = '';
         this.selectionVersion++;
+        this.syncRooms();
         return;
       }
     }
@@ -1315,11 +1581,13 @@ struct Index {
     this.selectedPointId = '';
     this.detailPointId = '';
     this.selectionVersion++;
+    this.syncRooms();
   }
 
   private togglePeriodForDebug(): void {
     this.manualPeriod = true;
     this.isNight = !this.isNight;
+    this.syncActiveState();
   }
 
   private openPointDetail(pointId: string): void {
@@ -1331,22 +1599,337 @@ struct Index {
     this.selectionVersion++;
   }
 
-  private togglePoint(pointId: string): void {
-    const point = this.pointById(pointId);
+  private handleDetailActionPoint(): void {
+    const pointId = this.detailActionPointId;
+    if (pointId.length === 0) {
+      return;
+    }
+    this.detailActionPointId = '';
+    this.runDeviceAction(pointId);
+  }
+
+  private pointToggleOn(point: PointSpec): boolean {
+    if (point.id.indexOf('@') >= 0) {
+      return this.dynamicState(point.id).on;
+    }
+    if (point.action === 'light') {
+      return this.lightOnForRoom(point.roomId);
+    }
+    return this.sharedToggleOn(point);
+  }
+
+  private detailPowerOn(point: PointSpec): boolean {
+    const baseId = this.pointBaseId(point.id);
+    if (baseId === 'living_air' || baseId === 'bedroom_air' || baseId === 'generic_air') {
+      return point.id.indexOf('@') >= 0 ? this.dynamicState(point.id).on : this.sharedAirOnForRoom(point.roomId);
+    }
+    if (point.action === 'curtain') {
+      return this.detailValue(point) > 0;
+    }
+    return this.pointToggleOn(point);
+  }
+
+  private setPointToggleLocal(point: PointSpec, value: boolean): void {
     if (point.id.indexOf('@') >= 0) {
       const state = this.dynamicState(point.id);
       this.setDynamicState({
         pointId: point.id,
-        on: !state.on,
+        on: value,
         value: state.value
       });
       return;
     }
     if (point.action === 'light') {
-      this.setLightOnForRoom(point.roomId, !this.lightOnForRoom(point.roomId));
+      this.setLightOnForRoom(point.roomId, value);
       return;
     }
-    this.setSharedToggleOn(point, !this.sharedToggleOn(point));
+    this.setSharedToggleOn(point, value);
+  }
+
+  private async toggleAirByMotor(point: PointSpec): Promise<void> {
+    const isDynamicAir = point.id.indexOf('@') >= 0;
+    const previousOn = isDynamicAir ? this.dynamicState(point.id).on : this.sharedAirOnForRoom(point.roomId);
+    const nextOn = !previousOn;
+    const actionLabel = nextOn ? '开' : '关';
+    const command = nextOn ? 'ON' : 'OFF';
+    const label = `${point.name}${actionLabel}`;
+    this.updateCloudDebug(`准备下发：${label}，映射为电机控制 Motor=${command}`);
+    if (isDynamicAir) {
+      const state = this.dynamicState(point.id);
+      this.setDynamicState({
+        pointId: point.id,
+        on: nextOn,
+        value: state.value
+      });
+    } else {
+      this.setSharedAirOnForRoom(point.roomId, nextOn);
+    }
+    try {
+      await HuaweiCloudApi.sendMotorCommand(command);
+      this.updateCloudDebug(`下发成功：${label}，华为云已接收电机控制 Motor=${command}`);
+      try {
+        promptAction.showToast({
+          message: `下发成功：${label}`,
+          duration: 2000
+        });
+      } catch {
+      }
+    } catch (err) {
+      const errorMessage = this.debugErrorText(err as Object);
+      if (this.isCommandResponseTimeout(errorMessage)) {
+        this.updateCloudDebug(`命令已发送但设备响应超时：${label}。串口若已收到 Motor=${command}，说明云端到板子已通，需要检查板子端命令响应/执行逻辑。原始错误：${errorMessage}`);
+        try {
+          promptAction.showToast({
+            message: `命令已发送：${label}，设备响应超时`,
+            duration: 4000
+          });
+        } catch {
+        }
+        return;
+      }
+      if (isDynamicAir) {
+        const state = this.dynamicState(point.id);
+        this.setDynamicState({
+          pointId: point.id,
+          on: previousOn,
+          value: state.value
+        });
+      } else {
+        this.setSharedAirOnForRoom(point.roomId, previousOn);
+      }
+      this.reportCloudError(`下发失败：${label}。${errorMessage}`);
+    }
+  }
+
+  private async togglePointByMotor(point: PointSpec): Promise<void> {
+    const previousOn = this.pointToggleOn(point);
+    const nextOn = !previousOn;
+    const command = nextOn ? 'ON' : 'OFF';
+    const label = `${point.name}${nextOn ? '开启' : '关闭'}`;
+    const useLightChannel = point.action === 'light';
+    const channel = useLightChannel ? 'Light' : 'Motor';
+    this.updateCloudDebug(`准备下发：${label}，映射为${useLightChannel ? '紫光灯控制' : '电机控制'} ${channel}=${command}`);
+    this.setPointToggleLocal(point, nextOn);
+    try {
+      if (useLightChannel) {
+        await HuaweiCloudApi.sendLightCommand(command);
+      } else {
+        await HuaweiCloudApi.sendMotorCommand(command);
+      }
+      this.updateCloudDebug(`下发成功：${label}，华为云已接收 ${channel}=${command}`);
+      try {
+        promptAction.showToast({
+          message: `下发成功：${label}`,
+          duration: 2000
+        });
+      } catch {
+      }
+    } catch (err) {
+      const errorMessage = this.debugErrorText(err as Object);
+      if (this.isCommandResponseTimeout(errorMessage)) {
+        this.updateCloudDebug(`命令已发送但设备响应超时：${label}。串口若已收到 ${channel}=${command}，说明云端到板子已通。原始错误：${errorMessage}`);
+        try {
+          promptAction.showToast({
+            message: `命令已发送：${label}，设备响应超时`,
+            duration: 4000
+          });
+        } catch {
+        }
+        return;
+      }
+      this.setPointToggleLocal(point, previousOn);
+      this.reportCloudError(`下发失败：${label}。${errorMessage}`);
+    }
+  }
+
+  private async toggleRobotByMotor(point: PointSpec): Promise<void> {
+    const previousOn = this.pointToggleOn(point);
+    const nextOn = !previousOn;
+    const label = `${point.name}${nextOn ? '开始' : '暂停'}`;
+    this.setPointToggleLocal(point, nextOn);
+    const duration = nextOn ? 3000 : 1000;
+    const durationLabel = nextOn ? '3 秒' : '1 秒';
+    this.updateCloudDebug(`准备下发：${label}，先 Motor=ON，收到后计时 ${durationLabel} 再 Motor=OFF`);
+    try {
+      await HuaweiCloudApi.sendMotorCommand('ON');
+      this.updateCloudDebug(`扫地机器人 Motor=ON 已发送：${label}，${durationLabel}后发送 Motor=OFF`);
+      this.scheduleRobotMotorStop(duration, label);
+      try {
+        promptAction.showToast({
+          message: `已启动：${label}，${durationLabel}后停止`,
+          duration: 2000
+        });
+      } catch {
+      }
+    } catch (err) {
+      const errorMessage = this.debugErrorText(err as Object);
+      if (this.isCommandResponseTimeout(errorMessage)) {
+        this.scheduleRobotMotorStop(duration, label);
+        this.updateCloudDebug(`Motor=ON 已发出但设备响应超时：${label}，仍会在${durationLabel}后补发 Motor=OFF。串口若收到 Motor=ON/OFF，说明链路已通。原始错误：${errorMessage}`);
+        try {
+          promptAction.showToast({
+            message: `命令已发送：${label}，设备响应超时`,
+            duration: 4000
+          });
+        } catch {
+        }
+        return;
+      }
+      this.setPointToggleLocal(point, previousOn);
+      this.reportCloudError(`下发失败：${label}。${errorMessage}`);
+    }
+  }
+
+  private async setPointTargetByCloud(point: PointSpec, targetOn: boolean): Promise<void> {
+    const baseId = this.pointBaseId(point.id);
+    const command = targetOn ? 'ON' : 'OFF';
+    const label = `${point.name}${targetOn ? '开启' : '关闭'}`;
+    if (point.action === 'curtain') {
+      await this.setDetailValueByMotor(point, targetOn ? 100 : 0);
+      return;
+    }
+    if (baseId === 'living_air' || baseId === 'bedroom_air' || baseId === 'generic_air' || point.action === 'temperature') {
+      const previousOn = point.id.indexOf('@') >= 0 ? this.dynamicState(point.id).on : this.sharedAirOnForRoom(point.roomId);
+      if (point.id.indexOf('@') >= 0) {
+        const state = this.dynamicState(point.id);
+        this.setDynamicState({
+          pointId: point.id,
+          on: targetOn,
+          value: state.value
+        });
+      } else {
+        this.setSharedAirOnForRoom(point.roomId, targetOn);
+      }
+      this.updateCloudDebug(`准备下发：${label}，显式电机控制 Motor=${command}`);
+      try {
+        await HuaweiCloudApi.sendMotorCommand(command);
+        this.updateCloudDebug(`下发成功：${label}，Motor=${command}`);
+      } catch (err) {
+        const errorMessage = this.debugErrorText(err as Object);
+        if (this.isCommandResponseTimeout(errorMessage)) {
+          this.updateCloudDebug(`命令已发送但设备响应超时：${label}。串口若已收到 Motor=${command}，说明云端到板子已通。原始错误：${errorMessage}`);
+          return;
+        }
+        if (point.id.indexOf('@') >= 0) {
+          const state = this.dynamicState(point.id);
+          this.setDynamicState({
+            pointId: point.id,
+            on: previousOn,
+            value: state.value
+          });
+        } else {
+          this.setSharedAirOnForRoom(point.roomId, previousOn);
+        }
+        this.reportCloudError(`下发失败：${label}。${errorMessage}`);
+      }
+      return;
+    }
+    if (baseId === 'living_robot' || baseId === 'bedroom_robot' || baseId === 'generic_robot' || baseId.indexOf('robot') >= 0) {
+      this.setPointToggleLocal(point, targetOn);
+      const duration = targetOn ? 3000 : 1000;
+      const durationLabel = targetOn ? '3 秒' : '1 秒';
+      this.updateCloudDebug(`准备下发：${label}，扫地机器人 Motor=ON，收到后${durationLabel}再 Motor=OFF`);
+      try {
+        await HuaweiCloudApi.sendMotorCommand('ON');
+        this.scheduleRobotMotorStop(duration, label);
+      } catch (err) {
+        const errorMessage = this.debugErrorText(err as Object);
+        if (this.isCommandResponseTimeout(errorMessage)) {
+          this.scheduleRobotMotorStop(duration, label);
+          this.updateCloudDebug(`Motor=ON 已发出但设备响应超时：${label}，仍会在${durationLabel}后补发 Motor=OFF。原始错误：${errorMessage}`);
+          return;
+        }
+        this.reportCloudError(`下发失败：${label}。${errorMessage}`);
+      }
+      return;
+    }
+    const useLightChannel = point.action === 'light';
+    const previousOn = this.pointToggleOn(point);
+    this.setPointToggleLocal(point, targetOn);
+    this.updateCloudDebug(`准备下发：${label}，显式${useLightChannel ? '紫光灯控制' : '电机控制'} ${useLightChannel ? 'Light' : 'Motor'}=${command}`);
+    try {
+      if (useLightChannel) {
+        await HuaweiCloudApi.sendLightCommand(command);
+      } else {
+        await HuaweiCloudApi.sendMotorCommand(command);
+      }
+      this.updateCloudDebug(`下发成功：${label}，${useLightChannel ? 'Light' : 'Motor'}=${command}`);
+    } catch (err) {
+      const errorMessage = this.debugErrorText(err as Object);
+      if (this.isCommandResponseTimeout(errorMessage)) {
+        this.updateCloudDebug(`命令已发送但设备响应超时：${label}。串口若已收到 ${useLightChannel ? 'Light' : 'Motor'}=${command}，说明云端到板子已通。原始错误：${errorMessage}`);
+        return;
+      }
+      this.setPointToggleLocal(point, previousOn);
+      this.reportCloudError(`下发失败：${label}。${errorMessage}`);
+    }
+  }
+
+  private scheduleRobotMotorStop(duration: number, label: string): void {
+    setTimeout(() => {
+      this.sendRobotMotorOffBurst(label);
+    }, duration);
+  }
+
+  private sendRobotMotorOffBurst(label: string): void {
+    this.sendRobotMotorOffAttempt(label, 1);
+    setTimeout(() => {
+      this.sendRobotMotorOffAttempt(label, 2);
+    }, 700);
+  }
+
+  private sendRobotMotorOffAttempt(label: string, attempt: number): void {
+    HuaweiCloudApi.sendMotorCommand('OFF')
+      .then(() => {
+        this.updateCloudDebug(`扫地机器人停止命令已发送：${label}，第 ${attempt} 次 Motor=OFF`);
+      })
+      .catch((err: Object) => {
+        const errorMessage = this.debugErrorText(err);
+        this.updateCloudDebug(`扫地机器人第 ${attempt} 次 Motor=OFF 响应异常，已继续补发：${label}。${errorMessage}`);
+      });
+  }
+
+  private async setDetailValueByMotor(point: PointSpec, value: number): Promise<void> {
+    const previousValue = this.detailValue(point);
+    let command = value > 0 ? 'ON' : 'OFF';
+    if (point.action === 'curtain') {
+      command = value > 0 ? 'ON' : 'OFF';
+    }
+    const label = `${point.name}${value > 0 ? '打开' : '关闭'}`;
+    const useLightChannel = point.action === 'light';
+    const channel = useLightChannel ? 'Light' : 'Motor';
+    this.updateCloudDebug(`准备下发：${label}，映射为${useLightChannel ? '紫光灯控制' : '电机控制'} ${channel}=${command}`);
+    this.setDetailValue(point, value);
+    try {
+      if (useLightChannel) {
+        await HuaweiCloudApi.sendLightCommand(command);
+      } else {
+        await HuaweiCloudApi.sendMotorCommand(command);
+      }
+      this.updateCloudDebug(`下发成功：${label}，华为云已接收 ${channel}=${command}`);
+      try {
+        promptAction.showToast({
+          message: `下发成功：${label}`,
+          duration: 2000
+        });
+      } catch {
+      }
+    } catch (err) {
+      const errorMessage = this.debugErrorText(err as Object);
+      if (this.isCommandResponseTimeout(errorMessage)) {
+        this.updateCloudDebug(`命令已发送但设备响应超时：${label}。串口若已收到 ${channel}=${command}，说明云端到板子已通。原始错误：${errorMessage}`);
+        try {
+          promptAction.showToast({
+            message: `命令已发送：${label}，设备响应超时`,
+            duration: 4000
+          });
+        } catch {
+        }
+        return;
+      }
+      this.setDetailValue(point, previousValue);
+      this.reportCloudError(`下发失败：${label}。${errorMessage}`);
+    }
   }
 
   private adjustPoint(pointId: string, delta: number): void {
@@ -1654,6 +2237,36 @@ struct Index {
     for (let i = 0; i < presets.length; i++) {
       this.applyScenePreset(presets[i]);
     }
+    this.syncDeviceStates();
+    this.syncActiveState();
+    this.sendSceneToCloud(baseId);
+  }
+
+  private async sendSceneToCloud(baseId: string): Promise<void> {
+    let command = '';
+    let label = '';
+    if (baseId === 'morning') {
+      command = 'ON';
+      label = '早安场景';
+    } else if (baseId === 'arrive') {
+      command = 'OFF';
+      label = '回家场景';
+    } else {
+      return;
+    }
+
+    this.updateCloudDebug(`准备下发：${label}，复用紫光灯通道 Light=${command}`);
+    try {
+      await HuaweiCloudApi.sendLightCommand(command);
+      this.updateCloudDebug(`下发成功：${label}，Light=${command}`);
+    } catch (err) {
+      const errorMessage = this.debugErrorText(err as Object);
+      if (this.isCommandResponseTimeout(errorMessage)) {
+        this.updateCloudDebug(`命令已发送但设备响应超时：${label}。串口若已收到 Light=${command}，说明场景图片链路已通。原始错误：${errorMessage}`);
+        return;
+      }
+      this.reportCloudError(`场景下发失败：${label}，${errorMessage}`);
+    }
   }
 
   private pointBadge(point: PointSpec): string {
@@ -1684,6 +2297,10 @@ struct Index {
 
   private deviceActionLabel(point: PointSpec): string {
     const baseId = this.pointBaseId(point.id);
+    if (baseId === 'living_air' || baseId === 'bedroom_air' || baseId === 'generic_air') {
+      const airOn = point.id.indexOf('@') >= 0 ? this.dynamicState(point.id).on : this.sharedAirOnForRoom(point.roomId);
+      return airOn ? '关空调' : '开空调';
+    }
     if (point.action === 'temperature') {
       return '升温';
     }
@@ -1729,19 +2346,83 @@ struct Index {
 
   private runDeviceAction(pointId: string): void {
     const point = this.pointById(pointId);
+    const baseId = this.pointBaseId(point.id);
+    if (baseId === 'living_air' || baseId === 'bedroom_air' || baseId === 'generic_air') {
+      this.toggleAirByMotor(point);
+      return;
+    }
+    if (baseId === 'living_robot' || baseId === 'bedroom_robot' || baseId === 'generic_robot' || baseId.indexOf('robot') >= 0) {
+      this.toggleRobotByMotor(point);
+      this.syncDeviceAction(point.id, 'robot');
+      return;
+    }
     if (point.action === 'temperature') {
       this.adjustPoint(point.id, 1);
+      this.syncDeviceAction(point.id, 'temperature');
       return;
     }
     if (point.action === 'curtain') {
-      this.setDetailValue(point, this.detailValue(point) >= 100 ? 0 : 100);
+      this.setDetailValueByMotor(point, this.detailValue(point) >= 100 ? 0 : 100);
+      this.syncDeviceAction(point.id, 'curtain');
       return;
     }
     if (point.action === 'light' || point.action === 'toggle') {
-      this.togglePoint(point.id);
+      this.togglePointByMotor(point);
+      this.syncDeviceAction(point.id, point.action);
       return;
     }
     this.openPointDetail(point.id);
+  }
+
+  private async syncDeviceAction(pointId: string, actionType: string): Promise<void> {
+    if (this.authToken.trim().length === 0) {
+      return;
+    }
+    const point = this.pointById(pointId);
+    const result = await submitDeviceAction(this.authToken, {
+      pointId: pointId,
+      actionType: actionType,
+      on: this.backendPointOn(point),
+      value: this.detailValue(point),
+      command: actionType
+    });
+    if (result.ok && result.data !== undefined) {
+      this.rememberBackendState(result.data.homeState);
+      return;
+    }
+    this.rememberSyncedState(await updateDeviceState(this.authToken, pointId, {
+      on: this.backendPointOn(point),
+      value: this.detailValue(point),
+      command: actionType
+    }));
+  }
+
+  private backendPointOn(point: PointSpec): boolean {
+    if (point.id.indexOf('@') >= 0) {
+      return this.dynamicState(point.id).on;
+    }
+    if (point.action === 'light') {
+      return this.lightOnForRoom(point.roomId);
+    }
+    if (point.action === 'toggle') {
+      return this.sharedToggleOn(point);
+    }
+    return true;
+  }
+
+  private currentDeviceStatesSnapshot(): DynamicDeviceStateSpec[] {
+    const states: DynamicDeviceStateSpec[] = [];
+    for (let i = 0; i < this.rooms.length; i++) {
+      const points = this.pointsForRoom(this.rooms[i].id);
+      for (let j = 0; j < points.length; j++) {
+        states.push({
+          pointId: points[j].id,
+          on: this.backendPointOn(points[j]),
+          value: this.detailValue(points[j])
+        });
+      }
+    }
+    return states;
   }
 
   private mapSummary(): string {
@@ -2168,6 +2849,7 @@ struct Index {
       this.setDynamicState(this.dynamicStateDefault(this.pointSpecForRoom(roomId, nextPointId)));
     }
     this.selectionVersion++;
+    this.syncRoomDevices(roomId);
   }
 
   private removeDeviceFromActiveRoom(pointId: string): void {
@@ -2188,6 +2870,22 @@ struct Index {
       this.detailPointId = '';
     }
     this.selectionVersion++;
+    this.syncRoomDevices(roomId);
+  }
+
+  private async syncRoomDevices(roomId: string): Promise<void> {
+    if (this.authToken.trim().length === 0) {
+      return;
+    }
+    const result = await updateRoomDevices(this.authToken, roomId, this.installedPointIds(roomId));
+    this.rememberSyncedState(result);
+    if (result.ok && result.data !== undefined) {
+      const roomDevices = this.backendRoomDevices(result.data.roomDevices);
+      if (roomDevices.length > 0) {
+        this.roomDevices = roomDevices;
+        this.syncLivingDevicesToStorage();
+      }
+    }
   }
 
   private devicePanelPoints(): PointSpec[] {
@@ -2243,6 +2941,7 @@ struct Index {
         meta: meta
       }
     ];
+    this.syncHomeSection('agentMessages', this.chatMessages);
   }
 
   private appendAgentRecord(title: string, detail: string, status: string): void {
@@ -2258,6 +2957,191 @@ struct Index {
       },
       ...this.agentRecords
     ];
+    this.syncHomeSection('agentRecords', this.agentRecords);
+  }
+
+  private async syncHomeSection(section: string, value: Object): Promise<void> {
+    if (this.authToken.trim().length === 0) {
+      return;
+    }
+    this.rememberSyncedState(await updateHomeSection(this.authToken, section, value));
+  }
+
+  private async syncRooms(): Promise<void> {
+    if (this.authToken.trim().length === 0) {
+      return;
+    }
+    this.rememberSyncedState(await updateHomeSection(this.authToken, 'rooms', this.rooms));
+    this.rememberSyncedState(await updateHomeSection(this.authToken, 'roomDevices', this.roomDevices));
+    this.syncActiveState();
+  }
+
+  private async syncDeviceStates(): Promise<void> {
+    if (this.authToken.trim().length === 0) {
+      return;
+    }
+    const snapshot = this.currentDeviceStatesSnapshot();
+    this.dynamicDeviceStates = snapshot;
+    this.rememberSyncedState(await updateHomeSection(this.authToken, 'deviceStates', snapshot));
+  }
+
+  private async syncActiveState(): Promise<void> {
+    if (this.authToken.trim().length === 0) {
+      return;
+    }
+    this.rememberSyncedState(await updateActiveState(this.authToken, {
+      activeRoomId: this.activeRoomId,
+      activeSceneId: this.activeSceneId,
+      isNight: this.isNight,
+      manualPeriod: this.manualPeriod
+    }));
+  }
+
+  private pointActionMatches(point: PointSpec, command: string, value?: number): boolean {
+    if (command === 'on') {
+      return this.pointToggleOn(point);
+    }
+    if (command === 'off') {
+      return !this.pointToggleOn(point);
+    }
+    if (command === 'set' && value !== undefined) {
+      if (point.action === 'temperature' || point.action === 'curtain' || point.action === 'light') {
+        return this.detailValue(point) === value;
+      }
+    }
+    return false;
+  }
+
+  private async executeSmartAction(action: SmartActionSpec): Promise<void> {
+    if (action.pointId.length === 0 || action.command === 'draft') {
+      return;
+    }
+    const point = this.pointById(action.pointId);
+    if (action.command === 'on' || action.command === 'off') {
+      await this.setPointTargetByCloud(point, action.command === 'on');
+      return;
+    }
+    if (action.command === 'set') {
+      if (this.pointActionMatches(point, action.command, action.value)) {
+        return;
+      }
+      if (point.action === 'temperature') {
+        if (action.value !== undefined) {
+          this.setSharedTemperatureForRoom(point.roomId, action.value);
+        }
+        if (!this.sharedAirOnForRoom(point.roomId)) {
+          await this.toggleAirByMotor(point);
+        }
+        return;
+      }
+      if (point.action === 'curtain' || point.action === 'light') {
+        await this.setDetailValueByMotor(point, action.value === undefined ? this.detailValue(point) : action.value);
+        return;
+      }
+      if (!this.pointToggleOn(point)) {
+        await this.togglePointByMotor(point);
+      }
+    }
+  }
+
+  private async submitSmartActionToBackend(action: SmartActionSpec): Promise<void> {
+    if (this.authToken.trim().length === 0 || action.pointId.length === 0 || action.command === 'draft') {
+      return;
+    }
+    const point = this.pointById(action.pointId);
+    const extra: SmartActionExtraSpec = action.extra === undefined ? {
+      source: 'llm_intent',
+      label: action.label
+    } : action.extra;
+    const result = await submitDeviceAction(this.authToken, {
+      pointId: point.id,
+      actionType: 'llm_agent',
+      on: this.backendPointOn(point),
+      value: this.detailValue(point),
+      command: action.command,
+      extra: extra
+    });
+    if (result.ok && result.data !== undefined) {
+      this.rememberBackendState(result.data.homeState);
+      return;
+    }
+    this.rememberSyncedState(await updateDeviceState(this.authToken, point.id, {
+      on: this.backendPointOn(point),
+      value: this.detailValue(point),
+      command: action.command,
+      extra: extra
+    }));
+  }
+
+  private resolveSmartActionPoint(action: SmartActionSpec): SmartActionSpec {
+    return {
+      pointId: this.pointIdForLookup(action.pointId),
+      command: action.command,
+      label: action.label,
+      value: action.value,
+      extra: action.extra
+    };
+  }
+
+  private resolveSmartActionPoints(actions: SmartActionSpec[]): SmartActionSpec[] {
+    const resolved: SmartActionSpec[] = [];
+    for (let i = 0; i < actions.length; i++) {
+      resolved.push(this.resolveSmartActionPoint(actions[i]));
+    }
+    return resolved;
+  }
+
+  private async executeSmartActions(actions: SmartActionSpec[]): Promise<number> {
+    let count = 0;
+    for (let i = 0; i < actions.length; i++) {
+      const action = actions[i];
+      if (action.command === 'draft') {
+        continue;
+      }
+      await this.executeSmartAction(action);
+      await this.submitSmartActionToBackend(action);
+      count++;
+    }
+    return count;
+  }
+
+  private smartActionResultText(actions: SmartActionSpec[], executedCount: number): string {
+    if (executedCount <= 0) {
+      return '没有找到可以执行的设备动作。';
+    }
+    const results: string[] = [];
+    for (let i = 0; i < actions.length; i++) {
+      const action = actions[i];
+      if (action.pointId.length === 0 || action.command === 'draft') {
+        continue;
+      }
+      const point = this.pointById(action.pointId);
+      if (action.command === 'on') {
+        results.push(`${point.name}已打开`);
+        continue;
+      }
+      if (action.command === 'off') {
+        if (this.pointBaseId(point.id).indexOf('robot') >= 0) {
+          results.push(`${point.name}已暂停`);
+        } else {
+          results.push(`${point.name}已关闭`);
+        }
+        continue;
+      }
+      if (action.command === 'set') {
+        if (point.action === 'temperature' && action.value !== undefined) {
+          results.push(`${point.name}已调到 ${action.value}°C`);
+        } else if (point.action === 'curtain') {
+          results.push(`${point.name}${(action.value === undefined ? this.detailValue(point) : action.value) > 0 ? '已打开' : '已关闭'}`);
+        } else if (point.action === 'light') {
+          const value = action.value === undefined ? this.detailValue(point) : action.value;
+          results.push(value > 0 ? `${point.name}已打开` : `${point.name}已关闭`);
+        } else {
+          results.push(`${point.name}已执行`);
+        }
+      }
+    }
+    return results.length > 0 ? results.join('，') : `已执行 ${executedCount} 个设备动作`;
   }
 
   private applyAgentSuggestion(prompt: string): void {
@@ -2294,6 +3178,7 @@ struct Index {
       const reply = await resolveSmartAssistantPrompt(prompt);
       if (reply.draft !== undefined && reply.draft.shouldCreateAutomation) {
         const draft = reply.draft;
+        const actions = this.resolveSmartActionPoints(draft.actions);
         this.automations = [
           {
             id: `auto_${new Date().getTime()}`,
@@ -2303,18 +3188,32 @@ struct Index {
             source: 'agent',
             enabled: true,
             triggerSpec: draft.triggerSpec,
-            actions: draft.actions
+            actions: actions
           },
           ...this.automations
         ];
+        this.syncHomeSection('automations', this.automations);
+      }
+      if (reply.draft !== undefined && !reply.draft.shouldCreateAutomation) {
+        const actions = this.resolveSmartActionPoints(reply.draft.actions);
+        const executedCount = await this.executeSmartActions(actions);
+        if (executedCount > 0) {
+          this.syncDeviceStates();
+          this.syncActiveState();
+          const resultText = this.smartActionResultText(actions, executedCount);
+          this.appendAgentRecord('设备指令已执行', resultText, '已执行');
+          this.pushChatMessage('agent', resultText, '已执行');
+          return;
+        }
       }
       const recordDetail = reply.draft !== undefined ? reply.draft.action : reply.detail;
       const recordStatus = reply.ok ? (reply.mode === 'llm' ? '回答' : '已执行') : '未连接';
       this.appendAgentRecord(reply.title, recordDetail, recordStatus);
       this.pushChatMessage('agent', reply.detail, reply.title);
-    } catch {
-      this.appendAgentRecord('助手请求失败', '请检查网络连接、DeepSeek API Key 或稍后再试。', '错误');
-      this.pushChatMessage('agent', '请求失败：请检查网络连接、DeepSeek API Key 或稍后再试。', '错误');
+    } catch (err) {
+      const errorMessage = this.debugErrorText(err as Object);
+      this.appendAgentRecord('智能助手处理异常', `识别或设备执行阶段出现异常：${errorMessage}`, '错误');
+      this.pushChatMessage('agent', `智能助手已收到指令，但执行链路出现异常：${errorMessage}`, '错误');
     } finally {
       this.agentThinking = false;
     }
@@ -2359,6 +3258,7 @@ struct Index {
       },
       ...this.automations
     ];
+    this.syncHomeSection('automations', this.automations);
     this.appendAgentRecord('手动自动化已创建', `${title} · ${trigger}`, '已执行');
     this.pushChatMessage('agent', `已创建脚本“${title}”，触发条件是“${trigger}”。你现在可以在上方脚本板块里继续启用或调整它。`, '脚本已保存');
     this.automationTitle = '';
@@ -2388,6 +3288,7 @@ struct Index {
       }
     }
     this.automations = nextAutomations;
+    this.syncHomeSection('automations', this.automations);
   }
 
   private enabledAutomationCount(): number {
@@ -3462,6 +4363,22 @@ struct Index {
         .fontSize(12)
         .fontColor(this.secondaryText())
         .margin({ top: 10 })
+
+      if (this.cloudDebugMessage.length > 0) {
+        Text(this.cloudDebugMessage)
+          .fontSize(11)
+          .lineHeight(17)
+          .fontColor(this.secondaryText())
+          .width('100%')
+          .padding({ left: 12, right: 12, top: 10, bottom: 10 })
+          .backgroundColor(this.glassShellColor())
+          .border({
+            width: 1,
+            color: this.glassBorderColor()
+          })
+          .borderRadius(12)
+          .margin({ top: 10 })
+      }
     }
     .width('100%')
   }
@@ -3604,12 +4521,14 @@ struct Index {
   DetailPanel(point: PointSpec) {
     DeviceDetailPages({
       detailPointId: $detailPointId,
+      detailActionPointId: $detailActionPointId,
       pointId: point.id,
       pointName: point.name,
       pointType: point.type,
       pointStatus: this.pointStatus(point),
       pointDetail: point.detail,
-      isNight: this.isNight
+      isNight: this.isNight,
+      pointOn: this.detailPowerOn(point)
     })
   }
 
@@ -5526,7 +6445,7 @@ struct Index {
       } else if (this.activeTab === 'smart') {
         this.SmartPage()
       } else if (this.activeTab === 'store') {
-        P31_StoreHome({ isNight: this.isNight, transparentBg: true })
+        P31_StoreHome({ isNight: this.isNight })
       } else if (this.activeTab === 'profile') {
         P21_MyProfile({ isNight: this.isNight, transparentBg: true })
       } else {

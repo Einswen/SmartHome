@@ -33,14 +33,16 @@ struct MyDevicesPage {
   @State pressedKey: string = '';
   @State selectedDeviceId: string = 'living_light';
   @State isNight: boolean = false;
-  @StorageLink('homeLivingPointIds') livingPointIdsText: string = 'living_air|living_curtain|living_tv|living_purifier|living_robot|living_light';
-  @StorageLink('homeLivingDeviceCount') livingDeviceCount: number = 6;
-  @StorageLink('homeLivingAirInstalled') livingAirInstalled: boolean = true;
-  @StorageLink('homeLivingCurtainInstalled') livingCurtainInstalled: boolean = true;
-  @StorageLink('homeLivingTvInstalled') livingTvInstalled: boolean = true;
-  @StorageLink('homeLivingPurifierInstalled') livingPurifierInstalled: boolean = true;
-  @StorageLink('homeLivingRobotInstalled') livingRobotInstalled: boolean = true;
-  @StorageLink('homeLivingLightInstalled') livingLightInstalled: boolean = true;
+  @StorageLink('lumiUserSignedIn') signedIn: boolean = false;
+  @StorageLink('lumiAuthToken') authToken: string = '';
+  @StorageLink('homeLivingPointIds') livingPointIdsText: string = '';
+  @StorageLink('homeLivingDeviceCount') livingDeviceCount: number = 0;
+  @StorageLink('homeLivingAirInstalled') livingAirInstalled: boolean = false;
+  @StorageLink('homeLivingCurtainInstalled') livingCurtainInstalled: boolean = false;
+  @StorageLink('homeLivingTvInstalled') livingTvInstalled: boolean = false;
+  @StorageLink('homeLivingPurifierInstalled') livingPurifierInstalled: boolean = false;
+  @StorageLink('homeLivingRobotInstalled') livingRobotInstalled: boolean = false;
+  @StorageLink('homeLivingLightInstalled') livingLightInstalled: boolean = false;
   @StorageLink('homeLivingLightOn') livingLightOn: boolean = false;
   @StorageLink('homeLivingTemperature') livingTemperature: number = 24;
   @StorageLink('homeLivingCurtain') livingCurtain: number = 46;
@@ -81,6 +83,10 @@ struct MyDevicesPage {
 
   private percent(value: number): string {
     return `${value}%`;
+  }
+
+  private hasAuthSession(): boolean {
+    return this.signedIn && this.authToken.trim().length > 0;
   }
 
   private dotLeft(item: DeviceCenterSpec): string {
@@ -276,18 +282,6 @@ struct MyDevicesPage {
     }
   }
 
-  private restoreDevices(): void {
-    this.showEmpty = false;
-    this.livingPointIdsText = 'living_air|living_curtain|living_tv|living_purifier|living_robot|living_light';
-    this.livingDeviceCount = 6;
-    this.livingAirInstalled = true;
-    this.livingCurtainInstalled = true;
-    this.livingTvInstalled = true;
-    this.livingPurifierInstalled = true;
-    this.livingRobotInstalled = true;
-    this.livingLightInstalled = true;
-  }
-
   private toggleDevice(id: string): void {
     const baseId = this.pointBaseId(id);
     if (baseId === 'living_light') {
@@ -317,29 +311,68 @@ struct MyDevicesPage {
     Column() {
       this.TopBar()
 
-      Scroll() {
-        Column() {
-          this.RoomPreview()
-          this.SummaryCard()
-          this.FilterBar()
-
-          if (this.displayDevices().length === 0) {
-            this.EmptyState()
-          } else {
-            ForEach(this.displayDevices(), (item: DeviceCenterSpec) => {
-              this.DeviceCard(item)
-            }, (item: DeviceCenterSpec) => item.id)
+      if (this.hasAuthSession()) {
+        Scroll() {
+          Column() {
+            if (this.displayDevices().length === 0) {
+              this.EmptyState()
+            } else {
+              this.RoomPreview()
+              this.SummaryCard()
+              this.FilterBar()
+              ForEach(this.displayDevices(), (item: DeviceCenterSpec) => {
+                this.DeviceCard(item)
+              }, (item: DeviceCenterSpec) => item.id)
+            }
           }
+          .width('100%')
+          .padding({ left: 18, right: 18, bottom: 28 })
         }
-        .width('100%')
-        .padding({ left: 18, right: 18, bottom: 28 })
+        .layoutWeight(1)
+        .scrollBar(BarState.Off)
+      } else {
+        this.AuthRequiredState()
       }
-      .layoutWeight(1)
-      .scrollBar(BarState.Off)
     }
     .width('100%')
     .height('100%')
     .backgroundColor(this.bgColor())
+  }
+
+  @Builder
+  AuthRequiredState() {
+    Column() {
+      Text('登录后查看设备')
+        .fontSize(21)
+        .fontWeight(FontWeight.Bold)
+        .fontColor(this.primaryText())
+
+      Text('设备列表会从账号家庭中同步，未登录时不显示本地示例设备。')
+        .fontSize(13)
+        .lineHeight(20)
+        .fontColor(this.secondaryText())
+        .textAlign(TextAlign.Center)
+        .width('78%')
+        .margin({ top: 8 })
+
+      Button('去登录')
+        .height(40)
+        .fontSize(13)
+        .fontWeight(FontWeight.Bold)
+        .fontColor('#FFFFFF')
+        .backgroundColor('#11151D')
+        .borderRadius(20)
+        .padding({ left: 20, right: 20 })
+        .margin({ top: 18 })
+        .onClick(() => {
+          safePushUrl(this.getUIContext().getRouter(), { url: 'pages/my/mylogin', params: { isNight: this.isNight } });
+        })
+    }
+    .width('100%')
+    .layoutWeight(1)
+    .justifyContent(FlexAlign.Center)
+    .alignItems(HorizontalAlign.Center)
+    .padding({ left: 28, right: 28, bottom: 40 })
   }
 
   @Builder
@@ -506,7 +539,7 @@ struct MyDevicesPage {
         .fontColor(this.primaryText())
         .layoutWeight(1)
 
-      Button(this.showEmpty || this.installedCount() < 6 ? '恢复设备' : '空数据')
+      Button(this.installedCount() > 0 ? '清空显示' : '暂无设备')
         .height(32)
         .fontSize(12)
         .fontWeight(FontWeight.Bold)
@@ -515,9 +548,7 @@ struct MyDevicesPage {
         .borderRadius(16)
         .padding({ left: 12, right: 12 })
         .onClick(() => {
-          if (this.showEmpty || this.installedCount() < 6) {
-            this.restoreDevices();
-          } else {
+          if (this.installedCount() > 0) {
             this.showEmpty = true;
           }
         })
@@ -697,24 +728,12 @@ struct MyDevicesPage {
         .fontSize(20)
         .fontWeight(FontWeight.Bold)
         .fontColor(this.primaryText())
-      Text('当前家庭还没有绑定设备。恢复示例后会重新显示与首页首图匹配的客厅设备。')
+      Text('当前家庭还没有绑定设备。请回到首页添加房间，再为房间添加设备。')
         .fontSize(13)
         .lineHeight(20)
         .fontColor(this.secondaryText())
         .textAlign(TextAlign.Center)
         .margin({ top: 8 })
-      Button('恢复示例数据')
-        .height(40)
-        .fontSize(13)
-        .fontWeight(FontWeight.Bold)
-        .fontColor('#FFFFFF')
-        .backgroundColor('#5E8CFF')
-        .borderRadius(20)
-        .padding({ left: 18, right: 18 })
-        .margin({ top: 18 })
-        .onClick(() => {
-          this.restoreDevices();
-        })
     }
     .width('100%')
     .padding({ left: 28, right: 28, top: 54, bottom: 54 })

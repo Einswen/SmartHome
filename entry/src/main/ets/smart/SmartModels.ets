@@ -26,6 +26,14 @@ export interface SmartActionSpec {
   command: string;
   label: string;
   value?: number;
+  extra?: SmartActionExtraSpec;
+}
+
+export interface SmartActionExtraSpec {
+  source?: string;
+  label?: string;
+  roomName?: string;
+  deviceName?: string;
 }
 
 export interface SmartPromptDraft {
@@ -75,7 +83,7 @@ export const DEFAULT_AGENT_RECORDS: AgentRecordSpec[] = [
   {
     id: 'record_seed_1',
     title: '智能助手已整理晨间场景',
-    detail: '建议把窗帘、空调和照明联动成一个一键场景。',
+    detail: '建议把窗帘、空调和照明联动成一键场景。',
     time: '09:12',
     status: '建议'
   },
@@ -88,30 +96,40 @@ export const DEFAULT_AGENT_RECORDS: AgentRecordSpec[] = [
   }
 ];
 
+export const DEFAULT_AGENT_MESSAGES: AgentMessageSpec[] = [
+  {
+    id: 'agent_seed_1',
+    role: 'agent',
+    text: '我可以帮你控制空调、窗帘、灯光和扫地机器人，也可以回答普通问题。',
+    meta: '在线'
+  }
+];
+
 export const DEFAULT_AUTOMATIONS: AutomationSpec[] = [
   {
-    id: 'auto_leave',
-    title: '离家断电',
-    trigger: '离家定位或手动点击离家场景',
-    action: '关闭客厅电视、空气净化器和主灯',
+    id: 'auto_seed_morning',
+    title: '晨间唤醒',
+    trigger: '每天 07:30',
+    action: '打开客厅灯，调整窗帘和空调',
     source: 'agent',
     enabled: true,
     triggerSpec: {
-      type: 'presence',
-      label: '离家定位或手动点击离家场景'
+      type: 'time',
+      label: '每天 07:30',
+      time: '07:30'
     },
     actions: [
-      { pointId: 'living_tv', command: 'off', label: '关闭客厅电视' },
-      { pointId: 'living_purifier', command: 'off', label: '关闭空气净化器' },
-      { pointId: 'living_light', command: 'off', label: '关闭客厅主灯' }
+      { pointId: 'living_light', command: 'set', label: '客厅灯调到 70%', value: 70 },
+      { pointId: 'living_curtain', command: 'set', label: '打开客厅窗帘', value: 100 },
+      { pointId: 'living_air', command: 'set', label: '客厅空调调到 24°C', value: 24 }
     ]
   },
   {
-    id: 'auto_sleep',
-    title: '睡眠安静模式',
+    id: 'auto_seed_sleep',
+    title: '睡眠模式',
     trigger: '每天 22:30',
-    action: '拉上卧室窗帘，客厅灯关闭，卧室空调调至 23°C',
-    source: 'manual',
+    action: '关闭客厅灯，拉上卧室窗帘，调整卧室空调',
+    source: 'agent',
     enabled: true,
     triggerSpec: {
       type: 'time',
@@ -119,11 +137,9 @@ export const DEFAULT_AUTOMATIONS: AutomationSpec[] = [
       time: '22:30'
     },
     actions: [
-      { pointId: 'bedroom_curtain', command: 'set', label: '拉上卧室窗帘', value: 100 },
       { pointId: 'living_light', command: 'off', label: '关闭客厅灯' },
+      { pointId: 'bedroom_curtain', command: 'set', label: '关闭卧室窗帘', value: 0 },
       { pointId: 'bedroom_air', command: 'set', label: '卧室空调调至 23°C', value: 23 }
     ]
   }
 ];
-
-export const DEFAULT_AGENT_MESSAGES: AgentMessageSpec[] = [];

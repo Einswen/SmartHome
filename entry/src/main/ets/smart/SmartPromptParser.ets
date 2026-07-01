@@ -113,8 +113,44 @@ function appendPromptAction(actions: SmartActionSpec[], pointId: string, command
   });
 }
 
+function isEnglishAcPrompt(lower: string): boolean {
+  return lower === 'ac' ||
+    lower.indexOf(' ac ') >= 0 ||
+    lower.indexOf(' ac') === lower.length - 3 ||
+    lower.indexOf('ac ') === 0 ||
+    lower.indexOf('air conditioner') >= 0 ||
+    lower.indexOf('aircon') >= 0;
+}
+
+function isEnglishOffAction(lower: string): boolean {
+  if (includesAny(lower, ['turn off', 'switch off', 'stop', 'pause', 'close'])) {
+    return true;
+  }
+  const padded = ` ${lower.replace(/[.,!?]/g, ' ')} `;
+  return padded.indexOf(' off ') >= 0;
+}
+
+function appendEnglishPromptActions(prompt: string, actions: SmartActionSpec[]): void {
+  const lower = prompt.toLowerCase();
+  const isOff = isEnglishOffAction(lower);
+  const command = isOff ? 'off' : 'on';
+  if (isEnglishAcPrompt(lower)) {
+    appendPromptAction(actions, 'living_air', command, isOff ? 'Turn off AC' : 'Turn on AC');
+  }
+  if (includesAny(lower, ['light', 'lamp'])) {
+    appendPromptAction(actions, 'living_light', command, isOff ? 'Turn off light' : 'Turn on light');
+  }
+  if (includesAny(lower, ['curtain'])) {
+    appendPromptAction(actions, 'living_curtain', 'set', isOff ? 'Close curtain' : 'Open curtain', isOff ? 0 : 100);
+  }
+  if (includesAny(lower, ['robot', 'vacuum'])) {
+    appendPromptAction(actions, 'living_robot', command, isOff ? 'Pause robot' : 'Start robot');
+  }
+}
+
 function parsePromptActions(prompt: string): SmartActionSpec[] {
   const actions: SmartActionSpec[] = [];
+  appendEnglishPromptActions(prompt, actions);
   const isOff = includesAny(prompt, ['关闭', '关掉', '关上', '断电', '待机']);
 
   if (prompt.indexOf('客厅灯') >= 0 || prompt.indexOf('主灯') >= 0) {

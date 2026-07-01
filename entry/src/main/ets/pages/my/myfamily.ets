@@ -1,4 +1,5 @@
-﻿import { safeBack, safeGetParams } from '../../common/SafeRouter';
+﻿import { safeBack, safeGetParams, safePushUrl } from '../../common/SafeRouter';
+import { fetchHomeState, SmartHomeApiResult, SmartHomeState, updateHomeSection } from '../../common/SmartHomeApi';
 
 interface MyFamilyRouteParams {
   isNight?: boolean;
@@ -12,11 +13,29 @@ interface FamilyMemberSpec {
   accent: string;
 }
 
-const FAMILY_MEMBERS: FamilyMemberSpec[] = [
-  { id: 'owner', name: 'Lumi 用户', role: '家庭拥有者', status: '在线', accent: '#5E8CFF' },
-  { id: 'mom', name: '妈妈', role: '管理员', status: '远程控制已启用', accent: '#19B7A4' },
-  { id: 'guest', name: '访客', role: '临时成员', status: '今晚 22:00 失效', accent: '#F3A33A' }
-];
+interface FamilyMemberPreference {
+  id: string;
+  name: string;
+  role: string;
+}
+
+interface FamilyPreferences {
+  hideGuest?: boolean;
+  hasCustomMember?: boolean;
+  customMemberName?: string;
+  customMemberRole?: string;
+  customMembers?: FamilyMemberPreference[];
+}
+
+interface FamilyRoomPayload {
+  id?: string;
+  name?: string;
+}
+
+interface FamilyRoomDevicesPayload {
+  roomId?: string;
+  pointIds?: string[];
+}
 
 @Entry
 @Component
@@ -24,20 +43,175 @@ struct MyFamilyPage {
   @State showEmpty: boolean = false;
   @State inviteVisible: boolean = true;
   @State inviteFailed: boolean = false;
-  @State activeHome: string = '幸福之家';
+  @State activeHome: string = '我的家庭';
   @State isNight: boolean = false;
-  @StorageLink('familyHideGuest') hideGuest: boolean = false;
-  @StorageLink('familyHasCustomMember') hasCustomMember: boolean = false;
-  @StorageLink('familyCustomMemberName') customMemberName: string = '新成员';
-  @StorageLink('familyCustomMemberRole') customMemberRole: string = '普通成员';
+  @State hideGuest: boolean = false;
+  @State hasCustomMember: boolean = false;
+  @State customMemberName: string = '新成员';
+  @State customMemberRole: string = '普通成员';
+  @State customMembers: FamilyMemberPreference[] = [];
   @State showNewMember: boolean = false;
-  @State selectedMemberName: string = '妈妈';
+  @State selectedMemberName: string = '新成员';
   @State selectedMemberRole: string = '普通成员';
+  @State syncedRoomCount: number = 0;
+  @State syncedDeviceCount: number = 0;
+  @State syncedRoomNames: string[] = [];
+  @StorageLink('lumiUserSignedIn') signedIn: boolean = false;
+  @StorageLink('lumiAuthToken') authToken: string = '';
+  @StorageLink('lumiHomeState') homeStateText: string = '';
+  private appliedHomeStateText: string = '';
+  private familyMutationVersion: number = 0;
 
   aboutToAppear(): void {
     const params = safeGetParams(this.getUIContext().getRouter()) as MyFamilyRouteParams | undefined;
     if (params && params.isNight !== undefined) {
       this.isNight = params.isNight;
+    }
+    this.loadFamilyState();
+  }
+
+  onPageShow(): void {
+    this.loadFamilyState();
+  }
+
+  private loadFamilyState(): void {
+    if (!this.hasAuthSession()) {
+      this.appliedHomeStateText = '';
+      this.resetFamilySummary();
+      return;
+    }
+    this.applyStoredHomeState();
+    this.loadBackendState();
+  }
+
+  private async loadBackendState(): Promise<void> {
+    if (this.authToken.trim().length === 0) {
+      return;
+    }
+    const requestVersion = this.familyMutationVersion;
+    const result = await fetchHomeState(this.authToken);
+    if (!result.ok || result.data === undefined) {
+      return;
+    }
+    this.applyHomeSummary(result.data);
+    if (requestVersion !== this.familyMutationVersion) {
+      return;
+    }
+    this.rememberHomeState(result.data);
+    this.applyFamilyPreferences(result.data.preferences as FamilyPreferences);
+  }
+
+  private applyStoredHomeState(): void {
+    if (this.homeStateText.length === 0 || this.homeStateText === this.appliedHomeStateText) {
+      return;
+    }
+    try {
+      const state = JSON.parse(this.homeStateText) as SmartHomeState;
+      this.appliedHomeStateText = this.homeStateText;
+      this.applyHomeSummary(state);
+      this.applyFamilyPreferences(state.preferences as FamilyPreferences);
+    } catch {
+    }
+  }
+
+  private rememberHomeState(state: SmartHomeState): void {
+    const stateText = JSON.stringify(state);
+    this.appliedHomeStateText = stateText;
+    this.homeStateText = stateText;
+  }
+
+  private rememberSyncedState(result: SmartHomeApiResult<SmartHomeState>): void {
+    if (result.ok && result.data !== undefined) {
+      this.rememberHomeState(result.data);
+    }
+  }
+
+  private applyFamilyPreferences(preferences: FamilyPreferences): void {
+    this.hideGuest = preferences.hideGuest === undefined ? false : preferences.hideGuest;
+    this.hasCustomMember = preferences.hasCustomMember === undefined ? false : preferences.hasCustomMember;
+    this.customMemberName = preferences.customMemberName === undefined ? '新成员' : preferences.customMemberName;
+    this.customMemberRole = preferences.customMemberRole === undefined ? '普通成员' : preferences.customMemberRole;
+    if (preferences.customMembers !== undefined) {
+      this.customMembers = this.validMemberPreferences(preferences.customMembers);
+    } else if (this.hasCustomMember) {
+      this.customMembers = [{
+        id: 'legacy_member',
+        name: this.customMemberName,
+        role: this.customMemberRole
+      }];
+    } else {
+      this.customMembers = [];
+    }
+  }
+
+  private resetFamilySummary(): void {
+    this.syncedRoomCount = 0;
+    this.syncedDeviceCount = 0;
+    this.syncedRoomNames = [];
+  }
+
+  private applyHomeSummary(state: SmartHomeState): void {
+    this.syncedRoomCount = this.validRooms(state.rooms).length;
+    this.syncedDeviceCount = this.countRoomDevices(state.roomDevices);
+    this.syncedRoomNames = this.validRooms(state.rooms).map((room: FamilyRoomPayload) => room.name as string);
+  }
+
+  private validRooms(payload: Object[]): FamilyRoomPayload[] {
+    const rooms: FamilyRoomPayload[] = [];
+    for (let i = 0; i < payload.length; i++) {
+      const room = payload[i] as FamilyRoomPayload;
+      if (room.id !== undefined && room.name !== undefined && room.name.length > 0) {
+        rooms.push(room);
+      }
+    }
+    return rooms;
+  }
+
+  private countRoomDevices(payload: Object[]): number {
+    let count = 0;
+    for (let i = 0; i < payload.length; i++) {
+      const item = payload[i] as FamilyRoomDevicesPayload;
+      if (item.pointIds !== undefined) {
+        count += item.pointIds.length;
+      }
+    }
+    return count;
+  }
+
+  private currentPreferences(): FamilyPreferences {
+    let preferences: FamilyPreferences = {};
+    if (this.homeStateText.length > 0) {
+      try {
+        const state = JSON.parse(this.homeStateText) as SmartHomeState;
+        preferences = state.preferences as FamilyPreferences;
+      } catch {
+        preferences = {};
+      }
+    }
+    preferences.hideGuest = this.hideGuest;
+    preferences.customMembers = this.customMembers;
+    preferences.hasCustomMember = this.customMembers.length > 0;
+    preferences.customMemberName = this.customMembers.length > 0 ? this.customMembers[0].name : '新成员';
+    preferences.customMemberRole = this.customMembers.length > 0 ? this.customMembers[0].role : '普通成员';
+    return preferences;
+  }
+
+  private syncFamilyPreferences(): void {
+    if (!this.hasAuthSession()) {
+      return;
+    }
+    this.familyMutationVersion++;
+    this.syncFamilyPreferencesAsync(this.familyMutationVersion);
+  }
+
+  private async syncFamilyPreferencesAsync(version: number): Promise<void> {
+    const result = await updateHomeSection(this.authToken, 'preferences', this.currentPreferences());
+    if (version !== this.familyMutationVersion) {
+      return;
+    }
+    this.rememberSyncedState(result);
+    if (result.ok && result.data !== undefined) {
+      this.applyFamilyPreferences(result.data.preferences as FamilyPreferences);
     }
   }
 
@@ -61,53 +235,165 @@ struct MyFamilyPage {
     return this.isNight ? '#73161A20' : '#B8EFF2F7';
   }
 
+  private hasAuthSession(): boolean {
+    return this.signedIn && this.authToken.trim().length > 0;
+  }
+
   private members(): FamilyMemberSpec[] {
     if (this.showEmpty) {
       return [];
     }
     const nextMembers: FamilyMemberSpec[] = [];
-    for (let i = 0; i < FAMILY_MEMBERS.length; i++) {
-      if (FAMILY_MEMBERS[i].id !== 'guest' || !this.hideGuest) {
-        nextMembers.push(FAMILY_MEMBERS[i]);
-      }
-    }
-    if (this.hasCustomMember) {
-      const newMember: FamilyMemberSpec = { id: 'new_member', name: this.customMemberName, role: this.customMemberRole, status: '已加入家庭', accent: '#7F72F2' };
-      nextMembers.push(newMember);
+    for (let i = 0; i < this.customMembers.length; i++) {
+      nextMembers.push({
+        id: this.customMembers[i].id,
+        name: this.customMembers[i].name,
+        role: this.customMembers[i].role,
+        status: '已加入家庭',
+        accent: this.memberAccent(i)
+      });
     }
     return nextMembers;
+  }
+
+  private validMemberPreferences(payload: FamilyMemberPreference[]): FamilyMemberPreference[] {
+    const members: FamilyMemberPreference[] = [];
+    for (let i = 0; i < payload.length; i++) {
+      if (payload[i].id.length > 0 && payload[i].name.length > 0 && payload[i].role.length > 0) {
+        members.push(payload[i]);
+      }
+    }
+    return members;
+  }
+
+  private memberAccent(index: number): string {
+    const colors: string[] = ['#7F72F2', '#19B7A4', '#F3A33A', '#5E8CFF'];
+    return colors[index % colors.length];
+  }
+
+  private upsertSelectedMember(): void {
+    const nextMember: FamilyMemberPreference = {
+      id: `member_${new Date().getTime()}_${this.customMembers.length}`,
+      name: this.selectedMemberName,
+      role: this.selectedMemberRole
+    };
+    const nextMembers: FamilyMemberPreference[] = [];
+    let updated = false;
+    for (let i = 0; i < this.customMembers.length; i++) {
+      if (this.customMembers[i].name === nextMember.name) {
+        nextMembers.push({
+          id: this.customMembers[i].id,
+          name: nextMember.name,
+          role: nextMember.role
+        });
+        updated = true;
+      } else {
+        nextMembers.push(this.customMembers[i]);
+      }
+    }
+    if (!updated) {
+      nextMembers.push(nextMember);
+    }
+    this.customMembers = nextMembers;
+    this.hasCustomMember = this.customMembers.length > 0;
+    this.customMemberName = nextMember.name;
+    this.customMemberRole = nextMember.role;
+  }
+
+  private removeMember(memberId: string): void {
+    this.customMembers = this.customMembers.filter((member: FamilyMemberPreference) => member.id !== memberId);
+    this.hasCustomMember = this.customMembers.length > 0;
+    this.customMemberName = this.customMembers.length > 0 ? this.customMembers[0].name : '新成员';
+    this.customMemberRole = this.customMembers.length > 0 ? this.customMembers[0].role : '普通成员';
+  }
+
+  private memberSummaryText(): string {
+    const count = this.members().length;
+    return count > 0 ? `${count} 位成员` : '待添加成员';
+  }
+
+  private homeSummaryText(): string {
+    return `${this.syncedRoomCount} 个房间 · ${this.syncedDeviceCount} 台设备 · ${this.memberSummaryText()}`;
+  }
+
+  private homeStatusText(): string {
+    return this.syncedRoomCount > 0 || this.syncedDeviceCount > 0 ? '已配置' : '待配置';
+  }
+
+  private homeStatusColor(): string {
+    return this.syncedRoomCount > 0 || this.syncedDeviceCount > 0 ? '#35D27A' : '#F3A33A';
   }
 
   build() {
     Column() {
       this.TopBar()
-      Scroll() {
-        Column() {
-          this.HomeCard()
-          this.InviteCard()
-          this.PermissionCard()
-          this.MemberHeader()
-          if (this.showNewMember) {
-            this.AddMemberPanel()
-          }
+      if (this.hasAuthSession()) {
+        Scroll() {
+          Column() {
+            this.HomeCard()
+            this.InviteCard()
+            this.PermissionCard()
+            this.MemberHeader()
+            if (this.showNewMember) {
+              this.AddMemberPanel()
+            }
 
-          if (this.members().length === 0) {
-            this.EmptyMemberState()
-          } else {
-            ForEach(this.members(), (member: FamilyMemberSpec) => {
-              this.MemberRow(member)
-            }, (member: FamilyMemberSpec) => member.id)
+            if (this.members().length === 0) {
+              this.EmptyMemberState()
+            } else {
+              ForEach(this.members(), (member: FamilyMemberSpec) => {
+                this.MemberRow(member)
+              }, (member: FamilyMemberSpec) => member.id)
+            }
           }
+          .width('100%')
+          .padding({ left: 18, right: 18, bottom: 28 })
         }
-        .width('100%')
-        .padding({ left: 18, right: 18, bottom: 28 })
+        .layoutWeight(1)
+        .scrollBar(BarState.Off)
+      } else {
+        this.AuthRequiredState()
       }
-      .layoutWeight(1)
-      .scrollBar(BarState.Off)
     }
     .width('100%')
     .height('100%')
     .backgroundColor(this.bgColor())
+  }
+
+  @Builder
+  AuthRequiredState() {
+    Column() {
+      Text('登录后管理家庭')
+        .fontSize(21)
+        .fontWeight(FontWeight.Bold)
+        .fontColor(this.primaryText())
+
+      Text('家庭成员、权限和共享空间会从账号同步，未登录时不显示示例家庭。')
+        .fontSize(13)
+        .lineHeight(20)
+        .fontColor(this.secondaryText())
+        .textAlign(TextAlign.Center)
+        .width('78%')
+        .margin({ top: 8 })
+
+      Button('去登录')
+        .height(40)
+        .fontSize(13)
+        .fontWeight(FontWeight.Bold)
+        .fontColor('#FFFFFF')
+        .backgroundColor('#11151D')
+        .borderRadius(20)
+        .padding({ left: 20, right: 20 })
+        .margin({ top: 18 })
+        .onClick(() => {
+          safePushUrl(this.getUIContext().getRouter(), { url: 'pages/my/mylogin', params: { isNight: this.isNight } });
+        })
+    }
+    .width('100%')
+    .layoutWeight(1)
+    .justifyContent(FlexAlign.Center)
+    .alignItems(HorizontalAlign.Center)
+    .padding({ left: 28, right: 28, bottom: 40 })
   }
 
   @Builder
@@ -144,7 +430,7 @@ struct MyFamilyPage {
             .fontSize(24)
             .fontWeight(FontWeight.Bold)
             .fontColor(this.primaryText())
-          Text('2 个房间 · 6 台设备 · 3 位成员共享')
+          Text(this.homeSummaryText())
             .fontSize(13)
             .fontColor(this.secondaryText())
             .margin({ top: 8 })
@@ -152,20 +438,21 @@ struct MyFamilyPage {
         .alignItems(HorizontalAlign.Start)
         .layoutWeight(1)
 
-        Text('96% 健康')
+        Text(this.homeStatusText())
           .fontSize(12)
           .fontWeight(FontWeight.Bold)
           .fontColor('#FFFFFF')
           .padding({ left: 12, right: 12, top: 7, bottom: 7 })
-          .backgroundColor('#35D27A')
+          .backgroundColor(this.homeStatusColor())
           .borderRadius(16)
       }
       .width('100%')
 
       Row() {
-        this.HomeChip('幸福之家')
-        this.HomeChip('父母家')
-        this.HomeChip('工作室')
+        this.HomeChip('我的家庭')
+        ForEach(this.syncedRoomNames.slice(0, 3), (name: string) => {
+          this.HomeChip(name)
+        }, (name: string) => name)
       }
       .width('100%')
       .margin({ top: 18 })
@@ -235,7 +522,7 @@ struct MyFamilyPage {
               .fontSize(16)
               .fontWeight(FontWeight.Bold)
               .fontColor(this.primaryText())
-            Text('扫码后加入“幸福之家”，默认访客权限，可由拥有者调整。')
+            Text(`扫码后加入“${this.activeHome}”，默认访客权限，可由拥有者调整。`)
               .fontSize(12)
               .lineHeight(19)
               .fontColor(this.secondaryText())
@@ -376,11 +663,8 @@ struct MyFamilyPage {
         .borderRadius(16)
         .padding({ left: 12, right: 12 })
         .onClick(() => {
-          if (this.showEmpty) {
-            this.showEmpty = false;
-          } else {
-            this.showNewMember = !this.showNewMember;
-          }
+          this.showEmpty = false;
+          this.showNewMember = !this.showNewMember;
         })
     }
     .width('100%')
@@ -422,7 +706,7 @@ struct MyFamilyPage {
           .onClick(() => {
             this.showNewMember = false;
           })
-        Button(this.hasCustomMember ? '更新成员' : '确认添加')
+        Button('确认添加')
           .layoutWeight(1)
           .height(38)
           .fontSize(13)
@@ -432,11 +716,10 @@ struct MyFamilyPage {
           .borderRadius(19)
           .margin({ left: 8 })
           .onClick(() => {
-            this.customMemberName = this.selectedMemberName;
-            this.customMemberRole = this.selectedMemberRole;
-            this.hasCustomMember = true;
+            this.upsertSelectedMember();
             this.showNewMember = false;
             this.showEmpty = false;
+            this.syncFamilyPreferences();
           })
       }
       .width('100%')
@@ -510,12 +793,9 @@ struct MyFamilyPage {
           .borderRadius(16)
           .padding({ left: 12, right: 12 })
           .onClick(() => {
-            if (member.id === 'guest') {
-              this.hideGuest = true;
-            } else if (member.id === 'new_member') {
-              this.hasCustomMember = false;
-              this.showNewMember = false;
-            }
+            this.removeMember(member.id);
+            this.showNewMember = false;
+            this.syncFamilyPreferences();
           })
       }
     }
@@ -539,18 +819,6 @@ struct MyFamilyPage {
         .fontColor(this.secondaryText())
         .textAlign(TextAlign.Center)
         .margin({ top: 8 })
-      Button('恢复成员示例')
-        .height(40)
-        .fontSize(13)
-        .fontWeight(FontWeight.Bold)
-        .fontColor('#FFFFFF')
-        .backgroundColor('#5E8CFF')
-        .borderRadius(20)
-        .padding({ left: 18, right: 18 })
-        .margin({ top: 18 })
-        .onClick(() => {
-          this.showEmpty = false;
-        })
     }
     .width('100%')
     .padding({ left: 28, right: 28, top: 54, bottom: 54 })

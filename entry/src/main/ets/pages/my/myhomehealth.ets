@@ -11,24 +11,19 @@ interface HealthTaskSpec {
   color: string;
 }
 
-const HEALTH_TASKS: HealthTaskSpec[] = [
-  { title: '客厅设备巡检', desc: '客厅点位响应正常，灯光和窗帘状态已同步首页', state: '正常', color: '#35D27A' },
-  { title: '自动化脚本', desc: '回家、观影、睡眠场景最近 24 小时执行 26 次', state: '稳定', color: '#5E8CFF' },
-  { title: '账号与权限', desc: '3 位家庭成员，访客权限未发现越权操作', state: '安全', color: '#7F72F2' },
-  { title: '商城服务', desc: '1 个物流订单、1 个耗材订阅和 1 个售后保障记录', state: '跟进中', color: '#F3A33A' }
-];
-
 @Entry
 @Component
 struct MyHomeHealthPage {
   @StorageLink('homeNightMode') isNight: boolean = false;
-  @StorageLink('homeLivingAirInstalled') livingAirInstalled: boolean = true;
-  @StorageLink('homeLivingCurtainInstalled') livingCurtainInstalled: boolean = true;
-  @StorageLink('homeLivingTvInstalled') livingTvInstalled: boolean = true;
-  @StorageLink('homeLivingPurifierInstalled') livingPurifierInstalled: boolean = true;
-  @StorageLink('homeLivingRobotInstalled') livingRobotInstalled: boolean = true;
-  @StorageLink('homeLivingLightInstalled') livingLightInstalled: boolean = true;
-  @StorageLink('homeLivingDeviceCount') livingDeviceCount: number = 6;
+  @StorageLink('lumiUserSignedIn') signedIn: boolean = false;
+  @StorageLink('lumiAuthToken') authToken: string = '';
+  @StorageLink('homeLivingAirInstalled') livingAirInstalled: boolean = false;
+  @StorageLink('homeLivingCurtainInstalled') livingCurtainInstalled: boolean = false;
+  @StorageLink('homeLivingTvInstalled') livingTvInstalled: boolean = false;
+  @StorageLink('homeLivingPurifierInstalled') livingPurifierInstalled: boolean = false;
+  @StorageLink('homeLivingRobotInstalled') livingRobotInstalled: boolean = false;
+  @StorageLink('homeLivingLightInstalled') livingLightInstalled: boolean = false;
+  @StorageLink('homeLivingDeviceCount') livingDeviceCount: number = 0;
 
   aboutToAppear(): void {
     const params = router.getParams() as MyHomeHealthRouteParams;
@@ -63,8 +58,15 @@ struct MyHomeHealthPage {
     return count;
   }
 
+  private hasAuthSession(): boolean {
+    return this.signedIn && this.authToken.trim().length > 0;
+  }
+
   private healthScore(): string {
     const count = this.installedCount();
+    if (count === 0) {
+      return '0';
+    }
     if (count >= 6) {
       return '96';
     }
@@ -72,6 +74,15 @@ struct MyHomeHealthPage {
       return '88';
     }
     return '72';
+  }
+
+  private healthTasks(): HealthTaskSpec[] {
+    const count = this.installedCount();
+    return [
+      { title: '设备巡检', desc: `${count} 台设备已加入当前家庭，状态会跟随账号家庭同步。`, state: '已同步', color: '#35D27A' },
+      { title: '自动化脚本', desc: '暂无自动化执行记录，添加场景后会显示最近状态。', state: '待配置', color: '#5E8CFF' },
+      { title: '账号与权限', desc: '家庭成员由账号家庭同步，新账户默认没有额外成员。', state: '待添加', color: '#7F72F2' }
+    ];
   }
 
   private primaryText(): string {
@@ -102,21 +113,48 @@ struct MyHomeHealthPage {
     Column() {
       this.TopBar()
 
-      Scroll() {
-        Column() {
-          this.ScoreCard()
-          this.TaskList()
-          this.ActionCard()
+      if (this.hasAuthSession()) {
+        Scroll() {
+          Column() {
+            this.ScoreCard()
+            this.TaskList()
+            this.ActionCard()
+          }
+          .width('100%')
+          .padding({ left: 18, right: 18, bottom: 28 })
         }
-        .width('100%')
-        .padding({ left: 18, right: 18, bottom: 28 })
+        .layoutWeight(1)
+        .scrollBar(BarState.Off)
+      } else {
+        this.AuthRequiredState()
       }
-      .layoutWeight(1)
-      .scrollBar(BarState.Off)
     }
     .width('100%')
     .height('100%')
     .backgroundColor(this.bgColor())
+  }
+
+  @Builder
+  AuthRequiredState() {
+    Column() {
+      Text('登录后查看健康报告')
+        .fontSize(21)
+        .fontWeight(FontWeight.Bold)
+        .fontColor(this.primaryText())
+
+      Text('健康度、巡检项目和家庭风险会从账号家庭同步生成。')
+        .fontSize(13)
+        .lineHeight(20)
+        .fontColor(this.secondaryText())
+        .textAlign(TextAlign.Center)
+        .width('78%')
+        .margin({ top: 8 })
+    }
+    .width('100%')
+    .layoutWeight(1)
+    .justifyContent(FlexAlign.Center)
+    .alignItems(HorizontalAlign.Center)
+    .padding({ left: 28, right: 28, bottom: 40 })
   }
 
   @Builder
@@ -163,8 +201,8 @@ struct MyHomeHealthPage {
 
       Row() {
         this.MetricChip('在线率', this.installedCount() >= 5 ? '高' : '待补齐')
-        this.MetricChip('自动化', '26')
-        this.MetricChip('风险', this.installedCount() >= 4 ? '低' : '中')
+        this.MetricChip('自动化', '0')
+        this.MetricChip('风险', this.installedCount() >= 4 ? '低' : '待评估')
       }
       .width('100%')
       .margin({ top: 18 })
@@ -205,42 +243,61 @@ struct MyHomeHealthPage {
         .width('100%')
         .margin({ bottom: 10 })
 
-      ForEach(HEALTH_TASKS, (item: HealthTaskSpec) => {
-        Row() {
-          Column()
-            .width(10)
-            .height(10)
-            .borderRadius(5)
-            .backgroundColor(item.color)
-            .margin({ right: 12 })
+      if (this.installedCount() === 0) {
+        Column() {
+          Text('暂无巡检数据')
+            .fontSize(16)
+            .fontWeight(FontWeight.Bold)
+            .fontColor(this.primaryText())
 
-          Column() {
-            Row() {
-              Text(item.title)
-                .fontSize(15)
-                .fontWeight(FontWeight.Bold)
-                .fontColor(this.primaryText())
-                .layoutWeight(1)
-              Text(item.state)
-                .fontSize(11)
-                .fontWeight(FontWeight.Bold)
-                .fontColor(item.color)
-            }
-            .width('100%')
-
-            Text(item.desc)
-              .fontSize(12)
-              .lineHeight(18)
-              .fontColor(this.secondaryText())
-              .margin({ top: 5 })
-          }
-          .alignItems(HorizontalAlign.Start)
-          .layoutWeight(1)
+          Text('添加房间和设备后，系统会生成对应的健康状态。')
+            .fontSize(12)
+            .lineHeight(18)
+            .fontColor(this.secondaryText())
+            .textAlign(TextAlign.Center)
+            .margin({ top: 8 })
         }
         .width('100%')
-        .padding({ top: 13, bottom: 13 })
-        .border({ width: { bottom: 1 }, color: this.lineColor() })
-      }, (item: HealthTaskSpec) => item.title)
+        .padding({ top: 28, bottom: 28 })
+        .alignItems(HorizontalAlign.Center)
+      } else {
+        ForEach(this.healthTasks(), (item: HealthTaskSpec) => {
+          Row() {
+            Column()
+              .width(10)
+              .height(10)
+              .borderRadius(5)
+              .backgroundColor(item.color)
+              .margin({ right: 12 })
+
+            Column() {
+              Row() {
+                Text(item.title)
+                  .fontSize(15)
+                  .fontWeight(FontWeight.Bold)
+                  .fontColor(this.primaryText())
+                  .layoutWeight(1)
+                Text(item.state)
+                  .fontSize(11)
+                  .fontWeight(FontWeight.Bold)
+                  .fontColor(item.color)
+              }
+              .width('100%')
+
+              Text(item.desc)
+                .fontSize(12)
+                .lineHeight(18)
+                .fontColor(this.secondaryText())
+                .margin({ top: 5 })
+            }
+            .alignItems(HorizontalAlign.Start)
+            .layoutWeight(1)
+          }
+          .width('100%')
+          .padding({ top: 13, bottom: 13 })
+          .border({ width: { bottom: 1 }, color: this.lineColor() })
+        }, (item: HealthTaskSpec) => item.title)
+      }
     }
     .width('100%')
     .padding({ left: 18, right: 18, top: 18, bottom: 8 })

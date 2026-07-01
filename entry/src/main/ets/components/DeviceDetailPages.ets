@@ -271,17 +271,296 @@ const DEVICE_PAGES: DevicePageSpec[] = [
         { id: 'history', label: '安全记录', value: '查看 7 天' }
       ]
     }
+  ,
+  {
+      id: 'balcony_light',
+      title: '阳台灯',
+      subtitle: '照明 | 晾晒区顶灯',
+      hero: $r('app.media.preview_lamp_square_ceiling'),
+      accent: '#F4C94A',
+      mode: '晾晒补光',
+      headline: '灯光柔和覆盖阳台晾晒区',
+      description: '夜间取物和晾晒时自动补光，也可跟随回家、早安场景联动开启。',
+      sliderLabel: '亮度',
+      sliderUnit: '%',
+      sliderValue: 62,
+      metrics: [
+        { id: 'bright', label: '亮度', value: '62%', hint: '适中' },
+        { id: 'color', label: '色温', value: '4000K', hint: '自然' },
+        { id: 'scene', label: '场景', value: '晾晒', hint: '当前' }
+      ],
+      actions: [
+        { id: 'night', label: '夜间取物', value: '45% 柔光' },
+        { id: 'group', label: '联动灯组', value: '阳台单灯' },
+        { id: 'schedule', label: '定时关闭', value: '23:30' }
+      ]
+    },
+  {
+      id: 'balcony_washer',
+      title: '洗衣机',
+      subtitle: '清洁 | 阳台洗护',
+      hero: $r('app.media.preview_washer'),
+      accent: '#7EA0FF',
+      mode: '洗护托管',
+      headline: '待机中，快洗与夜间静音可用',
+      description: '支持快洗、筒自洁和完成提醒，洗护结束后可联动阳台灯和晾衣架。',
+      sliderLabel: '洗涤强度',
+      sliderUnit: '%',
+      sliderValue: 48,
+      metrics: [
+        { id: 'clean', label: '程序', value: '快洗', hint: '可用' },
+        { id: 'battery', label: '剩余水位', value: '76%', hint: '充足' },
+        { id: 'noise', label: '运行噪声', value: '36 dB', hint: '安静' }
+      ],
+      actions: [
+        { id: 'quick', label: '快洗程序', value: '28 分钟' },
+        { id: 'dry', label: '筒自洁', value: '本周未执行' },
+        { id: 'notify', label: '完成提醒', value: '推送通知' }
+      ]
+    },
+  {
+      id: 'balcony_airer',
+      title: '晾衣架',
+      subtitle: '晾晒 | 升降与烘干',
+      hero: $r('app.media.device_living_curtain'),
+      accent: '#A5AC8B',
+      mode: '智能晾晒',
+      headline: '晾衣架已待命，支持升降和风干',
+      description: '根据天气、湿度和洗衣机完成状态，建议升降高度并开启辅助风干。',
+      sliderLabel: '升降高度',
+      sliderUnit: '%',
+      sliderValue: 58,
+      metrics: [
+        { id: 'open', label: '高度', value: '58%', hint: '顺手' },
+        { id: 'humidity', label: '湿度', value: '52%', hint: '适合' },
+        { id: 'timer', label: '风干', value: '2h', hint: '建议' }
+      ],
+      actions: [
+        { id: 'lift', label: '一键升降', value: '中位' },
+        { id: 'dry', label: '辅助风干', value: '2 小时' },
+        { id: 'light', label: '照明联动', value: '已开启' }
+      ]
+    },
+  {
+      id: 'balcony_sensor',
+      title: '环境传感器',
+      subtitle: '空气 | 温湿度监测',
+      hero: $r('app.media.device_environment_sensor'),
+      accent: '#58D0BE',
+      mode: '环境监测',
+      headline: '阳台温湿度在线，晾晒建议已更新',
+      description: '持续监测温度、湿度和光照，辅助判断晾衣架、窗帘和通风策略。',
+      sliderLabel: '灵敏度',
+      sliderUnit: '%',
+      sliderValue: 70,
+      metrics: [
+        { id: 'temp', label: '温度', value: '24.1°C', hint: '舒适' },
+        { id: 'humidity', label: '湿度', value: '52%', hint: '适合' },
+        { id: 'light', label: '光照', value: '强', hint: '晾晒' }
+      ],
+      actions: [
+        { id: 'alert', label: '潮湿提醒', value: '65% 触发' },
+        { id: 'dry', label: '晾晒建议', value: '适合' },
+        { id: 'history', label: '环境记录', value: '查看 24h' }
+      ]
+    },
+  {
+      id: 'kitchen_light',
+      title: '厨房灯',
+      subtitle: '照明 | 烹饪操作台',
+      hero: $r('app.media.preview_lamp_square_ceiling'),
+      accent: '#F4C94A',
+      mode: '烹饪照明',
+      headline: '厨房顶灯明亮，覆盖备餐区域',
+      description: '烹饪时提高亮度，夜间取水时切换低亮度，避免刺眼。',
+      sliderLabel: '亮度',
+      sliderUnit: '%',
+      sliderValue: 72,
+      metrics: [
+        { id: 'bright', label: '亮度', value: '72%', hint: '明亮' },
+        { id: 'color', label: '色温', value: '4300K', hint: '清晰' },
+        { id: 'scene', label: '场景', value: '烹饪', hint: '当前' }
+      ],
+      actions: [
+        { id: 'cook', label: '烹饪模式', value: '高亮' },
+        { id: 'night', label: '夜间取水', value: '18% 柔光' },
+        { id: 'schedule', label: '离家关闭', value: '已加入' }
+      ]
+    },
+  {
+      id: 'kitchen_fridge',
+      title: '冰箱',
+      subtitle: '厨房 | 冷藏冷冻',
+      hero: $r('app.media.preview_kitchen_fridge_small'),
+      accent: '#6CAEFF',
+      mode: '食材保鲜',
+      headline: '冷藏室运行正常，温度稳定',
+      description: '监测冷藏、冷冻温度和开门时长，异常时会提醒并建议节能模式。',
+      sliderLabel: '冷藏温度',
+      sliderUnit: '°C',
+      sliderValue: 4,
+      metrics: [
+        { id: 'temp', label: '冷藏', value: '4.1°C', hint: '稳定' },
+        { id: 'freezer', label: '冷冻', value: '-18°C', hint: '正常' },
+        { id: 'door', label: '门状态', value: '已关闭', hint: '安全' }
+      ],
+      actions: [
+        { id: 'eco', label: '节能模式', value: '夜间开启' },
+        { id: 'fresh', label: '保鲜提醒', value: '3 项临期' },
+        { id: 'history', label: '开门记录', value: '今日 6 次' }
+      ]
+    },
+  {
+      id: 'kitchen_hood',
+      title: '油烟机',
+      subtitle: '空气 | 排风净味',
+      hero: $r('app.media.device_living_purifier'),
+      accent: '#58D0BE',
+      mode: '烹饪排风',
+      headline: '排风待机，油烟浓度正常',
+      description: '烹饪时根据灶台火源和空气质量自动调节风量，结束后延时净味。',
+      sliderLabel: '排风强度',
+      sliderUnit: '%',
+      sliderValue: 44,
+      metrics: [
+        { id: 'wind', label: '风量', value: '自动', hint: '待机' },
+        { id: 'pm', label: '油烟', value: '低', hint: '正常' },
+        { id: 'filter', label: '滤网', value: '86%', hint: '良好' }
+      ],
+      actions: [
+        { id: 'boost', label: '爆炒模式', value: '大风量' },
+        { id: 'delay', label: '延时净味', value: '8 分钟' },
+        { id: 'clean', label: '滤网清洁', value: '12 天后' }
+      ]
+    },
+  {
+      id: 'kitchen_stove',
+      title: '灶台',
+      subtitle: '安防 | 火源监测',
+      hero: $r('app.media.device_gesture_sensor'),
+      accent: '#F3A33A',
+      mode: '厨房安全',
+      headline: '火源监测正常，离人提醒已开启',
+      description: '结合灶台温度、人员活动和油烟机状态，及时提醒干烧和忘关火风险。',
+      sliderLabel: '提醒灵敏度',
+      sliderUnit: '%',
+      sliderValue: 76,
+      metrics: [
+        { id: 'temp', label: '台面温度', value: '35.1°C', hint: '正常' },
+        { id: 'safe', label: '安全状态', value: '在线', hint: '守护' },
+        { id: 'event', label: '今日提醒', value: '0 次', hint: '正常' }
+      ],
+      actions: [
+        { id: 'alert', label: '离人提醒', value: '90 秒' },
+        { id: 'hood', label: '油烟机联动', value: '已开启' },
+        { id: 'history', label: '安全记录', value: '查看 7 天' }
+      ]
+    },
+  {
+      id: 'bathroom_light',
+      title: '洗手间灯',
+      subtitle: '照明 | 柔和顶灯',
+      hero: $r('app.media.preview_lamp_round_floor'),
+      accent: '#F4C94A',
+      mode: '夜间柔光',
+      headline: '洗手间灯光柔和，夜间不刺眼',
+      description: '支持人体感应和夜间低亮模式，进入洗手间自动点亮。',
+      sliderLabel: '亮度',
+      sliderUnit: '%',
+      sliderValue: 54,
+      metrics: [
+        { id: 'bright', label: '亮度', value: '54%', hint: '柔和' },
+        { id: 'color', label: '色温', value: '3500K', hint: '暖白' },
+        { id: 'scene', label: '夜间', value: '12%', hint: '低亮' }
+      ],
+      actions: [
+        { id: 'sensor', label: '人体感应', value: '已开启' },
+        { id: 'night', label: '夜间模式', value: '12% 微光' },
+        { id: 'delay', label: '延时关闭', value: '90 秒' }
+      ]
+    },
+  {
+      id: 'bathroom_vent',
+      title: '换气扇',
+      subtitle: '空气 | 湿度联动',
+      hero: $r('app.media.device_living_purifier'),
+      accent: '#58D0BE',
+      mode: '除湿换气',
+      headline: '换气扇待机，湿度联动已开启',
+      description: '洗浴后自动提高排风，湿度下降到舒适范围后延时关闭。',
+      sliderLabel: '换气强度',
+      sliderUnit: '%',
+      sliderValue: 52,
+      metrics: [
+        { id: 'humidity', label: '湿度', value: '58%', hint: '正常' },
+        { id: 'wind', label: '风量', value: '自动', hint: '联动' },
+        { id: 'noise', label: '噪声', value: '32 dB', hint: '安静' }
+      ],
+      actions: [
+        { id: 'dry', label: '洗浴除湿', value: '15 分钟' },
+        { id: 'auto', label: '湿度联动', value: '65% 触发' },
+        { id: 'clean', label: '滤网检查', value: '正常' }
+      ]
+    },
+  {
+      id: 'bathroom_heater',
+      title: '热水器',
+      subtitle: '温控 | 恒温热水',
+      hero: $r('app.media.device_living_air'),
+      accent: '#F3A33A',
+      mode: '恒温供水',
+      headline: '热水器恒温待机，洗浴温度稳定',
+      description: '根据用水时间和家庭习惯提前保温，离家时自动进入节能状态。',
+      sliderLabel: '目标水温',
+      sliderUnit: '°C',
+      sliderValue: 42,
+      metrics: [
+        { id: 'temp', label: '水温', value: '42.1°C', hint: '稳定' },
+        { id: 'battery', label: '热水量', value: '78%', hint: '充足' },
+        { id: 'safe', label: '安全阀', value: '正常', hint: '在线' }
+      ],
+      actions: [
+        { id: 'eco', label: '节能保温', value: '夜间降低' },
+        { id: 'schedule', label: '预约洗浴', value: '21:30' },
+        { id: 'safe', label: '防烫保护', value: '已开启' }
+      ]
+    },
+  {
+      id: 'bathroom_shower',
+      title: '淋浴区',
+      subtitle: '安防 | 玻璃门监测',
+      hero: $r('app.media.device_bedroom_door'),
+      accent: '#7EA0FF',
+      mode: '浴室安全',
+      headline: '淋浴区监测在线，防滑提醒已开启',
+      description: '监测玻璃门、湿滑时间和用水状态，异常停留时提醒家人关注。',
+      sliderLabel: '提醒灵敏度',
+      sliderUnit: '%',
+      sliderValue: 68,
+      metrics: [
+        { id: 'door', label: '玻璃门', value: '已关闭', hint: '正常' },
+        { id: 'humidity', label: '湿度', value: '58%', hint: '正常' },
+        { id: 'event', label: '安全提醒', value: '0 次', hint: '安全' }
+      ],
+      actions: [
+        { id: 'alert', label: '久留提醒', value: '20 分钟' },
+        { id: 'dry', label: '联动换气', value: '洗后开启' },
+        { id: 'light', label: '夜间照明', value: '柔光' }
+      ]
+    }
 ];
 
 @Component
 export struct DeviceDetailPages {
   @Link detailPointId: string;
+  @Link detailActionPointId: string;
   @Prop pointId: string = '';
   @Prop pointName: string = '';
   @Prop pointType: string = '';
   @Prop pointStatus: string = '';
   @Prop pointDetail: string = '';
   @Prop isNight: boolean = false;
+  @Prop pointOn: boolean = true;
   @State pressedKey: string = '';
   @State currentValue: number = 0;
   @State powerOn: boolean = true;
@@ -291,10 +570,7 @@ export struct DeviceDetailPages {
 
   aboutToAppear(): void {
     this.currentValue = this.page().sliderValue;
-    const basePointId = this.pointBaseId(this.pointId);
-    if (basePointId === 'living_tv' || basePointId === 'bedroom_door') {
-      this.powerOn = false;
-    }
+    this.powerOn = this.pointOn;
   }
 
   private pointBaseId(pointId: string): string {
@@ -316,7 +592,81 @@ export struct DeviceDetailPages {
         return DEVICE_PAGES[i];
       }
     }
-    return DEVICE_PAGES[0];
+    return this.fallbackPage(basePointId);
+  }
+
+  private fallbackAccent(): string {
+    if (this.pointType === '温控') {
+      return '#6CAEFF';
+    }
+    if (this.pointType === '照明') {
+      return '#F4C94A';
+    }
+    if (this.pointType === '安防') {
+      return '#58D0BE';
+    }
+    if (this.pointType === '清洁') {
+      return '#7EA0FF';
+    }
+    if (this.pointType === '空气') {
+      return '#58D0BE';
+    }
+    if (this.pointType === '遮阳') {
+      return '#A5AC8B';
+    }
+    return '#8FA7C7';
+  }
+
+  private fallbackSliderLabel(): string {
+    if (this.pointType === '温控') {
+      return '目标温度';
+    }
+    if (this.pointType === '照明') {
+      return '亮度';
+    }
+    if (this.pointType === '遮阳') {
+      return '开合比例';
+    }
+    if (this.pointType === '安防') {
+      return '提醒灵敏度';
+    }
+    return '运行强度';
+  }
+
+  private fallbackSliderUnit(): string {
+    return this.pointType === '温控' ? '°C' : '%';
+  }
+
+  private fallbackSliderValue(): number {
+    return this.pointType === '温控' ? 24 : 60;
+  }
+
+  private fallbackPage(basePointId: string): DevicePageSpec {
+    const title = this.pointName.length > 0 ? this.pointName : '设备详情';
+    const detail = this.pointDetail.length > 0 ? this.pointDetail : '设备能力已接入当前房间';
+    return {
+      id: basePointId,
+      title: title,
+      subtitle: `${this.pointType} | 当前房间`,
+      hero: $r('app.media.device_lumi_gateway'),
+      accent: this.fallbackAccent(),
+      mode: '智能设备',
+      headline: `${title} 已接入房间控制`,
+      description: detail,
+      sliderLabel: this.fallbackSliderLabel(),
+      sliderUnit: this.fallbackSliderUnit(),
+      sliderValue: this.fallbackSliderValue(),
+      metrics: [
+        { id: 'state', label: '状态', value: this.pointStatus, hint: '同步' },
+        { id: 'scene', label: '场景', value: '可联动', hint: '已接入' },
+        { id: 'online', label: '连接', value: '在线', hint: '稳定' }
+      ],
+      actions: [
+        { id: 'auto', label: '智能托管', value: '可开启' },
+        { id: 'schedule', label: '定时任务', value: '可设置' },
+        { id: 'scene', label: '场景联动', value: '可加入' }
+      ]
+    };
   }
 
   private bg(): string {
@@ -644,6 +994,7 @@ export struct DeviceDetailPages {
           })
           .onClick(() => {
             this.powerOn = !this.powerOn;
+            this.detailActionPointId = this.pointId;
           })
 
         Button(this.autoManaged ? '退出托管' : '智能托管')
