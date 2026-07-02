@@ -6353,22 +6353,27 @@ struct Index {
       Row() {
         ForEach(NAV_ITEMS, (item: NavSpec) => {
           Column() {
-            this.NavIcon(item)
+            Column() {
+              this.NavIcon(item)
 
-            Text(item.label)
-              .fontSize(12)
-              .fontWeight(this.activeTab === item.id ? FontWeight.Bold : FontWeight.Medium)
-              .fontColor(this.navTextColor(item.id))
-              .margin({ top: 3 })
+              Text(item.label)
+                .fontSize(12)
+                .fontWeight(this.activeTab === item.id ? FontWeight.Bold : FontWeight.Medium)
+                .fontColor(this.navTextColor(item.id))
+                .margin({ top: 3 })
+            }
+            .width('100%')
+            .height('100%')
+            .justifyContent(FlexAlign.Center)
+            .scale(this.buttonScale(`nav_${item.id}`))
+            .opacity(this.buttonOpacity(`nav_${item.id}`))
+            .animation({ duration: 120, curve: Curve.EaseOut })
           }
           .layoutWeight(1)
           .height(54)
           .justifyContent(FlexAlign.Center)
           .borderRadius(18)
           .backgroundColor(this.navItemBg(item.id))
-          .scale(this.buttonScale(`nav_${item.id}`))
-          .opacity(this.buttonOpacity(`nav_${item.id}`))
-          .animation({ duration: 120, curve: Curve.EaseOut })
           .onTouch((event: TouchEvent) => {
             this.handlePressState(`nav_${item.id}`, event);
           })
