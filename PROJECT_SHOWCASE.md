@@ -1,28 +1,14 @@
-<p align="right">
-  中文 | <a href="./README.en.md">English</a>
-</p>
+# SmartHome 智能家居中控系统
 
-<h1 align="center">SmartHome 智能家居中控系统</h1>
+> 基于 HarmonyOS ArkTS / ArkUI 的空间化智能家居控制应用，集成账号同步、2.5D 房间视图、设备控制、AI Agent、商城闭环与华为云 IoTDA 硬件联动。
 
-<p align="center">
-  基于 HarmonyOS ArkTS / ArkUI 的空间化智能家居控制应用，集成 2.5D 房间视图、账号同步、AI Agent、商城闭环与华为云 IoTDA 硬件联动。
-</p>
-
-<p align="center">
-  <img alt="HarmonyOS" src="https://img.shields.io/badge/HarmonyOS-ArkTS-0A84FF?style=flat-square">
-  <img alt="ArkUI" src="https://img.shields.io/badge/UI-ArkUI-19B7A4?style=flat-square">
-  <img alt="Spring Boot" src="https://img.shields.io/badge/Backend-Spring%20Boot-6DB33F?style=flat-square">
-  <img alt="MySQL" src="https://img.shields.io/badge/Database-MySQL-4479A1?style=flat-square">
-  <img alt="IoTDA" src="https://img.shields.io/badge/Cloud-Huawei%20IoTDA-FF4D4F?style=flat-square">
-</p>
-
-![SmartHome 应用头图](PHOTOS/头图.png)
+![项目功能结构](report_assets/function_structure.png)
 
 ## 项目简介
 
-SmartHome 是一套面向家庭用户的智能家居中控原型。项目以“先看见家，再操作设备”为核心思路，将传统设备列表升级为可视化 2.5D 房间视图：用户可以在客厅、卧室等空间图片上直接点击设备点位，完成灯光、空调、窗帘、电视、空气净化器、扫地机器人、门锁等设备控制。
+SmartHome 是一套面向家庭用户的智能家居中控原型。项目以“先看见家，再操作设备”为核心思路，将传统设备列表升级为可视化 2.5D 房间视图：用户可以在客厅、卧室等空间图片上直接点击设备点位，完成灯光、空调、窗帘、电视、空气净化器、扫地机器人、门锁等设备的控制。
 
-项目同时接入 Spring Boot 后端用于账号鉴权与家庭状态持久化，并通过华为云 IoTDA 将前端控制命令下发到 OpenHarmony 开发板，实现从软件页面到真实硬件的控制闭环。
+项目同时接入 Spring Boot 后端用于账号鉴权和家庭状态持久化，并通过华为云 IoTDA 将前端控制命令下发到 OpenHarmony 开发板，实现从软件界面到真实硬件的控制闭环。
 
 ## 技术栈
 
@@ -37,8 +23,8 @@ SmartHome 是一套面向家庭用户的智能家居中控原型。项目以“�
 
 ## 核心亮点
 
-- **空间化中控**：用 2.5D 房间图承载设备点位，让设备绑定到真实空间位置。
-- **响应式点位绑定**：设备坐标采用图片百分比定位，不同屏幕尺寸下小白点仍能准确贴合电器位置。
+- **空间化中控**：用 2.5D 房间图承载设备点位，设备不再只是列表项，而是绑定到真实空间位置。
+- **响应式点位绑定**：设备坐标使用图片百分比定位，不同屏幕尺寸下小白点仍能准确落在家具或电器位置。
 - **账号级数据同步**：登录后自动加载个人房间、设备、场景、自动化和偏好数据。
 - **AI Agent 控制**：将自然语言解析成标准 JSON 指令，支持立即执行和自动化脚本生成。
 - **硬件闭环**：前端命令经华为云 IoTDA 下发到开发板，控制灯光、电机和 LCD 场景展示。
@@ -46,34 +32,29 @@ SmartHome 是一套面向家庭用户的智能家居中控原型。项目以“�
 
 ## 软件页面截图
 
-### 应用主页
+### 首页 2.5D 空间视图
 
-应用主页展示项目的空间化智能家居入口，聚合家庭中控、智能助手、商城和个人中心。
+客厅视图支持日间、夜间、开灯、关灯多状态切换，设备点位与空间图绑定。
 
-<p align="center">
-  <img src="PHOTOS/应用程序主页截图.png" alt="应用程序主页截图" width="320">
-</p>
+![客厅日夜与灯光状态对比](report_assets/living_compare.png)
 
-### 我的家 2.5D 空间视图
+### 卧室空间视图
 
-“我的家”页面以 2.5D 房间图作为核心控制区域，设备点位直接绑定到空间位置。
+卧室同样支持多状态切换，并通过点位映射床头灯、窗帘、空调、门锁和扫地机器人等设备。
 
-<p align="center">
-  <img src="PHOTOS/我的家.png" alt="我的家页面截图" width="48%">
-  <img src="PHOTOS/我的家2.png" alt="我的家设备点位截图" width="48%">
-</p>
+![卧室日夜与灯光状态对比](report_assets/bedroom_compare.png)
 
-### 商城模块
+### 设备资源与控制对象
 
-商城模块覆盖智能家居商品浏览、商品推荐、购买入口和服务闭环。
+设备资源按类型抽象为控制对象，每个设备具备名称、类型、点位、动作类型和状态值。
 
-![商城页面截图](PHOTOS/商城.png)
+![设备资源与控制对象](report_assets/device_panel.png)
 
-### 我的模块
+### AI Agent 指令流程
 
-我的模块聚合账号状态、家庭入口、设备中心、消息中心和个人服务。
+AI Agent 将自然语言转换为标准 JSON，再由前端执行设备动作或生成自动化脚本。
 
-![我的页面截图](PHOTOS/我的.png)
+![智能助手流程](report_assets/assistant_flow.png)
 
 ## 系统架构
 
@@ -102,7 +83,7 @@ flowchart TD
 
 ## 2.5D 点位绑定原理
 
-房间图作为底图展示，设备点位由 `POINTS` 表维护。每个点位包含设备 ID、房间 ID、名称、类型、动作类型和相对图片的百分比坐标：
+房间图作为底图展示，设备点位由 `POINTS` 表维护，每个点位包含：
 
 ```ts
 {
@@ -116,7 +97,7 @@ flowchart TD
 }
 ```
 
-渲染时，`dotLeft()` 和 `dotTop()` 会把 `x / y` 转换为 ArkUI 的百分比定位，并减去小白点自身半径偏移，让点位中心对准设备。这样房间图片在手机、平板等不同尺寸下等比例缩放时，小白点仍然能准确贴合空调、电视、灯具等位置。
+其中 `x` 和 `y` 是相对于房间图片的百分比坐标。渲染时通过 `dotLeft()` 和 `dotTop()` 转换为 ArkUI 的百分比定位，并减去小白点自身半径偏移，让点位中心对准设备。
 
 ```mermaid
 flowchart LR
@@ -125,6 +106,8 @@ flowchart LR
     C --> D["按 x/y 百分比定位 PointDot"]
     D --> E["点击小白点打开设备详情"]
 ```
+
+这种方式可以保证房间图片在不同手机、平板尺寸下等比例缩放时，设备点位仍然准确贴合空调、电视、灯具等位置。
 
 ## 用户数据同步流程
 
@@ -225,8 +208,7 @@ SmartHome/
   entry/src/main/ets/smart/                # AI Agent 模型与解析逻辑
   backend/src/main/java/com/smarthome/api/ # Spring Boot 后端
   remote_edit/                             # OpenHarmony 硬件侧代码
-  PHOTOS/                                  # 项目真实页面截图
-  report_assets/                           # 报告图示与辅助素材
+  report_assets/                           # 项目展示截图与图示
 ```
 
 ## 运行方式
