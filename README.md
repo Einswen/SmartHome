@@ -256,3 +256,12 @@ mvn spring-boot:run
 ## 项目总结
 
 SmartHome 将智能家居的“设备控制”做成了“空间交互”：用户可以在 2.5D 家庭视图中直接看到设备、选择设备、控制设备。同时，项目通过后端实现账号级数据同步，通过 AI Agent 实现自然语言控制，通过华为云 IoTDA 实现真实硬件下发，形成了一条从界面、数据、智能到硬件的完整闭环。
+
+
+## License
+
+This project is available for personal, educational, and non-commercial use only.
+
+Commercial use is prohibited without explicit written permission from the project authors or maintainers.
+
+See the [LICENSE](./LICENSE) file for details.
