@@ -328,6 +328,9 @@ struct Index {
   @State livingAirOn: boolean = false;
   @State bedroomAirOn: boolean = false;
   @State cloudDebugMessage: string = '';
+  @State cloudTemperature: string = '25.4°C';
+  @State cloudHumidity: string = '59.3%';
+  @State cloudLuminance: string = '866lx';
   @State bedroomRobotOn: boolean = false;
   @State bedroomDoorLocked: boolean = true;
   @StorageLink('lumiAuthToken') authToken: string = '';
@@ -2024,6 +2027,9 @@ struct Index {
   }
 
   private temperatureSummaryForRoom(roomId: string): string {
+    if (this.cloudTemperature !== '--') {
+      return this.cloudTemperature;
+    }
     const points = this.pointsForRoom(roomId).filter((point: PointSpec) => point.action === 'temperature');
     let hasStaticTemperature = false;
     for (let i = 0; i < points.length; i++) {
@@ -2036,6 +2042,14 @@ struct Index {
       return `${this.sharedTemperatureForRoom(roomId)}°C`;
     }
     return '未配置';
+  }
+
+  private humiditySummary(): string {
+    return this.cloudHumidity;
+  }
+
+  private luminanceSummary(): string {
+    return this.cloudLuminance;
   }
 
   private lightingSummary(): string {
@@ -2083,7 +2097,9 @@ struct Index {
 
   private summaryChipsForRoom(roomId: string): SummaryChipSpec[] {
     return [
-      { id: 'climate', label: '温控', value: this.temperatureSummaryForRoom(roomId), badge: '温' },
+      { id: 'climate', label: '温度', value: this.temperatureSummaryForRoom(roomId), badge: '温' },
+      { id: 'humidity', label: '湿度', value: this.humiditySummary(), badge: '湿' },
+      { id: 'luminance', label: '光亮度', value: this.luminanceSummary(), badge: '光' },
       { id: 'lights', label: '灯光', value: this.lightingSummaryForRoom(roomId), badge: '灯' },
       { id: 'security', label: '安防', value: this.securitySummaryForRoom(roomId), badge: '安' },
       { id: 'devices', label: '设备', value: this.devicesSummaryForRoom(roomId), badge: '设' }
@@ -2152,6 +2168,12 @@ struct Index {
     }
     if (chipId === 'lights') {
       return this.tintColor('照明');
+    }
+    if (chipId === 'humidity') {
+      return '#56C3D8';
+    }
+    if (chipId === 'luminance') {
+      return '#E5B84B';
     }
     if (chipId === 'security') {
       return this.tintColor('安防');
